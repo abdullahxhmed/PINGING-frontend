@@ -34,6 +34,8 @@ export interface ContactLink {
 export type ResourceType = 'VEHICLE' | 'PROPERTY' | 'EQUIPMENT' | 'OTHER';
 
 export interface VehicleDetails {
+  registrationNum?: string;
+  vehicleColour?: string;
   registrationLast4?: string;
   color?: string;
 }

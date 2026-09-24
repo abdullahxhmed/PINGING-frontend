@@ -319,20 +319,14 @@ export const PublicContactPage: React.FC = () => {
                       <span className="font-semibold text-ink">{contact.type}</span>
                     </>
                   )}
-                  {contact.vehicleDetails?.registrationLast4 && (
+                  {(contact.vehicleDetails?.vehicleColour || contact.vehicleDetails?.color) && (
                     <>
                       <span className="text-border-strong">•</span>
-                      <span>PLATE •••• {contact.vehicleDetails.registrationLast4}</span>
-                    </>
-                  )}
-                  {contact.vehicleDetails?.color && (
-                    <>
-                      <span className="text-border-strong">•</span>
-                      <span>COLOUR {contact.vehicleDetails.color}</span>
+                      <span>COLOUR {contact.vehicleDetails?.vehicleColour || contact.vehicleDetails?.color}</span>
                     </>
                   )}
                   <span className="text-border-strong">•</span>
-                  <span>PRIVATE PROXIED ACCESS</span>
+                  {/* <span>PRIVATE PROXIED ACCESS</span> */}
                 </div>
               </div>
             </section>

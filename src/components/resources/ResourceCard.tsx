@@ -69,14 +69,14 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
                     <span>{resource.type}</span>
                   </span>
                 )}
-                {resource.vehicleDetails?.registrationLast4 && (
+                {(resource.vehicleDetails?.registrationNum || resource.vehicleDetails?.registrationLast4) && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-ink text-[11px]">
-                    <span className="font-mono">•••• {resource.vehicleDetails.registrationLast4}</span>
+                    <span className="font-mono">•••• {resource.vehicleDetails?.registrationNum || resource.vehicleDetails?.registrationLast4}</span>
                   </span>
                 )}
-                {resource.vehicleDetails?.color && (
+                {(resource.vehicleDetails?.vehicleColour || resource.vehicleDetails?.color) && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-muted text-[11px]">
-                    <span>{resource.vehicleDetails.color}</span>
+                    <span>{resource.vehicleDetails?.vehicleColour || resource.vehicleDetails?.color}</span>
                   </span>
                 )}
                 <div className="flex items-center gap-1 text-muted text-[11px]">

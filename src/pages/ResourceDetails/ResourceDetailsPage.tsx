@@ -14,8 +14,6 @@ import {
   Building2,
   Wrench,
   Layers,
-  Hash,
-  Palette,
 } from 'lucide-react';
 
 export const ResourceDetailsPage: React.FC = () => {
@@ -37,8 +35,9 @@ export const ResourceDetailsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await resourcesApi.getById(id);
-      setResource(data);
+      const data: any = await resourcesApi.getById(id);
+      const resData = data?.resource || data?.data || data;
+      setResource(resData);
     } catch (err: any) {
       setError(err.message || 'Failed to load resource details');
     } finally {
@@ -114,101 +113,108 @@ export const ResourceDetailsPage: React.FC = () => {
 
       {/* Header bar */}
       {/* Resource Title Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="heading-lg text-ink">
-              {resource.name}
-            </h1>
-            {resource.type && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs font-semibold uppercase tracking-wider">
-                {resource.type === 'VEHICLE' && <Car className="h-3.5 w-3.5" />}
-                {resource.type === 'PROPERTY' && <Building2 className="h-3.5 w-3.5" />}
-                {resource.type === 'EQUIPMENT' && <Wrench className="h-3.5 w-3.5" />}
-                {resource.type === 'OTHER' && <Layers className="h-3.5 w-3.5" />}
-                <span>{resource.type}</span>
-              </span>
-            )}
-          </div>
-          {(() => {
-            const rawDate =
-              resource.createdAt ||
-              (resource as any).created_at ||
-              (resource as any).CreatedAt;
-            if (!rawDate) return null;
-            const date = new Date(rawDate);
-            if (isNaN(date.getTime())) return null;
-            return (
-              <div className="flex items-center gap-2 body-sm text-muted mt-2">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>
-                  Added on{' '}
-                  {date.toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
+      {(() => {
+        const rawDetails = resource.vehicleDetails;
+        const parsedDetails: any =
+          typeof rawDetails === 'string'
+            ? (() => {
+                try {
+                  return JSON.parse(rawDetails);
+                } catch {
+                  return {};
+                }
+              })()
+            : rawDetails || {};
+
+        const registration =
+          parsedDetails?.registrationNum ||
+          parsedDetails?.registrationNumber ||
+          parsedDetails?.regNum ||
+          parsedDetails?.registrationLast4 ||
+          (resource as any)?.registrationNum ||
+          (resource as any)?.registrationLast4;
+
+        const color =
+          parsedDetails?.vehicleColour ||
+          parsedDetails?.vehicleColor ||
+          parsedDetails?.colour ||
+          parsedDetails?.color ||
+          (resource as any)?.vehicleColour ||
+          (resource as any)?.color;
+
+        return (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border">
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="heading-lg text-ink">
+                  {resource.name}
+                </h1>
+                {resource.type && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs font-semibold uppercase tracking-wider">
+                    {resource.type === 'VEHICLE' && <Car className="h-3.5 w-3.5" />}
+                    {resource.type === 'PROPERTY' && <Building2 className="h-3.5 w-3.5" />}
+                    {resource.type === 'EQUIPMENT' && <Wrench className="h-3.5 w-3.5" />}
+                    {resource.type === 'OTHER' && <Layers className="h-3.5 w-3.5" />}
+                    <span>{resource.type}</span>
+                  </span>
+                )}
+                {registration && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs">
+                    <span className="text-muted">Plate:</span>
+                    <span className="font-mono font-medium">•••• {registration}</span>
+                  </span>
+                )}
+                {color && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs">
+                    <span className="text-muted">Colour:</span>
+                    <span className="font-medium">{color}</span>
+                  </span>
+                )}
               </div>
-            );
-          })()}
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="secondary"
-            onClick={() => setIsEditing(true)}
-            leftIcon={<Edit2 className="h-3.5 w-3.5" />}
-          >
-            Edit
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => setIsDeleteModalOpen(true)}
-            isLoading={isDeleting}
-            leftIcon={<Trash2 className="h-3.5 w-3.5" />}
-          >
-            Delete
-          </Button>
-        </div>
-      </div>
-
-      {/* Vehicle Details Card if applicable */}
-      {resource.type === 'VEHICLE' &&
-        (resource.vehicleDetails?.registrationLast4 || resource.vehicleDetails?.color) && (
-          <div className="mt-6 p-4 rounded-sm border border-border bg-surface">
-            <div className="flex items-center gap-2 mb-3">
-              <Car className="h-4 w-4 text-ink" />
-              <h2 className="label text-ink font-semibold tracking-wider">
-                Vehicle Specifications
-              </h2>
+              {(() => {
+                const rawDate =
+                  resource.createdAt ||
+                  (resource as any).created_at ||
+                  (resource as any).CreatedAt;
+                if (!rawDate) return null;
+                const date = new Date(rawDate);
+                if (isNaN(date.getTime())) return null;
+                return (
+                  <div className="flex items-center gap-2 body-sm text-muted mt-2">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>
+                      Added on{' '}
+                      {date.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {resource.vehicleDetails?.registrationLast4 && (
-                <div className="p-3 rounded-xs border border-border/70 bg-bg/50">
-                  <div className="flex items-center gap-1.5 text-muted text-xs label">
-                    <Hash className="h-3 w-3" />
-                    <span>Registration Last 4</span>
-                  </div>
-                  <div className="mt-1 font-mono text-base font-semibold text-ink tracking-widest">
-                    •••• {resource.vehicleDetails.registrationLast4}
-                  </div>
-                </div>
-              )}
-              {resource.vehicleDetails?.color && (
-                <div className="p-3 rounded-xs border border-border/70 bg-bg/50">
-                  <div className="flex items-center gap-1.5 text-muted text-xs label">
-                    <Palette className="h-3 w-3" />
-                    <span>Vehicle Colour</span>
-                  </div>
-                  <div className="mt-1 font-sans text-base font-medium text-ink">
-                    {resource.vehicleDetails.color}
-                  </div>
-                </div>
-              )}
+
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditing(true)}
+                leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => setIsDeleteModalOpen(true)}
+                isLoading={isDeleting}
+                leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+              >
+                Delete
+              </Button>
             </div>
           </div>
-        )}
+        );
+      })()}
 
       {/* Contact Link Panel */}
       <div className="mt-6">

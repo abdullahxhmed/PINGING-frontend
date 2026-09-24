@@ -44,8 +44,16 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
     if (resource) {
       setName(resource.name || '');
       setType(resource.type || 'VEHICLE');
-      setRegistrationLast4(resource.vehicleDetails?.registrationLast4 || '');
-      setColor(resource.vehicleDetails?.color || '');
+      setRegistrationLast4(
+        resource.vehicleDetails?.registrationNum ||
+        resource.vehicleDetails?.registrationLast4 ||
+        ''
+      );
+      setColor(
+        resource.vehicleDetails?.vehicleColour ||
+        resource.vehicleDetails?.color ||
+        ''
+      );
       setError(null);
       setIsConfirmingDelete(false);
     }
@@ -69,12 +77,12 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
     };
 
     if (type === 'VEHICLE') {
-      const trimmedLast4 = registrationLast4.trim();
+      const trimmedReg = registrationLast4.trim();
       const trimmedColor = color.trim();
-      if (trimmedLast4 || trimmedColor) {
+      if (trimmedReg || trimmedColor) {
         payload.vehicleDetails = {
-          ...(trimmedLast4 ? { registrationLast4: trimmedLast4 } : {}),
-          ...(trimmedColor ? { color: trimmedColor } : {}),
+          ...(trimmedReg ? { registrationNum: trimmedReg } : {}),
+          ...(trimmedColor ? { vehicleColour: trimmedColor } : {}),
         };
       }
     }

@@ -98,18 +98,52 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
                   <span>{resource.type}</span>
                 </span>
               )}
-              {resource.vehicleDetails?.registrationLast4 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-ink">
-                  <span>Plate:</span>
-                  <span className="font-mono font-medium">•••• {resource.vehicleDetails.registrationLast4}</span>
-                </span>
-              )}
-              {resource.vehicleDetails?.color && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-muted">
-                  <span>Colour:</span>
-                  <span className="text-ink font-medium">{resource.vehicleDetails.color}</span>
-                </span>
-              )}
+              {(() => {
+                const rawDetails = resource.vehicleDetails;
+                const parsedDetails: any =
+                  typeof rawDetails === 'string'
+                    ? (() => {
+                        try {
+                          return JSON.parse(rawDetails);
+                        } catch {
+                          return {};
+                        }
+                      })()
+                    : rawDetails || {};
+
+                const reg =
+                  parsedDetails?.registrationNum ||
+                  parsedDetails?.registrationNumber ||
+                  parsedDetails?.regNum ||
+                  parsedDetails?.registrationLast4 ||
+                  (resource as any)?.registrationNum ||
+                  (resource as any)?.registrationLast4;
+
+                const clr =
+                  parsedDetails?.vehicleColour ||
+                  parsedDetails?.vehicleColor ||
+                  parsedDetails?.colour ||
+                  parsedDetails?.color ||
+                  (resource as any)?.vehicleColour ||
+                  (resource as any)?.color;
+
+                return (
+                  <>
+                    {reg && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-ink">
+                        <span>Plate:</span>
+                        <span className="font-mono font-medium">•••• {reg}</span>
+                      </span>
+                    )}
+                    {clr && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-muted">
+                        <span>Colour:</span>
+                        <span className="text-ink font-medium">{clr}</span>
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
               {(() => {
                 const rawDate =
                   resource.createdAt ||

@@ -67,12 +67,12 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
     };
 
     if (type === 'VEHICLE') {
-      const trimmedLast4 = registrationLast4.trim();
+      const trimmedReg = registrationLast4.trim();
       const trimmedColor = color.trim();
-      if (trimmedLast4 || trimmedColor) {
+      if (trimmedReg || trimmedColor) {
         payload.vehicleDetails = {
-          ...(trimmedLast4 ? { registrationLast4: trimmedLast4 } : {}),
-          ...(trimmedColor ? { color: trimmedColor } : {}),
+          ...(trimmedReg ? { registrationNum: trimmedReg } : {}),
+          ...(trimmedColor ? { vehicleColour: trimmedColor } : {}),
         };
       }
     }
