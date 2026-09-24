@@ -10,12 +10,20 @@ export interface PingInLogoProps {
 }
 
 export const PingInLogo: React.FC<PingInLogoProps> = ({
-  height = 32,
-  width = 136,
+  height,
+  width,
   scale = 1,
   className = '',
   fallbackText = false,
 }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Maintain full 2x Retina sharpness while preventing 3x/4x overdraw
+  const customDpr =
+    typeof window !== 'undefined'
+      ? Math.min(Math.max(window.devicePixelRatio || 1, 1), 2)
+      : 1;
+
   const { rive, RiveComponent } = useRive(
     {
       src: '/pingin.riv',
@@ -27,10 +35,7 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
     },
     {
       useDevicePixelRatio: true,
-      customDevicePixelRatio:
-        typeof window !== 'undefined'
-          ? Math.max(window.devicePixelRatio || 1, 2)
-          : 2,
+      customDevicePixelRatio: customDpr,
     }
   );
 
@@ -40,13 +45,27 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
     }
   }, [rive, width, height]);
 
+  // Dynamically adapt canvas when container dimensions change responsively
+  useEffect(() => {
+    if (!rive || !containerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      rive.resizeDrawingSurfaceToCanvas();
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [rive]);
+
+  const hasCustomSizeClass = /(?:^|\s)(?:w-|h-)/.test(className);
+  const inlineStyle: React.CSSProperties = {
+    ...(width !== undefined ? { width: `${width}px` } : !hasCustomSizeClass ? { width: '136px' } : {}),
+    ...(height !== undefined ? { height: `${height}px` } : !hasCustomSizeClass ? { height: '32px' } : {}),
+  };
+
   return (
     <div
-      style={{
-        width: `${width}px`,
-        height: `${height}px`,
-      }}
-      className={`relative inline-flex items-center shrink-0 select-none overflow-visible ${className}`}
+      ref={containerRef}
+      style={inlineStyle}
+      className={`relative inline-flex items-center shrink-0 select-none overflow-visible will-change-transform ${className}`}
       aria-label="PINGIN"
     >
       <div

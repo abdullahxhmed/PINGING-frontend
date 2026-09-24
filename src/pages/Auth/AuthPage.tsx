@@ -632,7 +632,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       <footer>
         <Divider className="mb-5" />
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] font-sans text-muted tracking-wider uppercase">
-          <span>PINGIN IDENTITY</span>
+          {/* <span>PINGIN IDENTITY</span> */}
           <span>PRIVACY FIRST COMMUNICATION</span>
         </div>
       </footer>

@@ -92,8 +92,15 @@
 
 html {
   min-height: 100%;
-  scrollbar-gutter: stable;
-  overflow-y: scroll;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Confine stable scrollbar gutter to desktop pointer devices to avoid breaking mobile touch inertial scrolling */
+@media (hover: hover) and (pointer: fine) {
+  html {
+    scrollbar-gutter: stable;
+    overflow-y: scroll;
+  }
 }
 
 body,
@@ -101,7 +108,7 @@ body,
   min-height: 100%;
 }
 
-/* Custom sleek scrollbar matching PingIn palette to prevent jarring OS scrollbars */
+/* Custom sleek scrollbar matching PingIn palette to prevent jarring OS scrollbars on desktop */
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -123,6 +130,7 @@ body,
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) var(--color-bg);
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -131,6 +139,9 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
 }
 
 button,
