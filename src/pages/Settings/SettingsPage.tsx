@@ -253,7 +253,7 @@ export const SettingsPage: React.FC = () => {
                 <span className="text-muted text-[10px] tracking-widest uppercase block font-medium">
                   Contact Method
                 </span>
-                <span className="font-medium text-ink text-sm">Private voice relay</span>
+                <span className="font-medium text-ink text-sm">Phone call</span>
               </div>
 
               <div className="p-4 border border-border bg-surface/30 rounded-sm space-y-1">
@@ -284,7 +284,7 @@ export const SettingsPage: React.FC = () => {
             <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
               <div>
                 <span className="font-sans text-[10px] font-semibold tracking-widest text-muted uppercase">
-                  Privacy Architecture
+                  Privacy
                 </span>
                 <h3 className="font-display font-medium text-xl text-ink uppercase tracking-tight mt-0.5">
                   How Private Calling Works
@@ -322,10 +322,10 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div className="space-y-0.5">
                   <div className="font-semibold text-ink uppercase tracking-wider text-[11px]">
-                    2. Private Voice Bridge
+                    2. Connecting the Call
                   </div>
                   <p className="text-muted leading-relaxed">
-                    When they request contact, PingIn connects both phones through a masked relay bridge.
+                    When someone calls, PingIn connects both phones without revealing your personal number.
                   </p>
                 </div>
               </div>
@@ -336,10 +336,10 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div className="space-y-0.5">
                   <div className="font-semibold text-ink uppercase tracking-wider text-[11px]">
-                    3. Zero Number Exposure
+                    3. Numbers Stay Hidden
                   </div>
                   <p className="text-muted leading-relaxed">
-                    You talk in real time, but neither you nor the caller ever sees each other’s personal phone number.
+                    You talk in real time, but neither person ever sees the other’s phone number.
                   </p>
                 </div>
               </div>

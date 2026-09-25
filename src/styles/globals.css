@@ -467,6 +467,99 @@ select {
   animation: editorial-fall 400ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
 }
 
+/* Calling UI & Audio Equalizer Animations */
+@keyframes phone-ring-wobble {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  5% { transform: rotate(-14deg) scale(1.08); }
+  10% { transform: rotate(14deg) scale(1.08); }
+  15% { transform: rotate(-10deg) scale(1.05); }
+  20% { transform: rotate(10deg) scale(1.05); }
+  25% { transform: rotate(-4deg); }
+  30% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(0deg) scale(1); }
+}
+
+.animate-ring-wobble {
+  animation: phone-ring-wobble 2.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes sonar-ripple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.animate-sonar-1 {
+  animation: sonar-ripple 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.animate-sonar-2 {
+  animation: sonar-ripple 2s cubic-bezier(0.16, 1, 0.3, 1) infinite 0.75s;
+}
+
+@keyframes status-beacon {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.3;
+  }
+}
+
+.animate-status-beacon {
+  animation: status-beacon 1.8s ease-in-out infinite;
+}
+
+@keyframes audio-wave {
+  0%, 100% {
+    height: 3px;
+    opacity: 0.45;
+  }
+  50% {
+    height: 18px;
+    opacity: 1;
+  }
+}
+
+.animate-wave-1 {
+  animation: audio-wave 0.75s ease-in-out infinite 0.05s;
+}
+
+.animate-wave-2 {
+  animation: audio-wave 0.85s ease-in-out infinite 0.25s;
+}
+
+.animate-wave-3 {
+  animation: audio-wave 0.65s ease-in-out infinite 0.4s;
+}
+
+.animate-wave-4 {
+  animation: audio-wave 0.95s ease-in-out infinite 0.15s;
+}
+
+.animate-wave-5 {
+  animation: audio-wave 0.7s ease-in-out infinite 0.35s;
+}
+
+.animate-wave-6 {
+  animation: audio-wave 0.8s ease-in-out infinite 0.5s;
+}
+
+.animate-wave-7 {
+  animation: audio-wave 0.9s ease-in-out infinite 0.1s;
+}
+
 /* Print Stylesheet for Printable QR Sticker */
 @media print {
   body * {

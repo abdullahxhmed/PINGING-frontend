@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { publicContactApi } from '../../lib/api';
-import type { PublicResourceContact } from '../../types/api';
+import { publicContactApi, communicationApi } from '../../lib/api';
+import type { PublicResourceContact, CallStatus } from '../../types/api';
 import { validatePhoneNumber, useToast } from '../../components/ui';
 import { PingInLogo } from '../../components/brand/PingInLogo';
+import { Loader2 } from 'lucide-react';
 
 type ContactMethod = 'call' | 'message' | 'alert';
 
@@ -60,17 +61,26 @@ const ALERT_OPTIONS: AlertOption[] = [
  */
 const ContextualConnectionLine: React.FC<{
   method: ContactMethod;
+  callStatus?: CallStatus | null;
   className?: string;
-}> = ({ method, className = '' }) => {
+}> = ({ method, callStatus, className = '' }) => {
   return (
-    <div className={`w-full select-none ${className}`} aria-label="Relay Connection Diagram">
+    <div className={`w-full select-none ${className}`} aria-label="Connection Status">
       <div className="flex items-center w-full">
         {/* Visitor endpoint */}
         <span className="w-2 h-2 rounded-full bg-ink shrink-0" />
 
         {/* Dynamic connection line */}
         {method === 'call' ? (
-          <span className="flex-1 h-[2px] bg-ink mx-2 transition-all duration-300" />
+          <span
+            className={`flex-1 h-[2px] mx-2 transition-all duration-300 ${
+              callStatus === 'CONNECTED'
+                ? 'bg-accent shadow-xs'
+                : callStatus === 'INCOMING' || callStatus === 'INITIATED'
+                ? 'bg-ink animate-pulse'
+                : 'bg-ink'
+            }`}
+          />
         ) : (
           <div className="flex-1 flex items-center mx-2 transition-all duration-300">
             <span className="flex-1 h-[1px] bg-border-strong" />
@@ -82,7 +92,11 @@ const ContextualConnectionLine: React.FC<{
         <span
           className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
             method === 'call'
-              ? 'bg-accent ring-1 ring-ink/20'
+              ? callStatus === 'CONNECTED'
+                ? 'bg-accent ring-2 ring-ink'
+                : callStatus === 'MISSED'
+                ? 'bg-[#a33b32]'
+                : 'bg-accent ring-1 ring-ink/20'
               : method === 'alert'
               ? 'bg-[#a33b32]'
               : 'bg-ink'
@@ -91,19 +105,26 @@ const ContextualConnectionLine: React.FC<{
       </div>
 
       <div className="flex items-center justify-between text-[10px] font-sans font-medium tracking-widest uppercase text-muted mt-2">
-        <span>VISITOR</span>
+        <span>YOU</span>
         <span>OWNER</span>
       </div>
 
       <div className="text-center text-[10px] font-sans font-medium tracking-[0.2em] uppercase mt-1">
         {method === 'call' && (
-          <span className="text-ink font-semibold">● VOICE RELAY BRIDGE</span>
+          <span className="text-ink font-semibold">
+            {callStatus === 'INITIATED' && '● CALLING...'}
+            {callStatus === 'INCOMING' && '● RINGING...'}
+            {callStatus === 'CONNECTED' && '● CONNECTED'}
+            {callStatus === 'COMPLETED' && '● CALL ENDED'}
+            {callStatus === 'MISSED' && '● CALL MISSED'}
+            {!callStatus && '● PHONE CALL'}
+          </span>
         )}
         {method === 'message' && (
-          <span className="text-muted">DIRECT ANONYMOUS DISPATCH</span>
+          <span className="text-muted">TEXT MESSAGE</span>
         )}
         {method === 'alert' && (
-          <span className="text-[#a33b32] font-semibold">● PRIORITY SITUATION ALERT</span>
+          <span className="text-[#a33b32] font-semibold">● QUICK ALERT</span>
         )}
       </div>
     </div>
@@ -158,6 +179,100 @@ export const PublicContactPage: React.FC = () => {
     fetchContact();
   }, [token]);
 
+  // Active call session states
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [callStatus, setCallStatus] = useState<CallStatus | null>(null);
+  const [callDuration, setCallDuration] = useState<number>(0);
+
+  const handleResetCall = () => {
+    setActiveCallId(null);
+    setCallStatus(null);
+    setCallDuration(0);
+    setPhoneError(null);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Poll call status every ~2 seconds
+  useEffect(() => {
+    if (!activeCallId) return;
+
+    const terminalStatuses: CallStatus[] = ['COMPLETED', 'MISSED'];
+    if (callStatus && terminalStatuses.includes(callStatus)) {
+      return;
+    }
+
+    let isSubscribed = true;
+    let pollCount = 0;
+    const maxPolls = 75; // 75 * 2s = 150s (2.5 mins limit)
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const poll = async () => {
+      if (!isSubscribed) return;
+      pollCount++;
+
+      if (pollCount > maxPolls) {
+        stopPolling();
+        if (isSubscribed) {
+          setCallStatus((prev) => (prev === 'CONNECTED' ? 'COMPLETED' : 'MISSED'));
+        }
+        return;
+      }
+
+      try {
+        const res = await communicationApi.getCallStatus(activeCallId);
+        if (!isSubscribed) return;
+
+        const remoteStatus = (res?.data?.status || (res as any)?.status) as CallStatus | undefined;
+        if (remoteStatus) {
+          setCallStatus(remoteStatus);
+
+          if (terminalStatuses.includes(remoteStatus)) {
+            stopPolling();
+          }
+        }
+      } catch (err: any) {
+        if (!isSubscribed) return;
+        const statusCode = err?.statusCode || err?.status;
+        if (statusCode === 404 || statusCode === 500) {
+          console.warn('Call status polling halted:', statusCode);
+          stopPolling();
+          setCallStatus((prev) => (prev === 'CONNECTED' ? 'COMPLETED' : 'MISSED'));
+        }
+      }
+    };
+
+    intervalId = setInterval(poll, 2000);
+
+    return () => {
+      isSubscribed = false;
+      stopPolling();
+    };
+  }, [activeCallId, callStatus]);
+
+  // Connected duration timer
+  useEffect(() => {
+    if (callStatus !== 'CONNECTED') return;
+
+    const timer = setInterval(() => {
+      setCallDuration((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [callStatus]);
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let raw = e.target.value.replace(/\D/g, '');
     if (raw.length === 12 && raw.startsWith('91')) {
@@ -183,16 +298,34 @@ export const PublicContactPage: React.FC = () => {
     setPhoneError(null);
 
     try {
-      await publicContactApi.requestContact(token, visitorPhone.trim());
-      setSuccessMessage(
-        `Call bridge prepared. PingIn relay will initiate an inbound call to +91 ${visitorPhone} shortly to connect you privately.`
-      );
-      setIsSuccess(true);
-      toast.success('Call request initiated');
+      const res = await communicationApi.initiateCall(token, visitorPhone.trim());
+      const newCallId = res?.data?.callId || (res as any)?.callId;
+      const initialStatus = res?.data?.status || 'INITIATED';
+
+      if (!newCallId) {
+        throw new Error('Call initiation did not return a valid session ID');
+      }
+
+      setActiveCallId(newCallId);
+      setCallStatus(initialStatus);
+      setCallDuration(0);
+      toast.success('Call initiated');
     } catch (err: any) {
-      const msg = err.message || 'Failed to initiate private call';
-      setPhoneError(msg);
-      toast.error(msg);
+      const statusCode = err?.statusCode || err?.status || err?.data?.statusCode;
+      let userFriendlyMsg = 'Unable to initiate call. Please try again later.';
+
+      if (statusCode === 429) {
+        userFriendlyMsg = 'Please wait before trying again.';
+      } else if (statusCode === 400) {
+        userFriendlyMsg = 'Please enter a valid mobile number.';
+      } else if (statusCode === 404) {
+        userFriendlyMsg = 'Contact link or call not found.';
+      } else if (statusCode === 500) {
+        userFriendlyMsg = 'Unable to connect call. Please try again later.';
+      }
+
+      setPhoneError(userFriendlyMsg);
+      toast.error(userFriendlyMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -206,10 +339,10 @@ export const PublicContactPage: React.FC = () => {
     setTimeout(() => {
       setIsSubmitting(false);
       setSuccessMessage(
-        `Your message has been scheduled for private relay dispatch to the owner.`
+        `Your message has been sent to the owner.`
       );
       setIsSuccess(true);
-      toast.success('Message queued for owner');
+      toast.success('Message sent to owner');
     }, 400);
   };
 
@@ -222,7 +355,7 @@ export const PublicContactPage: React.FC = () => {
     setTimeout(() => {
       setIsSubmitting(false);
       setSuccessMessage(
-        `Alert "${alert.label}" queued. The owner will be notified immediately.`
+        `Alert "${alert.label}" sent. The owner has been notified.`
       );
       setIsSuccess(true);
       toast.success('Alert sent');
@@ -241,13 +374,13 @@ export const PublicContactPage: React.FC = () => {
           {/* Desktop header label */}
           <div className="hidden sm:inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
             <span className="w-1.5 h-1.5 rounded-full bg-accent ring-1 ring-ink/20" />
-            <span>PRIVATE CONTACT</span>
+            <span>CONTACT PRIVATELY</span>
           </div>
 
           {/* Mobile header label */}
           <div className="sm:hidden inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
             <span className="w-1.5 h-1.5 rounded-full bg-accent ring-1 ring-ink/20" />
-            <span>PRIVATE CONTACT</span>
+            <span>CONTACT PRIVATELY</span>
           </div>
         </div>
         <div className="h-[1px] bg-border w-full" />
@@ -340,7 +473,7 @@ export const PublicContactPage: React.FC = () => {
                   CONTACT OWNER
                 </h2>
                 <span className="text-[10px] font-sans tracking-wider uppercase text-muted">
-                  SELECT COMMUNICATION METHOD
+                  HOW WOULD YOU LIKE TO REACH THEM?
                 </span>
               </div>
 
@@ -349,10 +482,10 @@ export const PublicContactPage: React.FC = () => {
                 <div className="p-6 bg-surface border border-border rounded-sm space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-border">
                     <span className="text-xs font-sans font-semibold tracking-widest uppercase text-ink">
-                      ACTION DISPATCHED
+                      MESSAGE SENT
                     </span>
                     <span className="text-xs font-sans font-semibold text-accent bg-surface-dark px-2 py-0.5 rounded-xs">
-                      ACTIVE RELAY
+                      DELIVERED
                     </span>
                   </div>
                   <p className="text-sm font-sans text-ink leading-relaxed">
@@ -369,7 +502,7 @@ export const PublicContactPage: React.FC = () => {
                       }}
                       className="text-xs font-sans font-medium tracking-wider uppercase text-ink underline hover:text-muted cursor-pointer transition-colors"
                     >
-                      TAKE ANOTHER ACTION →
+                      SEND ANOTHER NOTE →
                     </button>
                   </div>
                 </div>
@@ -395,15 +528,12 @@ export const PublicContactPage: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-display font-medium text-base sm:text-lg text-ink uppercase tracking-wide">
-                              PRIVATE CALL
+                              PHONE CALL
                             </span>
                             <span className="text-[10px] font-sans px-1.5 py-0.5 bg-accent/20 text-ink rounded-xs font-semibold">
                               DIRECT
                             </span>
                           </div>
-                          <span className="text-xs font-sans text-muted block mt-0.5">
-                            Connect via two-way voice bridge without revealing phone numbers
-                          </span>
                         </div>
                       </div>
                       <span className="text-base text-ink font-sans ml-3">
@@ -414,66 +544,192 @@ export const PublicContactPage: React.FC = () => {
                     {/* Expanded Controls for Private Call */}
                     {selectedMethod === 'call' && (
                       <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border">
-                        <form onSubmit={handleCallSubmit} className="space-y-4 max-w-lg mt-3">
-                          <div>
-                            <label
-                              htmlFor="phone-input"
-                              className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-2"
-                            >
-                              YOUR MOBILE NUMBER
-                            </label>
-
-                            <div
-                              className={`w-full h-12 border rounded-sm bg-bg flex items-center px-4 transition-colors ${
-                                phoneError
-                                  ? 'border-danger'
-                                  : phoneFocused
-                                  ? 'border-ink bg-white'
-                                  : 'border-border hover:border-border-strong'
-                              }`}
-                            >
-                              <span className="font-sans text-base font-normal text-muted select-none whitespace-nowrap">
-                                +91
-                              </span>
-                              <span
-                                className="h-4 w-[1px] bg-border mx-3.5 shrink-0"
-                                aria-hidden="true"
-                              />
-                              <input
-                                id="phone-input"
-                                type="tel"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                maxLength={10}
-                                value={visitorPhone}
-                                onChange={handlePhoneChange}
-                                onFocus={() => setPhoneFocused(true)}
-                                onBlur={() => setPhoneFocused(false)}
-                                placeholder="10-digit mobile number"
-                                className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0"
-                                disabled={isSubmitting}
-                                autoFocus
-                              />
+                        {activeCallId ? (
+                          /* Minimal Single-Line Call Bar */
+                          <div className="mt-3 px-4 py-3 sm:px-5 sm:py-3.5 bg-surface-dark text-white rounded-sm border border-black shadow-xs flex items-center justify-between gap-3 text-xs font-sans tracking-wide animate-in fade-in duration-200">
+                            {/* Left: Status with dynamic pulse / beacon dot */}
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              {callStatus === 'CONNECTED' ? (
+                                <>
+                                  <span className="w-2 h-2 rounded-full bg-accent animate-status-beacon shrink-0" />
+                                  <span className="font-medium text-white">Connected</span>
+                                  {/* Micro audio frequency wave */}
+                                  <div className="hidden sm:flex items-center gap-0.5 h-3 ml-0.5">
+                                    <span className="w-0.5 bg-accent/80 rounded-full animate-wave-1" />
+                                    <span className="w-0.5 bg-accent/80 rounded-full animate-wave-2" />
+                                    <span className="w-0.5 bg-accent/80 rounded-full animate-wave-3" />
+                                  </div>
+                                </>
+                              ) : callStatus === 'INCOMING' ? (
+                                <>
+                                  <span className="relative flex h-2 w-2 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+                                  </span>
+                                  <span className="font-medium text-white">Ringing...</span>
+                                </>
+                              ) : callStatus === 'INITIATED' ? (
+                                <>
+                                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0" />
+                                  <span className="font-medium text-white">Calling...</span>
+                                </>
+                              ) : callStatus === 'MISSED' ? (
+                                <>
+                                  <span className="w-2 h-2 rounded-full bg-danger shrink-0" />
+                                  <span className="font-medium text-white/90">Call missed</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="w-2 h-2 rounded-full bg-white/40 shrink-0" />
+                                  <span className="font-medium text-white/90">Call ended</span>
+                                </>
+                              )}
                             </div>
 
-                            {phoneError && (
-                              <p className="mt-2 text-xs font-sans text-danger">
-                                {phoneError}
-                              </p>
-                            )}
-                          </div>
+                            {/* Center: Context Label */}
+                            <div className="hidden sm:block text-white/50 text-xs">
+                              {callStatus === 'MISSED' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleResetCall();
+                                    setSelectedMethod('message');
+                                  }}
+                                  className="text-white/60 hover:text-accent underline cursor-pointer transition-colors"
+                                >
+                                  Send message instead
+                                </button>
+                              ) : (
+                                <span>Private call</span>
+                              )}
+                            </div>
 
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full sm:w-auto h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-colors text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-50"
-                          >
-                            <span>
-                              {isSubmitting ? 'CONNECTING...' : 'START PRIVATE CALL'}
-                            </span>
-                            <span className="text-base text-accent">→</span>
-                          </button>
-                        </form>
+                            {/* Right: Timer & Action */}
+                            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                              {callStatus === 'CONNECTED' && (
+                                <span className="font-mono text-accent text-xs font-medium tracking-wider">
+                                  {formatDuration(callDuration)}
+                                </span>
+                              )}
+                              {callStatus === 'COMPLETED' && (
+                                <span className="font-mono text-white/50 text-xs tracking-wider">
+                                  {formatDuration(callDuration)}
+                                </span>
+                              )}
+
+                              {(callStatus === 'COMPLETED' || callStatus === 'MISSED') ? (
+                                <div className="flex items-center gap-2.5">
+                                  {callStatus === 'MISSED' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleResetCall();
+                                        setSelectedMethod('message');
+                                      }}
+                                      className="sm:hidden text-white/70 hover:text-accent font-sans text-xs font-semibold tracking-wider uppercase transition-colors cursor-pointer"
+                                    >
+                                      MSG
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={handleResetCall}
+                                    className="text-accent hover:text-[#c7ef2f] font-sans text-xs font-semibold tracking-wider uppercase transition-colors cursor-pointer"
+                                  >
+                                    {callStatus === 'COMPLETED' ? 'CALL AGAIN' : 'RETRY'}
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleResetCall}
+                                  className="text-red-400 hover:text-red-300 font-sans text-xs font-semibold tracking-wider uppercase transition-colors cursor-pointer"
+                                >
+                                  END CALL
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleCallSubmit} className="space-y-4 max-w-lg mt-3">
+                            <div>
+                              <label
+                                htmlFor="phone-input"
+                                className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-2"
+                              >
+                                YOUR MOBILE NUMBER
+                              </label>
+
+                              <div
+                                className={`w-full h-12 border rounded-sm bg-bg flex items-center px-4 transition-colors ${
+                                  phoneError
+                                    ? 'border-danger'
+                                    : phoneFocused
+                                    ? 'border-ink bg-white'
+                                    : 'border-border hover:border-border-strong'
+                                }`}
+                              >
+                                <span className="font-sans text-base font-normal text-muted select-none whitespace-nowrap">
+                                  +91
+                                </span>
+                                <span
+                                  className="h-4 w-[1px] bg-border mx-3.5 shrink-0"
+                                  aria-hidden="true"
+                                />
+                                <input
+                                  id="phone-input"
+                                  type="tel"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={10}
+                                  value={visitorPhone}
+                                  onChange={handlePhoneChange}
+                                  onFocus={() => setPhoneFocused(true)}
+                                  onBlur={() => setPhoneFocused(false)}
+                                  placeholder="10-digit mobile number"
+                                  className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0"
+                                  disabled={isSubmitting}
+                                  autoFocus
+                                />
+                              </div>
+
+                              {phoneError && (
+                                <p className="mt-2 text-xs font-sans text-danger">
+                                  {phoneError}
+                                </p>
+                              )}
+
+                              <div className="mt-2.5 space-y-0.5">
+                                <p className="text-[11px] font-sans font-medium text-ink">
+                                  Why do we need your number?
+                                </p>
+                                <p className="text-[11px] font-sans text-muted leading-relaxed">
+                                  It's required to connect the call. The person you're contacting won't see it.
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={isSubmitting}
+                              className="w-full sm:w-auto h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-all text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-75"
+                            >
+                              <span>
+                                {isSubmitting ? 'CONNECTING...' : 'START PRIVATE CALL'}
+                              </span>
+                              {isSubmitting ? (
+                                <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
+                              ) : (
+                                <span className="text-base text-accent">→</span>
+                              )}
+                            </button>
+
+                            <p className="text-xs font-sans text-muted leading-relaxed pt-1">
+                              <span className="font-medium text-ink">Your number stays private.</span>{' '}
+                              We use it to connect your call and don't store it as part of your ParkPing call history.
+                            </p>
+                          </form>
+                        )}
                       </div>
                     )}
                   </div>
@@ -500,7 +756,7 @@ export const PublicContactPage: React.FC = () => {
                             MESSAGE
                           </span>
                           <span className="text-xs font-sans text-muted block mt-0.5">
-                            Send a short private note to the registered owner
+                            Send a quick note to the owner
                           </span>
                         </div>
                       </div>
@@ -537,7 +793,7 @@ export const PublicContactPage: React.FC = () => {
                             className="w-full sm:w-auto h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-colors text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-50"
                           >
                             <span>
-                              {isSubmitting ? 'DISPATCHING...' : 'DISPATCH MESSAGE'}
+                              {isSubmitting ? 'SENDING...' : 'SEND MESSAGE'}
                             </span>
                             <span className="text-base text-accent">→</span>
                           </button>
@@ -568,7 +824,7 @@ export const PublicContactPage: React.FC = () => {
                             QUICK ALERT
                           </span>
                           <span className="text-xs font-sans text-muted block mt-0.5">
-                            Select a categorized parking situation to notify the owner
+                            Quickly notify the owner about a parking issue
                           </span>
                         </div>
                       </div>
@@ -582,7 +838,7 @@ export const PublicContactPage: React.FC = () => {
                       <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border">
                         <form onSubmit={handleAlertSubmit} className="space-y-4 mt-3">
                           <label className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-2">
-                            SELECT SITUATION
+                            CHOOSE AN ISSUE
                           </label>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -618,7 +874,7 @@ export const PublicContactPage: React.FC = () => {
                               htmlFor="alert-note"
                               className="block text-[11px] font-sans font-medium tracking-wider uppercase text-muted mb-1.5"
                             >
-                              OPTIONAL PARKING BAY / REFERENCE
+                              ADD A NOTE (OPTIONAL)
                             </label>
                             <input
                               id="alert-note"
@@ -636,7 +892,7 @@ export const PublicContactPage: React.FC = () => {
                             className="w-full sm:w-auto h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-colors text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-50"
                           >
                             <span>
-                              {isSubmitting ? 'TRANSMITTING...' : 'SEND SITUATION ALERT'}
+                              {isSubmitting ? 'SENDING...' : 'SEND ALERT'}
                             </span>
                             <span className="text-base text-accent">→</span>
                           </button>
@@ -654,16 +910,16 @@ export const PublicContactPage: React.FC = () => {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center pt-2">
               {/* Contextual Connection Line */}
               <div className="max-w-sm">
-                <ContextualConnectionLine method={selectedMethod} />
+                <ContextualConnectionLine method={selectedMethod} callStatus={callStatus} />
               </div>
 
               {/* Privacy Architecture Notice */}
               <div className="space-y-1.5 md:border-l md:border-border md:pl-8">
                 <h3 className="text-xs font-sans font-semibold tracking-[0.16em] uppercase text-ink">
-                  PRIVATE BY DESIGN
+                  YOUR NUMBER STAYS PRIVATE
                 </h3>
                 <p className="text-sm font-sans text-muted leading-relaxed">
-                  Your phone number stays private. PingIn relays calls and messages without exposing contact credentials to either party.
+                  We use it to connect your call and don't store it as part of your ParkPing call history.
                 </p>
               </div>
             </section>
@@ -675,8 +931,8 @@ export const PublicContactPage: React.FC = () => {
       <footer className="max-w-4xl w-full mx-auto pt-6">
         <div className="h-[1px] bg-border w-full mb-5" />
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] font-sans text-muted tracking-wider uppercase">
-          <span>PINGIN • ANONYMOUS RELAY PROTOCOL</span>
-          <span>PRIVATE COMMUNICATION</span>
+          <span>PINGin</span>
+          {/* <span>PRIVATE COMMUNICATION</span> */}
         </div>
       </footer>
     </div>

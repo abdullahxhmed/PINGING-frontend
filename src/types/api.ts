@@ -88,3 +88,34 @@ export interface ApiErrorResponse {
   message?: string;
   error?: string;
 }
+
+export type CallStatus =
+  | 'INITIATED'
+  | 'INCOMING'
+  | 'CONNECTED'
+  | 'COMPLETED'
+  | 'MISSED'
+  | string;
+
+export interface InitiateCallResponse {
+  data: {
+    sessionId?: string;
+    callId: string;
+    status: CallStatus;
+  };
+}
+
+export interface CallStatusData {
+  id: string;
+  status: CallStatus;
+  createdAt?: string;
+  incomingAt?: string | null;
+  connectedAt?: string | null;
+  endedAt?: string | null;
+  durationSec?: number | null;
+}
+
+export interface CallStatusResponse {
+  data: CallStatusData;
+}
+

@@ -7,6 +7,8 @@ import type {
   Resource,
   UpdateResourcePayload,
   UserProfile,
+  InitiateCallResponse,
+  CallStatusResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -274,6 +276,26 @@ export const publicContactApi = {
       }
       throw err;
     }
+  },
+};
+
+export const communicationApi = {
+  /**
+   * Initiates a private proxied call to the owner.
+   * POST /api/communication/:token/call
+   */
+  initiateCall: async (token: string, phoneNumber: string): Promise<InitiateCallResponse> => {
+    return await api.post<InitiateCallResponse>(`/api/communication/${token}/call`, {
+      phoneNumber,
+    });
+  },
+
+  /**
+   * Polls the live status of a call session.
+   * GET /api/communication/calls/:callId
+   */
+  getCallStatus: async (callId: string): Promise<CallStatusResponse> => {
+    return await api.get<CallStatusResponse>(`/api/communication/calls/${callId}`);
   },
 };
 

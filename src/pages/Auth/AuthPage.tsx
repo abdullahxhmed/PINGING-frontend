@@ -143,11 +143,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Key to trigger staggered fall-into-place animation on initial load and step switch
-  const [stepKey, setStepKey] = useState(0);
-
   useEffect(() => {
-    setStepKey((prev) => prev + 1);
     setHasError(false);
     setErrorMessage(null);
   }, [step, mode, loginMethod]);
@@ -304,42 +300,43 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between p-6 sm:p-10 lg:p-14 select-none font-sans">
-      {/* Top Bar: Brand Identity & Metadata */}
-      <header>
-        <div className="flex items-center justify-between pb-5">
-          <Link to="/" className="flex items-center gap-2 group">
-            <PingInLogo height={32} width={136} />
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="label text-[10px] text-muted tracking-widest uppercase">
-              2026
-            </span>
+    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between p-6 sm:p-10 lg:p-12 select-none font-sans">
+      <div className="max-w-6xl mx-auto w-full flex flex-col justify-between flex-1">
+        {/* Top Bar: Brand Identity & Metadata */}
+        <header>
+          <div className="flex items-center justify-between pb-5">
+            <Link to="/" className="flex items-center gap-2 group">
+              <PingInLogo height={32} width={136} />
+            </Link>
+            <div className="flex items-center gap-3">
+              <span className="label text-[10px] text-muted tracking-widest uppercase">
+                2026
+              </span>
+            </div>
           </div>
-        </div>
-        <Divider />
-      </header>
+          <Divider />
+        </header>
 
-      {/* Main Asymmetric Two-Zone Canvas */}
-      <main className="my-auto py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
-        {/* Left Zone: Static Anchored Editorial Manifesto */}
-        <div className="lg:col-span-7 xl:col-span-7 space-y-6 lg:space-y-8 pr-0 lg:pr-8">
-          <h1 className="font-display font-medium text-4xl sm:text-6xl lg:text-7xl leading-[0.92] tracking-[-0.04em] text-ink uppercase">
-            PRIVATE  CONTACT<br />
-            FOR  PHYSICAL<br />
-            SPACES.
-          </h1>
-          <div className="pt-1 pb-1">
-            <ConnectionMotif className="w-24 sm:w-32" active />
+        {/* Main Balanced Two-Zone Canvas */}
+        <main className="my-auto py-10 lg:py-14 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+          {/* Left Zone: Static Anchored Brand Statement */}
+          <div className="lg:col-span-7 space-y-6 pr-0 lg:pr-6">
+            <h1 className="font-display font-medium text-4xl sm:text-6xl lg:text-7xl leading-[1.1] text-ink uppercase">
+              TAG <span className="inline-block ml-3 sm:ml-2">IT</span><br />
+              SCAN <span className="inline-block ml-3 sm:ml-2">IT</span><br />
+              PING <span className="inline-block ml-3 sm:ml-2">IT.</span>
+            </h1>
+            <div className="pt-1 pb-1">
+              <ConnectionMotif className="w-24 sm:w-32" active />
+            </div>
+            <p className="body text-muted max-w-md text-base sm:text-lg leading-relaxed">
+              A direct, private way to reach vehicle owners without sharing phone numbers.
+            </p>
           </div>
-          <p className="body text-muted max-w-lg text-base sm:text-lg leading-relaxed">
-            A private communication layer between people and the things they need to reach.
-          </p>
-        </div>
 
-        {/* Right Zone: Graceful Interaction Pane */}
-        <div className="lg:col-span-5 xl:col-span-5 w-full max-w-md mx-auto lg:mx-0">
-          <div key={stepKey}>
+          {/* Right Zone: Graceful Interaction Pane */}
+          <div className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto">
+            <div key={step}>
             {/* Header with Title and Dynamic Subtext */}
             <div className="mb-7 animate-fall">
               <div className="border-b-2 border-ink inline-block pb-1.5 transition-all duration-300">
@@ -636,6 +633,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
           <span>PRIVACY FIRST COMMUNICATION</span>
         </div>
       </footer>
+      </div>
     </div>
   );
 };
