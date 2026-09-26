@@ -131,6 +131,60 @@ const ContextualConnectionLine: React.FC<{
   );
 };
 
+/**
+ * Translates backend registration verification errors into clear, friendly guidance:
+ * - NotFoundError ("registrationNum not found"): 404
+ * - ForbiddenError ("Registration number does not match"): 403
+ */
+function translateRegistrationError(err: any): string {
+  const status = err?.statusCode || err?.status || err?.data?.statusCode || err?.data?.status;
+  const rawMessage = (
+    Array.isArray(err?.data?.message)
+      ? err.data.message.join('. ')
+      : err?.data?.message || err?.message || ''
+  ).toLowerCase();
+
+  // 403 Forbidden - Mismatched registration number
+  if (
+    status === 403 ||
+    rawMessage.includes('does not match') ||
+    rawMessage.includes('not match')
+  ) {
+    return 'Registration number does not match. Please check the vehicle plate and try again.';
+  }
+
+  // 404 Not Found - No registration number on file
+  if (
+    status === 404 ||
+    rawMessage.includes('not found') ||
+    rawMessage.includes('registrationnum not found')
+  ) {
+    return 'No registration number is on file for this vehicle. Please try again later.';
+  }
+
+  // 400 Bad Request
+  if (status === 400) {
+    return 'Please enter a valid 4-digit registration number.';
+  }
+
+  // 429 Rate limited
+  if (status === 429 || rawMessage.includes('too many') || rawMessage.includes('rate limit')) {
+    return 'Too many verification attempts. Please wait a moment before trying again.';
+  }
+
+  // Generic message if backend sent a human string
+  if (
+    err?.data?.message &&
+    typeof err.data.message === 'string' &&
+    !rawMessage.includes('internal') &&
+    !rawMessage.includes('unauthorized')
+  ) {
+    return err.data.message;
+  }
+
+  return 'Unable to verify registration number. Please try again.';
+}
+
 export const PublicContactPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
 
@@ -326,17 +380,12 @@ export const PublicContactPage: React.FC = () => {
           phoneInputRef.current?.focus();
         }, 120);
       } else {
-        const msg = res?.message || 'Incorrect registration number. Please check and try again.';
+        const msg = translateRegistrationError({ message: res?.message });
         setRegError(msg);
         toast.error(msg);
       }
     } catch (err: any) {
-      const msg =
-        err?.data?.message ||
-        err?.message ||
-        (err?.statusCode === 400 || err?.status === 400
-          ? 'Incorrect registration number. Please check and try again.'
-          : 'Unable to verify registration number. Please try again.');
+      const msg = translateRegistrationError(err);
       setRegError(msg);
       toast.error(msg);
     } finally {
