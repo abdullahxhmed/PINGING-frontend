@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 import { authApi } from '../../lib/api';
@@ -17,6 +17,60 @@ import { PingInLogo } from '../../components/brand/PingInLogo';
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
 }
+
+const OTP_COOLDOWN_SECONDS = 60;
+const OTP_DELAY_MS = 2000;
+const OTP_LOCKOUT_MS = 60 * 60 * 1000; // 1 hour lockout after 3 attempts
+const MAX_OTP_ATTEMPTS = 3;
+
+interface OtpRateRecord {
+  attempts: number;
+  delayUntil: number;
+  cooldownEnd: number;
+  lockoutEnd: number;
+}
+
+function getOtpStorageKey(mobile: string): string {
+  const clean = mobile.replace(/\D/g, '');
+  return `pingin_otp_rate_${clean}`;
+}
+
+function getStoredOtpState(mobile: string): OtpRateRecord | null {
+  if (!mobile) return null;
+  try {
+    const raw = localStorage.getItem(getOtpStorageKey(mobile));
+    if (!raw) return null;
+    const data: OtpRateRecord = JSON.parse(raw);
+    const now = Date.now();
+    // If 1-hour lockout has expired, reset state
+    if (data.lockoutEnd && now >= data.lockoutEnd) {
+      localStorage.removeItem(getOtpStorageKey(mobile));
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredOtpState(mobile: string, state: OtpRateRecord): void {
+  if (!mobile) return;
+  try {
+    localStorage.setItem(getOtpStorageKey(mobile), JSON.stringify(state));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function clearStoredOtpState(mobile: string): void {
+  if (!mobile) return;
+  try {
+    localStorage.removeItem(getOtpStorageKey(mobile));
+  } catch {
+    // Ignore
+  }
+}
+
 
 /**
  * Translates backend API errors into clear, human-readable user guidance.
@@ -87,7 +141,7 @@ function translateAuthError(
 
   // 429 Rate Limited
   if (status === 429 || rawMessage.includes('too many') || rawMessage.includes('rate limit')) {
-    return 'Too many attempts. Please wait a moment before trying again.';
+    return 'Maximum attempts reached. Please request after 1 hr.';
   }
 
   // Generic fallback if server sent a human string
@@ -138,6 +192,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [isDelayingTimer, setIsDelayingTimer] = useState(false);
+  const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -149,6 +207,95 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   }, [step, mode, loginMethod]);
 
   const from = (location.state as any)?.from?.pathname || '/dashboard';
+
+  /**
+   * Starts the 60-second cooldown timer exactly 2 seconds AFTER receiving 200 OK.
+   * This grace delay avoids race conditions with server rate-limiting windows.
+   */
+  const triggerOtpCooldown = (phone: string) => {
+    const cleanPhone = phone.trim();
+    const existing = getStoredOtpState(cleanPhone);
+    const currentAttempts = (existing?.attempts || 0) + 1;
+    const now = Date.now();
+    const delayUntil = now + OTP_DELAY_MS;
+    const cooldownEnd = delayUntil + OTP_COOLDOWN_SECONDS * 1000;
+    const lockoutEnd =
+      currentAttempts >= MAX_OTP_ATTEMPTS
+        ? now + OTP_LOCKOUT_MS
+        : existing?.lockoutEnd || 0;
+
+    const record: OtpRateRecord = {
+      attempts: currentAttempts,
+      delayUntil,
+      cooldownEnd,
+      lockoutEnd,
+    };
+    saveStoredOtpState(cleanPhone, record);
+
+    setOtpAttempts(currentAttempts);
+    setIsDelayingTimer(true);
+    setOtpCooldown(OTP_COOLDOWN_SECONDS);
+
+    if (delayTimeoutRef.current) {
+      clearTimeout(delayTimeoutRef.current);
+    }
+
+    delayTimeoutRef.current = setTimeout(() => {
+      setIsDelayingTimer(false);
+    }, OTP_DELAY_MS);
+  };
+
+  /**
+   * Periodically synchronizes cooldown seconds and lockout state with real-time timestamps
+   */
+  useEffect(() => {
+    const updateCooldown = () => {
+      const cleanPhone = mobileNumber.trim();
+      if (!cleanPhone) {
+        setOtpCooldown(0);
+        setIsDelayingTimer(false);
+        setOtpAttempts(0);
+        return;
+      }
+
+      const stored = getStoredOtpState(cleanPhone);
+      if (!stored) {
+        setOtpCooldown(0);
+        setIsDelayingTimer(false);
+        setOtpAttempts(0);
+        return;
+      }
+
+      const now = Date.now();
+      setOtpAttempts(stored.attempts);
+
+      // Check if within 2-second grace delay after 200 response
+      if (now < stored.delayUntil) {
+        setIsDelayingTimer(true);
+        setOtpCooldown(OTP_COOLDOWN_SECONDS);
+        return;
+      }
+
+      setIsDelayingTimer(false);
+
+      if (now < stored.cooldownEnd) {
+        const remaining = Math.max(0, Math.ceil((stored.cooldownEnd - now) / 1000));
+        setOtpCooldown(remaining);
+      } else {
+        setOtpCooldown(0);
+      }
+    };
+
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 500);
+
+    return () => {
+      clearInterval(interval);
+      if (delayTimeoutRef.current) {
+        clearTimeout(delayTimeoutRef.current);
+      }
+    };
+  }, [mobileNumber]);
 
   // Switch between Login and Signup modes
   const switchToMode = (newMode: 'login' | 'signup') => {
@@ -203,6 +350,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       return;
     }
 
+    const cleanPhone = mobileNumber.trim();
+    const existingRate = getStoredOtpState(cleanPhone);
+    const now = Date.now();
+
+    // 1-hour lockout check for 3 attempts
+    if (
+      (mode === 'signup' || (mode === 'login' && loginMethod === 'otp')) &&
+      existingRate &&
+      existingRate.attempts >= MAX_OTP_ATTEMPTS &&
+      existingRate.lockoutEnd &&
+      now < existingRate.lockoutEnd
+    ) {
+      setHasError(true);
+      const msg = 'Maximum attempts reached. Please request after 1 hr.';
+      setErrorMessage(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // If cooldown is actively running for this phone number, navigate to OTP step without sending duplicate request
+    if (
+      (mode === 'signup' || (mode === 'login' && loginMethod === 'otp')) &&
+      existingRate &&
+      now < existingRate.cooldownEnd
+    ) {
+      setStep('OTP');
+      toast.info('Please enter the verification code already sent to your phone');
+      return;
+    }
+
     setIsLoading(true);
     setHasError(false);
     setErrorMessage(null);
@@ -210,18 +387,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
     try {
       if (mode === 'signup') {
         // Request OTP for signup
-        await authApi.requestSignupOtp(mobileNumber.trim());
-        toast.info(`Verification code sent to +91 ${mobileNumber}`);
+        await authApi.requestSignupOtp(cleanPhone);
+        toast.info(`Verification code sent to +91 ${cleanPhone}`);
+        triggerOtpCooldown(cleanPhone);
         setStep('OTP');
       } else if (loginMethod === 'password') {
         // Primary Login with Password -> hits /api/auth/login/verify
-        await loginWithPassword(mobileNumber.trim(), password);
+        await loginWithPassword(cleanPhone, password);
+        clearStoredOtpState(cleanPhone);
         toast.success('Signed in successfully');
         navigate(from, { replace: true });
       } else {
         // Secondary Login with OTP -> requests login OTP
-        await authApi.requestLoginOtp(mobileNumber.trim());
-        toast.info(`One-time passcode sent to +91 ${mobileNumber}`);
+        await authApi.requestLoginOtp(cleanPhone);
+        toast.info(`One-time passcode sent to +91 ${cleanPhone}`);
+        triggerOtpCooldown(cleanPhone);
         setStep('OTP');
       }
     } catch (err: any) {
@@ -263,10 +443,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       if (mode === 'signup') {
         // Verify signup OTP with name, mobile, otp, and password
         await signup(name.trim(), mobileNumber.trim(), otp.trim(), password);
+        clearStoredOtpState(mobileNumber.trim());
         toast.success('Account created successfully');
       } else {
         // Verify login OTP
         await loginWithOtp(mobileNumber.trim(), otp.trim());
+        clearStoredOtpState(mobileNumber.trim());
         toast.success('Signed in successfully');
       }
       navigate(from, { replace: true });
@@ -281,15 +463,31 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   };
 
   const handleResendOtp = async () => {
-    if (isLoading) return;
+    if (isLoading || isDelayingTimer || otpCooldown > 0) return;
+
+    const cleanPhone = mobileNumber.trim();
+    const existingRate = getStoredOtpState(cleanPhone);
+    const now = Date.now();
+
+    if (
+      existingRate &&
+      existingRate.attempts >= MAX_OTP_ATTEMPTS &&
+      existingRate.lockoutEnd &&
+      now < existingRate.lockoutEnd
+    ) {
+      toast.error('Maximum attempts reached. Please request after 1 hr.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (mode === 'signup') {
-        await authApi.requestSignupOtp(mobileNumber.trim());
+        await authApi.requestSignupOtp(cleanPhone);
       } else {
-        await authApi.requestLoginOtp(mobileNumber.trim());
+        await authApi.requestLoginOtp(cleanPhone);
       }
-      toast.info(`Verification code resent to +91 ${mobileNumber}`);
+      toast.info(`Verification code resent to +91 ${cleanPhone}`);
+      triggerOtpCooldown(cleanPhone);
     } catch (err: any) {
       const friendlyMessage = translateAuthError(err, mode === 'signup' ? 'signup' : 'login-otp');
       setErrorMessage(friendlyMessage);
@@ -322,9 +520,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
           {/* Left Zone: Static Anchored Brand Statement */}
           <div className="lg:col-span-7 space-y-6 pr-0 lg:pr-6">
             <h1 className="font-display font-medium text-4xl sm:text-6xl lg:text-7xl leading-[1.1] text-ink uppercase">
-              TAG <span className="inline-block ml-3 sm:ml-2">IT</span><br />
-              SCAN <span className="inline-block ml-3 sm:ml-2">IT</span><br />
-              PING <span className="inline-block ml-3 sm:ml-2">IT.</span>
+              TAG <span className="inline-block ml-2 sm:ml-1">IT</span><br />
+              SCAN <span className="inline-block ml-2 sm:ml-1">IT</span><br />
+              PING <span className="inline-block ml-2 sm:ml-1">IT.</span>
             </h1>
             <div className="pt-1 pb-1">
               <ConnectionMotif className="w-24 sm:w-32" active />
@@ -591,14 +789,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
                     Back to details
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={isLoading}
-                    className="text-xs font-semibold text-ink underline hover:text-muted cursor-pointer transition-colors"
-                  >
-                    Resend code
-                  </button>
+                  {otpAttempts >= MAX_OTP_ATTEMPTS && otpCooldown === 0 && !isDelayingTimer ? (
+                    <span className="text-xs font-medium text-muted select-none">
+                      Request after 1 hr
+                    </span>
+                  ) : isDelayingTimer || otpCooldown > 0 ? (
+                    <span className="text-xs text-muted select-none">
+                      Resend code in {otpCooldown > 0 ? `${otpCooldown}s` : '60s'}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={isLoading}
+                      className="text-xs font-semibold text-ink underline hover:text-muted cursor-pointer transition-colors"
+                    >
+                      Resend code
+                    </button>
+                  )}
                 </div>
               </form>
             )}
