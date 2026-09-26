@@ -503,7 +503,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         {/* Top Bar: Brand Identity & Metadata */}
         <header>
           <div className="flex items-center justify-between pb-5">
-            <Link to="/" className="flex items-center gap-2 group">
+            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0">
               <PingInLogo height={32} width={136} />
             </Link>
             <div className="flex items-center gap-3">

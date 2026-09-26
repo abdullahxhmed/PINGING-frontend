@@ -11,3 +11,4 @@ export * from './Toast';
 export * from './Badge';
 export * from './Card';
 export * from './ConnectionMotif';
+export * from './TargetCursor';

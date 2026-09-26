@@ -7,6 +7,7 @@ export interface PingInLogoProps {
   scale?: number;
   className?: string;
   fallbackText?: boolean;
+  alignFlushLeft?: boolean;
 }
 
 export const PingInLogo: React.FC<PingInLogoProps> = ({
@@ -15,6 +16,7 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
   scale = 1,
   className = '',
   fallbackText = false,
+  alignFlushLeft = true,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -70,7 +72,12 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
     >
       <div
         style={{
-          transform: scale !== 1 ? `scale(${scale})` : undefined,
+          transform: [
+            scale !== 1 ? `scale(${scale})` : '',
+            alignFlushLeft ? 'translateX(-7.91%)' : '',
+          ]
+            .filter(Boolean)
+            .join(' ') || undefined,
           transformOrigin: 'left center',
         }}
         className="w-full h-full flex items-center"

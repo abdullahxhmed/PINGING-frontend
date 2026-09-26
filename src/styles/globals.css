@@ -603,6 +603,41 @@ select {
   animation: ping-toast-bounce-exit 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes shadowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.16;
+  }
+  50% {
+    transform: scale(0.92);
+    opacity: 0.1;
+  }
+}
+
+@keyframes scanSweep {
+  0% {
+    top: 0%;
+    opacity: 0.3;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.3;
+  }
+}
+
 /* Print Stylesheet for Printable QR Sticker */
 @media print {
   body * {

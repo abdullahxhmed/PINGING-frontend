@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { HomePage } from '../pages/Home/HomePage';
 import { AuthPage } from '../pages/Auth/AuthPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { ResourceDetailsPage } from '../pages/ResourceDetails/ResourceDetailsPage';
@@ -7,7 +8,13 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
 
 export const router = createBrowserRouter([
-  // Unified Public Landing & Auth Routes with persistent canvas
+  // Public Home Page
+  {
+    path: '/',
+    element: <HomePage />,
+  },
+
+  // Auth Routes
   {
     element: <AuthPage />,
     children: [

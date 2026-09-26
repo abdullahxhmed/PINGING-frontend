@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PingIn Sticker - pingin.co.in</title>
+  <style>
+    @font-face {
+      font-family: 'Clash Display';
+      src: url('/fonts/ClashDisplay-Variable.woff2') format('woff2');
+      font-weight: 200 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: 'General Sans';
+      src: url('/fonts/GeneralSans-Variable.woff2') format('woff2');
+      font-weight: 200 900;
+      font-style: normal;
+      font-display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #EDECE6;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'General Sans', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px;
+      gap: 16px;
+    }
+
+    /* Exact 600 x 740 physical sticker template */
+    .sticker-plate {
+      width: 600px;
+      height: 740px;
+      background-color: #F4F3EE;
+      border: 1.5px solid #D8D5CC;
+      border-radius: 20px;
+      padding: 26px 36px 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      text-align: center;
+      color: #11110F;
+      position: relative;
+      box-shadow: 0 14px 34px -8px rgba(17, 17, 15, 0.16);
+    }
+
+    .top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 2px;
+    }
+
+    .logo-svg {
+      height: 26px;
+      width: auto;
+      color: #11110F;
+    }
+
+    .indicator-ring {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: #D7FF3F;
+      border: 1.4px solid #11110F;
+    }
+
+    .headline {
+      font-family: 'Clash Display', sans-serif;
+      font-weight: 800;
+      font-size: 36px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      word-spacing: 0.08em;
+      color: #11110F;
+      margin: 8px 0 10px;
+    }
+
+    .qr-container {
+      width: 400px;
+      height: 400px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #F4F3EE;
+    }
+
+    .qr-container svg, .qr-container canvas {
+      width: 100%;
+      height: 100%;
+      shape-rendering: crispEdges;
+    }
+
+    .url-text {
+      font-family: 'General Sans', sans-serif;
+      font-weight: 600;
+      font-size: 21px;
+      color: #6E6B62;
+      letter-spacing: 0.02em;
+      margin-top: 4px;
+    }
+
+    .divider-rule {
+      width: 150px;
+      height: 1.4px;
+      background-color: #D8D5CC;
+      margin: 8px auto;
+    }
+
+    .footer-text {
+      font-family: 'General Sans', sans-serif;
+      font-weight: 600;
+      font-size: 20px;
+      color: #6E6B62;
+      letter-spacing: 0.01em;
+      margin-bottom: 4px;
+    }
+
+    .download-btn {
+      padding: 14px 32px;
+      background: #151513;
+      color: #F5F4EE;
+      border: 1px solid #000;
+      border-radius: 4px;
+      font-family: 'General Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      transition: all 0.15s ease;
+    }
+
+    .download-btn:hover {
+      background: #000;
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="sticker-plate" id="sticker-plate">
+    <div class="top-bar">
+      <!-- Pure SVG vector PingIn Wordmark -->
+      <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 514 138" fill="currentColor">
+        <path d="M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z" fill="currentColor" fill-rule="evenodd"/>
+      </svg>
+      <span class="indicator-ring"></span>
+    </div>
+
+    <div class="headline">
+      NEED TO CONTACT<br>THE OWNER?<br>SCAN HERE
+    </div>
+
+    <div class="qr-container" id="qr-container"></div>
+
+    <div class="url-text">pingin.co.in</div>
+
+    <div class="divider-rule"></div>
+
+    <div class="footer-text">visit pingin.co.in to get yours!</div>
+  </div>
+
+  <button id="download-btn" class="download-btn">
+    <span>Download Ultra-HD PNG (2400 x 2960)</span>
+    <span style="color: #D7FF3F">↓</span>
+  </button>
+
+  <canvas id="hd-canvas" width="2400" height="2960" style="display: none;"></canvas>
+
+  <script type="module">
+    import React from 'https://esm.sh/react@19';
+    import ReactDOMClient from 'https://esm.sh/react-dom@19/client';
+    import { QRCodeSVG, QRCodeCanvas } from 'https://esm.sh/qrcode.react@4.2.0?deps=react@19';
+
+    const LOGO_SVG_PATH = "M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z";
+
+    // 1. Render display QR code
+    const displayContainer = document.getElementById('qr-container');
+    const root = ReactDOMClient.createRoot(displayContainer);
+    root.render(React.createElement(QRCodeSVG, {
+      value: 'https://pingin.co.in',
+      size: 400,
+      level: 'H',
+      fgColor: '#11110F',
+      bgColor: '#F4F3EE',
+      includeMargin: false
+    }));
+
+    // 2. Render HD 1600x1600 QR code canvas synchronously
+    const hdQrCanvas = document.createElement('canvas');
+    hdQrCanvas.width = 1600;
+    hdQrCanvas.height = 1600;
+    const hdQrRoot = ReactDOMClient.createRoot(hdQrCanvas);
+    hdQrRoot.render(React.createElement(QRCodeCanvas, {
+      value: 'https://pingin.co.in',
+      size: 1600,
+      level: 'H',
+      fgColor: '#11110F',
+      bgColor: '#F4F3EE',
+      includeMargin: false
+    }));
+
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.arcTo(x + width, y, x + width, y + radius, radius);
+      ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+      ctx.arcTo(x, y + height, x, y + height - radius, radius);
+      ctx.arcTo(x, y + radius, x, y, radius);
+      ctx.closePath();
+    }
+
+    async function buildUltraHdCanvas() {
+      await document.fonts.ready;
+      // Allow 100ms for QR canvas render
+      await new Promise(r => setTimeout(r, 120));
+
+      const canvas = document.getElementById('hd-canvas');
+      const ctx = canvas.getContext('2d');
+      const SCALE = 4;
+      const LOGICAL_WIDTH = 600;
+      const LOGICAL_HEIGHT = 740;
+      const QR_LOGICAL_SIZE = 400;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.scale(SCALE, SCALE);
+
+      // 1. Solid surface
+      ctx.fillStyle = '#F4F3EE';
+      ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+      // 2. Crisp outer boundary
+      drawRoundedRect(ctx, 4, 4, LOGICAL_WIDTH - 8, LOGICAL_HEIGHT - 8, 20);
+      ctx.strokeStyle = '#D8D5CC';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 3. Top Header: Logo SVG directly via Path2D
+      const logoPath = new Path2D(LOGO_SVG_PATH);
+      ctx.save();
+      ctx.translate(36, 24);
+      ctx.scale(26 / 138, 26 / 138);
+      ctx.fillStyle = '#11110F';
+      ctx.fill(logoPath, 'evenodd');
+      ctx.restore();
+
+      // Circular ring indicator
+      ctx.beginPath();
+      ctx.arc(LOGICAL_WIDTH - 42, 37, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#D7FF3F';
+      ctx.fill();
+      ctx.strokeStyle = '#11110F';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      // 4. Headline
+      ctx.fillStyle = '#11110F';
+      ctx.font = '800 36px "Clash Display", sans-serif';
+      ctx.textAlign = 'center';
+      if ('letterSpacing' in ctx) { ctx.letterSpacing = '1.2px'; }
+      if ('wordSpacing' in ctx) { ctx.wordSpacing = '3px'; }
+      ctx.fillText('NEED TO CONTACT', LOGICAL_WIDTH / 2, 94);
+      ctx.fillText('THE OWNER?', LOGICAL_WIDTH / 2, 137);
+      ctx.fillText('SCAN HERE', LOGICAL_WIDTH / 2, 180);
+      if ('letterSpacing' in ctx) { ctx.letterSpacing = '0px'; }
+      if ('wordSpacing' in ctx) { ctx.wordSpacing = '0px'; }
+
+      // 5. Scannable QR Code
+      const qrX = (LOGICAL_WIDTH - QR_LOGICAL_SIZE) / 2;
+      const qrY = 202;
+      const qrSvg = document.getElementById('qr-container')?.querySelector('svg');
+      if (qrSvg) {
+        const pathElements = qrSvg.querySelectorAll('path');
+        const pathEl = pathElements[pathElements.length - 1] || pathElements[0];
+        const viewBox = qrSvg.viewBox?.baseVal;
+        const vbWidth = (viewBox && viewBox.width > 0) ? viewBox.width : 29;
+        if (pathEl) {
+          const d = pathEl.getAttribute('d');
+          if (d) {
+            const qrPath = new Path2D(d);
+            ctx.save();
+            ctx.translate(qrX, qrY);
+            ctx.scale(QR_LOGICAL_SIZE / vbWidth, QR_LOGICAL_SIZE / vbWidth);
+            ctx.fillStyle = '#11110F';
+            ctx.fill(qrPath);
+            ctx.restore();
+          }
+        }
+      }
+
+      // 6. URL
+      ctx.fillStyle = '#6E6B62';
+      ctx.font = '600 21px "General Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('pingin.co.in', LOGICAL_WIDTH / 2, 638);
+
+      // 7. Divider
+      const ruleWidth = 150;
+      const ruleX = (LOGICAL_WIDTH - ruleWidth) / 2;
+      ctx.beginPath();
+      ctx.strokeStyle = '#D8D5CC';
+      ctx.lineWidth = 1.4;
+      ctx.moveTo(ruleX, 664);
+      ctx.lineTo(ruleX + ruleWidth, 664);
+      ctx.stroke();
+
+      // 8. Footer (enlarged for legibility)
+      ctx.fillStyle = '#6E6B62';
+      ctx.font = '600 20px "General Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('visit pingin.co.in to get yours!', LOGICAL_WIDTH / 2, 698);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      window.__STICKER_PNG_DATA__ = dataUrl;
+
+      // Send to local saver
+      try {
+        await fetch('http://127.0.0.1:3333/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pngData: dataUrl })
+        });
+      } catch (e) {}
+
+      return dataUrl;
+    }
+
+    const readyPromise = buildUltraHdCanvas();
+
+    function downloadPng() {
+      readyPromise.then((data) => {
+        const a = document.createElement('a');
+        a.download = 'PingIn-Sticker-pingin.co.in.png';
+        a.href = data;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+    }
+
+    document.getElementById('download-btn').addEventListener('click', downloadPng);
+
+    // If url param ?download=1 is passed, auto-trigger download immediately
+    if (window.location.search.includes('download=1')) {
+      readyPromise.then(downloadPng);
+    }
+  </script>
+</body>
+</html>

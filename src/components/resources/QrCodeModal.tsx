@@ -4,12 +4,15 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Check, Copy, ExternalLink, Download, Printer, Share2 } from 'lucide-react';
 import { getPublicBaseUrl, getPublicDomain } from '../../lib/api';
+import { PingInSvgLogo } from '../brand/PingInLogo';
 
 interface QrCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  token: string;
-  resourceName: string;
+  token?: string;
+  resourceName?: string;
+  customUrl?: string;
+  customDisplayUrl?: string;
 }
 
 function drawRoundedRect(
@@ -33,8 +36,10 @@ function drawRoundedRect(
 export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   isOpen,
   onClose,
-  token,
-  resourceName,
+  token = '',
+  resourceName = 'PingIn',
+  customUrl,
+  customDisplayUrl,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -49,11 +54,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   // Dynamically resolve environment / Vercel / custom live domain URL
   const baseUrl = getPublicBaseUrl();
-  const domain = getPublicDomain();
-  const publicUrl = `${baseUrl}/c/${token}`;
+  const domain = customDisplayUrl ? customDisplayUrl.replace(/^https?:\/\//, '') : getPublicDomain();
+  const publicUrl = customUrl || `${baseUrl}/c/${token}`;
 
-  const shortToken = token.length > 8 ? token.slice(0, 8) : token;
-  const displayUrl = `${domain}/c/${shortToken}`;
+  const shortToken = token ? (token.length > 8 ? token.slice(0, 8) : token) : 'qr';
+  const displayUrl = customDisplayUrl || (token ? `${domain}/c/${shortToken}` : domain);
   const footerText = `visit ${domain} to get yours!`;
 
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -172,8 +177,10 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
       ctx.scale(SCALE, SCALE);
 
       const qrImg = new Image();
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
 
-      qrImg.onload = () => {
+      const renderPng = () => {
         // 1. Solid sticker surface (#F4F3EE) filling entire canvas
         ctx.fillStyle = '#F4F3EE';
         ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
@@ -184,63 +191,75 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // 3. Top Header: PINGIN + Circular Green Ring
-        ctx.fillStyle = '#11110F';
-        ctx.font = '500 20px "Clash Display", -apple-system, sans-serif';
-        if ('letterSpacing' in ctx) {
-          (ctx as any).letterSpacing = '0.14em';
-        }
-        ctx.textAlign = 'left';
-        ctx.fillText('PINGIN', 36, 46);
-        if ('letterSpacing' in ctx) {
-          (ctx as any).letterSpacing = '0px';
+        // 3. Top Header: Logo SVG + Circular Green Ring
+        if (logoImg.complete && logoImg.naturalWidth > 0) {
+          const logoHeight = 26;
+          const logoWidth = Math.round(logoHeight * (514 / 138));
+          ctx.drawImage(logoImg, 36, 24, logoWidth, logoHeight);
+        } else {
+          ctx.fillStyle = '#11110F';
+          ctx.font = '600 24px "Clash Display", -apple-system, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText('PINGIN', 36, 44);
         }
 
         // Circular ring on right
         ctx.beginPath();
-        ctx.arc(LOGICAL_WIDTH - 42, 40, 6.5, 0, Math.PI * 2);
+        ctx.arc(LOGICAL_WIDTH - 42, 37, 7, 0, Math.PI * 2);
         ctx.fillStyle = '#D7FF3F';
         ctx.fill();
         ctx.strokeStyle = '#11110F';
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1.4;
         ctx.stroke();
 
         // 4. Headline: NEED TO CONTACT THE OWNER? SCAN HERE
         ctx.fillStyle = '#11110F';
-        ctx.font = '800 35px "Clash Display", -apple-system, sans-serif';
+        ctx.font = '800 36px "Clash Display", -apple-system, sans-serif';
         ctx.textAlign = 'center';
+        if ('letterSpacing' in ctx) {
+          (ctx as any).letterSpacing = '1.2px';
+        }
+        if ('wordSpacing' in ctx) {
+          (ctx as any).wordSpacing = '3px';
+        }
         ctx.fillText('NEED TO CONTACT', LOGICAL_WIDTH / 2, 94);
-        ctx.fillText('THE OWNER?', LOGICAL_WIDTH / 2, 133);
-        ctx.fillText('SCAN HERE', LOGICAL_WIDTH / 2, 172);
+        ctx.fillText('THE OWNER?', LOGICAL_WIDTH / 2, 137);
+        ctx.fillText('SCAN HERE', LOGICAL_WIDTH / 2, 180);
+        if ('letterSpacing' in ctx) {
+          (ctx as any).letterSpacing = '0px';
+        }
+        if ('wordSpacing' in ctx) {
+          (ctx as any).wordSpacing = '0px';
+        }
 
         // 5. Scannable QR Code: disable smoothing for pixel-perfect 1:1 vector sharpness
         const qrX = (LOGICAL_WIDTH - QR_LOGICAL_SIZE) / 2;
-        const qrY = 192;
+        const qrY = 202;
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(qrImg, qrX, qrY, QR_LOGICAL_SIZE, QR_LOGICAL_SIZE);
         ctx.imageSmoothingEnabled = true;
 
         // 6. Textual URL under QR
-        ctx.fillStyle = '#8C897F';
-        ctx.font = '500 15px "General Sans", sans-serif';
+        ctx.fillStyle = '#6E6B62';
+        ctx.font = '600 21px "General Sans", -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(displayUrl, LOGICAL_WIDTH / 2, 646);
+        ctx.fillText(displayUrl, LOGICAL_WIDTH / 2, 638);
 
         // 7. Short Centered Horizontal Divider
-        const ruleWidth = 140;
+        const ruleWidth = 150;
         const ruleX = (LOGICAL_WIDTH - ruleWidth) / 2;
         ctx.beginPath();
         ctx.strokeStyle = '#D8D5CC';
-        ctx.lineWidth = 1.2;
-        ctx.moveTo(ruleX, 672);
-        ctx.lineTo(ruleX + ruleWidth, 672);
+        ctx.lineWidth = 1.4;
+        ctx.moveTo(ruleX, 664);
+        ctx.lineTo(ruleX + ruleWidth, 664);
         ctx.stroke();
 
-        // 8. Footer: visit ${domain} to get yours!
-        ctx.fillStyle = '#8C897F';
-        ctx.font = '500 13px "General Sans", sans-serif';
+        // 8. Footer: visit ${domain} to get yours! (enlarged for print legibility)
+        ctx.fillStyle = '#6E6B62';
+        ctx.font = '600 20px "General Sans", -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(footerText, LOGICAL_WIDTH / 2, 702);
+        ctx.fillText(footerText, LOGICAL_WIDTH / 2, 698);
 
         // 9. Download the crystal-clear, ultra-HD sticker PNG
         const link = document.createElement('a');
@@ -251,6 +270,16 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         setIsGeneratingPng(false);
       };
 
+      logoImg.src = '/pingin_logo.svg';
+      qrImg.onload = () => {
+        if (logoImg.complete) {
+          renderPng();
+        } else {
+          logoImg.onload = renderPng;
+          logoImg.onerror = renderPng;
+          setTimeout(renderPng, 150);
+        }
+      };
       qrImg.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     } catch (err) {
       console.error('Failed to generate PNG sticker', err);
@@ -266,7 +295,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="PRINTABLE STICKER"
+      title={
+        <div className="flex items-center gap-2.5">
+          <PingInSvgLogo height={20} className="text-ink" />
+          <span className="text-border font-light">/</span>
+          <span className="tracking-wider uppercase text-sm font-semibold">Printable Sticker</span>
+        </div>
+      }
       description={`Physical adhesive sticker for ${resourceName || 'your resource'}.`}
     >
       <div className="flex flex-col items-center space-y-4">
@@ -304,17 +339,15 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               style={{ transform: 'translateZ(18px)', transformStyle: 'preserve-3d' }}
               className="w-full flex flex-col items-center"
             >
-              {/* Top Bar: Wordmark + green circular ring indicator */}
+              {/* Top Bar: Wordmark Logo SVG + green circular ring indicator */}
               <div className="flex items-center justify-between w-full pb-1">
-                <span className="font-display font-medium text-xs sm:text-sm tracking-[0.14em] uppercase text-[#11110F]">
-                  PINGIN
-                </span>
+                <PingInSvgLogo height={16} className="text-[#11110F]" />
                 <span className="w-2.5 h-2.5 rounded-full bg-[#D7FF3F] border border-[#11110F]" />
               </div>
 
               {/* Primary Headline */}
               <div className="my-1.5 text-center w-full">
-                <h3 className="font-display font-extrabold text-sm sm:text-base text-[#11110F] uppercase tracking-tight leading-[1.14]">
+                <h3 className="font-display font-extrabold text-xs sm:text-sm text-[#11110F] uppercase tracking-[0.04em] [word-spacing:0.08em] leading-snug">
                   NEED TO CONTACT<br />
                   THE OWNER?<br />
                   SCAN HERE

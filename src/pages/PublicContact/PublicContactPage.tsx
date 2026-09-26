@@ -486,7 +486,7 @@ export const PublicContactPage: React.FC = () => {
       {/* 1. PUBLIC HEADER */}
       <header className="max-w-4xl w-full mx-auto">
         <div className="flex items-center justify-between pb-4">
-          <Link to="/" className="focus:outline-none">
+          <Link to="/" className="focus:outline-none -ml-1 sm:ml-0">
             <PingInLogo height={32} width={136} />
           </Link>
 
