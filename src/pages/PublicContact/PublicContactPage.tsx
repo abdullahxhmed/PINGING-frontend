@@ -4,7 +4,7 @@ import { publicContactApi, communicationApi } from '../../lib/api';
 import type { PublicResourceContact, CallStatus } from '../../types/api';
 import { validatePhoneNumber, useToast } from '../../components/ui';
 import { PingInLogo } from '../../components/brand/PingInLogo';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check, HelpCircle } from 'lucide-react';
 
 type ContactMethod = 'call' | 'message' | 'alert';
 
@@ -199,6 +199,7 @@ export const PublicContactPage: React.FC = () => {
   const [visitorPhone, setVisitorPhone] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [showPhoneInfo, setShowPhoneInfo] = useState(false);
 
   // Registration number verification states (when hasRegistrationNumber is true)
   const [regNumber, setRegNumber] = useState('');
@@ -853,12 +854,44 @@ export const PublicContactPage: React.FC = () => {
                             )}
 
                             <div>
-                              <label
-                                htmlFor="phone-input"
-                                className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-1.5"
-                              >
-                                YOUR MOBILE NUMBER
-                              </label>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <label
+                                  htmlFor="phone-input"
+                                  className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted leading-none select-none"
+                                >
+                                  YOUR MOBILE NUMBER
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowPhoneInfo((prev) => !prev);
+                                  }}
+                                  title="Why do we need your number?"
+                                  aria-label="Why do we need your number?"
+                                  aria-expanded={showPhoneInfo}
+                                  className="inline-flex items-center justify-center text-muted/70 hover:text-ink transition-colors cursor-pointer select-none p-0.5 -m-0.5 rounded-full focus:outline-none"
+                                >
+                                  <HelpCircle
+                                    className={`w-3.5 h-3.5 transition-colors ${
+                                      showPhoneInfo ? 'text-ink' : 'text-muted/70 hover:text-ink'
+                                    }`}
+                                    strokeWidth={1.75}
+                                  />
+                                </button>
+                              </div>
+
+                              {showPhoneInfo && (
+                                <div className="p-3 mb-2.5 rounded-sm bg-surface border border-border text-xs font-sans text-muted leading-relaxed space-y-1 animate-in fade-in duration-150">
+                                  <p className="font-medium text-ink">
+                                    Why do we need your number?
+                                  </p>
+                                  <p>
+                                    It's required to connect the call. The person you're contacting won't see it, and it will not be stored in call log history.
+                                  </p>
+                                </div>
+                              )}
 
                               <div
                                 className={`w-full h-11 sm:h-12 border rounded-sm flex items-center px-3.5 sm:px-4 transition-colors ${
@@ -917,7 +950,7 @@ export const PublicContactPage: React.FC = () => {
                             </button>
 
                             <p className="text-xs font-sans text-muted leading-relaxed pt-0.5">
-                              <span className="font-medium text-ink">Your number stays private.</span> The vehicle owner will not see it.
+                              <span className="font-medium text-ink">Your number stays private.</span> We use it to connect your call and don't store it as part of your Pingin call history.
                             </p>
                           </form>
                         )}
