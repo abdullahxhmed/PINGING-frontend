@@ -561,16 +561,12 @@ select {
 }
 
 /* ==========================================================================
-   Ping Toast System - Spring physics, Radar Sonar Waves & Reliability Bar
+   Ping Toast System - Seamless, Concise & Sharp Micro-transitions
    ========================================================================== */
 @keyframes ping-toast-enter {
   0% {
     opacity: 0;
-    transform: translateY(-24px) scale(0.92);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(3px) scale(1.02);
+    transform: translateY(-8px) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -585,48 +581,16 @@ select {
   }
   100% {
     opacity: 0;
-    transform: translateY(-18px) scale(0.94);
-  }
-}
-
-@keyframes ping-radar-ring {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.9;
-  }
-  60% {
-    transform: scale(2.4);
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(3.2);
-    opacity: 0;
-  }
-}
-
-@keyframes toast-progress {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
+    transform: translateY(-6px) scale(0.98);
   }
 }
 
 .toast-item-enter {
-  animation: ping-toast-enter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: ping-toast-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .toast-item-exit {
-  animation: ping-toast-exit 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
-}
-
-.animate-ping-radar-ring-1 {
-  animation: ping-radar-ring 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
-}
-
-.animate-ping-radar-ring-2 {
-  animation: ping-radar-ring 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite 0.6s;
+  animation: ping-toast-exit 0.15s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 /* Print Stylesheet for Printable QR Sticker */
