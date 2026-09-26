@@ -4,7 +4,7 @@ import { publicContactApi, communicationApi } from '../../lib/api';
 import type { PublicResourceContact, CallStatus } from '../../types/api';
 import { validatePhoneNumber, useToast } from '../../components/ui';
 import { PingInLogo } from '../../components/brand/PingInLogo';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 
 type ContactMethod = 'call' | 'message' | 'alert';
 
@@ -146,6 +146,15 @@ export const PublicContactPage: React.FC = () => {
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
+  // Registration number verification states (when hasRegistrationNumber is true)
+  const [regNumber, setRegNumber] = useState('');
+  const [isVerifyingReg, setIsVerifyingReg] = useState(false);
+  const [isRegVerified, setIsRegVerified] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+  const phoneInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const isBlockedByRegistration = Boolean(contact?.hasRegistrationNumber && !isRegVerified);
+
   const [messageText, setMessageText] = useState('');
   const [selectedAlertId, setSelectedAlertId] = useState<string>('blocking');
   const [alertNote, setAlertNote] = useState('');
@@ -157,6 +166,10 @@ export const PublicContactPage: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    setIsRegVerified(false);
+    setRegNumber('');
+    setRegError(null);
+
     if (!token) {
       setFetchError('Missing contact token');
       setIsLoading(false);
@@ -282,9 +295,65 @@ export const PublicContactPage: React.FC = () => {
     if (phoneError) setPhoneError(null);
   };
 
+  const handleRegNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 4).toUpperCase();
+    setRegNumber(raw);
+    if (regError) setRegError(null);
+  };
+
+  const handleVerifyReg = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!token) return;
+
+    const trimmed = regNumber.trim();
+    if (trimmed.length !== 4) {
+      const err = 'Please enter the 4-digit number';
+      setRegError(err);
+      toast.error(err);
+      return;
+    }
+
+    setIsVerifyingReg(true);
+    setRegError(null);
+
+    try {
+      const res = await publicContactApi.verifyRegistrationNumber(token, trimmed);
+      if (res?.success) {
+        setIsRegVerified(true);
+        setRegError(null);
+        toast.success('Registration number verified');
+        setTimeout(() => {
+          phoneInputRef.current?.focus();
+        }, 120);
+      } else {
+        const msg = res?.message || 'Incorrect registration number. Please check and try again.';
+        setRegError(msg);
+        toast.error(msg);
+      }
+    } catch (err: any) {
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        (err?.statusCode === 400 || err?.status === 400
+          ? 'Incorrect registration number. Please check and try again.'
+          : 'Unable to verify registration number. Please try again.');
+      setRegError(msg);
+      toast.error(msg);
+    } finally {
+      setIsVerifyingReg(false);
+    }
+  };
+
   const handleCallSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+
+    if (isBlockedByRegistration) {
+      const err = 'Please verify the vehicle registration number first';
+      setRegError(err);
+      toast.error(err);
+      return;
+    }
 
     const validation = validatePhoneNumber(visitorPhone);
     if (!validation.isValid) {
@@ -652,24 +721,122 @@ export const PublicContactPage: React.FC = () => {
                           </div>
                         ) : (
                           <form onSubmit={handleCallSubmit} className="space-y-4 max-w-lg mt-3">
-                            <div>
-                              <label
-                                htmlFor="phone-input"
-                                className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-2"
-                              >
-                                YOUR MOBILE NUMBER
-                              </label>
-
+                            {/* VEHICLE REGISTRATION NUMBER VERIFICATION FLOW */}
+                            {contact?.hasRegistrationNumber && (
                               <div
-                                className={`w-full h-12 border rounded-sm bg-bg flex items-center px-4 transition-colors ${
-                                  phoneError
-                                    ? 'border-danger'
-                                    : phoneFocused
-                                    ? 'border-ink bg-white'
-                                    : 'border-border hover:border-border-strong'
+                                className={`p-4 rounded-sm border transition-all ${
+                                  isRegVerified
+                                    ? 'border-[#315f43]/40 bg-[#315f43]/5'
+                                    : 'border-border bg-surface'
                                 }`}
                               >
-                                <span className="font-sans text-base font-normal text-muted select-none whitespace-nowrap">
+                                <div className="flex items-center justify-between mb-2">
+                                  <label
+                                    htmlFor="reg-number-input"
+                                    className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted"
+                                  >
+                                    VERIFY REGISTRATION NUMBER
+                                  </label>
+                                  {isRegVerified && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-sans font-semibold text-[#315f43] uppercase tracking-wider">
+                                      <Check className="w-3.5 h-3.5" />
+                                      VERIFIED
+                                    </span>
+                                  )}
+                                </div>
+
+                                {!isRegVerified ? (
+                                  <div className="space-y-3">
+                                    <p className="text-xs font-sans text-muted leading-relaxed">
+                                      Enter the last 4 digits of the vehicle's registration number to unlock call access.
+                                    </p>
+                                    <div className="flex items-center gap-2.5">
+                                      <input
+                                        id="reg-number-input"
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        maxLength={4}
+                                        value={regNumber}
+                                        onChange={handleRegNumberChange}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleVerifyReg();
+                                          }
+                                        }}
+                                        placeholder="e.g. 4821"
+                                        disabled={isVerifyingReg}
+                                        autoFocus={contact?.hasRegistrationNumber && !isRegVerified}
+                                        className="w-32 h-11 border border-border focus:border-ink rounded-sm bg-bg px-3 text-center font-mono text-base font-semibold tracking-[0.25em] text-ink outline-none uppercase placeholder:text-muted/40 placeholder:tracking-normal placeholder:font-sans placeholder:text-xs transition-colors"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={handleVerifyReg}
+                                        disabled={isVerifyingReg || regNumber.length !== 4}
+                                        className="h-11 px-4 bg-surface-dark hover:bg-black disabled:opacity-40 disabled:hover:bg-surface-dark text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                                      >
+                                        {isVerifyingReg ? (
+                                          <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                                            <span>VERIFYING...</span>
+                                          </>
+                                        ) : (
+                                          <span>VERIFY</span>
+                                        )}
+                                      </button>
+                                    </div>
+                                    {regError && (
+                                      <p className="text-xs font-sans text-danger">
+                                        {regError}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs font-sans text-muted">
+                                    Vehicle registration ending in{' '}
+                                    <span className="font-mono font-semibold text-ink tracking-wider">
+                                      {regNumber}
+                                    </span>{' '}
+                                    is verified. You can now connect your call.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label
+                                  htmlFor="phone-input"
+                                  className={`block text-xs font-sans font-medium tracking-[0.14em] uppercase ${
+                                    isBlockedByRegistration ? 'text-muted/50' : 'text-muted'
+                                  }`}
+                                >
+                                  YOUR MOBILE NUMBER
+                                </label>
+                                {isBlockedByRegistration && (
+                                  <span className="text-[11px] font-sans text-muted/60 tracking-wider uppercase">
+                                    Locked until verified
+                                  </span>
+                                )}
+                              </div>
+
+                              <div
+                                className={`w-full h-12 border rounded-sm flex items-center px-4 transition-colors ${
+                                  isBlockedByRegistration
+                                    ? 'border-border/60 bg-bg/40 opacity-60 cursor-not-allowed'
+                                    : phoneError
+                                    ? 'border-danger bg-bg'
+                                    : phoneFocused
+                                    ? 'border-ink bg-white'
+                                    : 'border-border bg-bg hover:border-border-strong'
+                                }`}
+                              >
+                                <span
+                                  className={`font-sans text-base font-normal select-none whitespace-nowrap ${
+                                    isBlockedByRegistration ? 'text-muted/40' : 'text-muted'
+                                  }`}
+                                >
                                   +91
                                 </span>
                                 <span
@@ -677,6 +844,7 @@ export const PublicContactPage: React.FC = () => {
                                   aria-hidden="true"
                                 />
                                 <input
+                                  ref={phoneInputRef}
                                   id="phone-input"
                                   type="tel"
                                   inputMode="numeric"
@@ -686,10 +854,14 @@ export const PublicContactPage: React.FC = () => {
                                   onChange={handlePhoneChange}
                                   onFocus={() => setPhoneFocused(true)}
                                   onBlur={() => setPhoneFocused(false)}
-                                  placeholder="10-digit mobile number"
-                                  className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0"
-                                  disabled={isSubmitting}
-                                  autoFocus
+                                  placeholder={
+                                    isBlockedByRegistration
+                                      ? 'Verify registration above to enter number'
+                                      : '10-digit mobile number'
+                                  }
+                                  className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0 disabled:cursor-not-allowed"
+                                  disabled={isBlockedByRegistration || isSubmitting}
+                                  autoFocus={!contact?.hasRegistrationNumber}
                                 />
                               </div>
 
@@ -700,7 +872,11 @@ export const PublicContactPage: React.FC = () => {
                               )}
 
                               <div className="mt-2.5 space-y-0.5">
-                                <p className="text-[11px] font-sans font-medium text-ink">
+                                <p
+                                  className={`text-[11px] font-sans font-medium ${
+                                    isBlockedByRegistration ? 'text-muted/60' : 'text-ink'
+                                  }`}
+                                >
                                   Why do we need your number?
                                 </p>
                                 <p className="text-[11px] font-sans text-muted leading-relaxed">
@@ -711,22 +887,32 @@ export const PublicContactPage: React.FC = () => {
 
                             <button
                               type="submit"
-                              disabled={isSubmitting}
-                              className="w-full sm:w-auto h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-all text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-75"
+                              disabled={isBlockedByRegistration || isSubmitting}
+                              className={`w-full sm:w-auto h-12 px-6 rounded-sm transition-all text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 ${
+                                isBlockedByRegistration
+                                  ? 'bg-border/80 text-muted cursor-not-allowed opacity-60'
+                                  : 'bg-surface-dark hover:bg-black text-[#f5f4ee] cursor-pointer disabled:opacity-75'
+                              }`}
                             >
                               <span>
-                                {isSubmitting ? 'CONNECTING...' : 'START PRIVATE CALL'}
+                                {isSubmitting
+                                  ? 'CONNECTING...'
+                                  : isBlockedByRegistration
+                                  ? 'VERIFY TO START CALL'
+                                  : 'START PRIVATE CALL'}
                               </span>
                               {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
                               ) : (
-                                <span className="text-base text-accent">→</span>
+                                <span className={isBlockedByRegistration ? 'text-muted' : 'text-accent'}>
+                                  →
+                                </span>
                               )}
                             </button>
 
                             <p className="text-xs font-sans text-muted leading-relaxed pt-1">
                               <span className="font-medium text-ink">Your number stays private.</span>{' '}
-                              We use it to connect your call and don't store it as part of your ParkPing call history.
+                              We use it to connect your call and don't store it as part of your Pingin call history.
                             </p>
                           </form>
                         )}
@@ -919,7 +1105,7 @@ export const PublicContactPage: React.FC = () => {
                   YOUR NUMBER STAYS PRIVATE
                 </h3>
                 <p className="text-sm font-sans text-muted leading-relaxed">
-                  We use it to connect your call and don't store it as part of your ParkPing call history.
+                  We use it to connect your call and don't store it as part of your Pingin call history.
                 </p>
               </div>
             </section>

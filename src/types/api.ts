@@ -82,6 +82,12 @@ export interface PublicResourceContact {
   contactLink?: string | { id: string; active?: boolean };
   id?: string;
   active?: boolean;
+  hasRegistrationNumber?: boolean;
+}
+
+export interface VerifyRegistrationResponse {
+  success: boolean;
+  message?: string;
 }
 
 export interface ApiErrorResponse {

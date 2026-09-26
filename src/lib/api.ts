@@ -9,6 +9,7 @@ import type {
   UserProfile,
   InitiateCallResponse,
   CallStatusResponse,
+  VerifyRegistrationResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -262,6 +263,15 @@ export const resourcesApi = {
 export const publicContactApi = {
   getByToken: (token: string) =>
     api.get<PublicResourceContact>(`/api/contact/${token}`),
+
+  verifyRegistrationNumber: async (
+    token: string,
+    registrationNum: string
+  ): Promise<VerifyRegistrationResponse> => {
+    return await api.post<VerifyRegistrationResponse>(`/api/contact/${token}/verify`, {
+      registrationNum,
+    });
+  },
 
   requestContact: async (token: string, contactorPhoneNumber: string) => {
     try {
