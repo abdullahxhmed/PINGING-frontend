@@ -19,9 +19,9 @@ export const Navbar: React.FC = () => {
         {/* Brand with Rive Animation */}
         <Link to="/dashboard" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
           <PingInLogo className="w-[114px] h-[27px] sm:w-[136px] sm:h-[32px]" />
-          <span className="label text-[10px] text-muted tracking-widest uppercase border-l border-border pl-2.5 sm:pl-3 hidden sm:inline-block">
+          {/* <span className="label text-[10px] text-muted tracking-widest uppercase border-l border-border pl-2.5 sm:pl-3 hidden sm:inline-block">
             2026
-          </span>
+          </span> */}
         </Link>
 
         {/* User / Actions */}

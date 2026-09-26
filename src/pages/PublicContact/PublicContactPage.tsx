@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { publicContactApi, communicationApi } from '../../lib/api';
 import type { PublicResourceContact, CallStatus } from '../../types/api';
 import { validatePhoneNumber, useToast } from '../../components/ui';
-import { PingInLogo } from '../../components/brand/PingInLogo';
+import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
 import { Loader2, Check, HelpCircle } from 'lucide-react';
 
 type ContactMethod = 'call' | 'message' | 'alert';
@@ -491,16 +491,16 @@ export const PublicContactPage: React.FC = () => {
           </Link>
 
           {/* Desktop header label */}
-          <div className="hidden sm:inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
+          {/* <div className="hidden sm:inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
             <span className="w-1.5 h-1.5 rounded-full bg-accent ring-1 ring-ink/20" />
             <span>CONTACT PRIVATELY</span>
-          </div>
+          </div> */}
 
           {/* Mobile header label */}
-          <div className="sm:hidden inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
+          {/* <div className="sm:hidden inline-flex items-center gap-2 text-[11px] font-sans font-medium tracking-widest uppercase text-ink">
             <span className="w-1.5 h-1.5 rounded-full bg-accent ring-1 ring-ink/20" />
             <span>CONTACT PRIVATELY</span>
-          </div>
+          </div> */}
         </div>
         <div className="h-[1px] bg-border w-full" />
       </header>
@@ -563,23 +563,11 @@ export const PublicContactPage: React.FC = () => {
                   </h1>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5 text-xs font-sans text-muted mt-2 ml-7 sm:ml-8">
-                  <span>REGISTERED RESOURCE</span>
-                  {contact.type && (
-                    <>
-                      <span className="text-border-strong">•</span>
-                      <span className="font-semibold text-ink">{contact.type}</span>
-                    </>
-                  )}
-                  {(contact.vehicleDetails?.vehicleColour || contact.vehicleDetails?.color) && (
-                    <>
-                      <span className="text-border-strong">•</span>
-                      <span>COLOUR {contact.vehicleDetails?.vehicleColour || contact.vehicleDetails?.color}</span>
-                    </>
-                  )}
-                  <span className="text-border-strong">•</span>
-                  {/* <span>PRIVATE PROXIED ACCESS</span> */}
-                </div>
+                {contact.vehicleDetails?.colour && (
+                  <div className="flex items-center gap-2 text-xs font-sans text-muted mt-2 ml-7 sm:ml-8">
+                    <span className="tracking-wider">COLOUR: {contact.vehicleDetails.colour}</span>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -1152,11 +1140,37 @@ export const PublicContactPage: React.FC = () => {
       </main>
 
       {/* FOOTER */}
-      <footer className="max-w-4xl w-full mx-auto pt-6">
-        <div className="h-[1px] bg-border w-full mb-5" />
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] font-sans text-muted tracking-wider uppercase">
-          <span>PINGin</span>
-          {/* <span>PRIVATE COMMUNICATION</span> */}
+      <footer className="max-w-4xl w-full mx-auto pt-8 pb-12">
+        <div className="h-[1px] bg-border w-full mb-8 sm:mb-10" />
+
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 sm:gap-8">
+          <div className="space-y-2.5 max-w-md">
+            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="PINGIN">
+              <PingInSvgLogo height={18} className="text-ink" />
+            </Link>
+            <p className="font-display font-medium text-base sm:text-lg text-ink">
+              Tag it. Scan it. Ping it.
+            </p>
+            <p className="text-xs sm:text-sm font-sans text-muted leading-relaxed">
+              Give people a way to reach you without sharing your phone number.
+            </p>
+          </div>
+
+          <div className="shrink-0 pt-1 sm:pt-0">
+            <Link
+              to="/signup"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-5 py-3 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-xs group cursor-pointer"
+            >
+              <span>GET YOUR TAG</span>
+              <span className="text-accent group-hover:translate-x-0.5 transition-transform">→</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="h-[1px] bg-border w-full mt-8 sm:mt-10 mb-4" />
+
+        <div className="flex items-center justify-between text-[11px] font-sans text-muted tracking-wider uppercase">
+          <span>© 2026 PINGIN</span>
         </div>
       </footer>
     </div>

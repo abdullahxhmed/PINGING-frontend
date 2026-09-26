@@ -1,0 +1,49 @@
+import React from 'react';
+
+export interface PingInLogoSvgProps extends React.SVGProps<SVGSVGElement> {
+  className?: string;
+  height?: number | string;
+  width?: number | string;
+}
+
+/**
+ * Pure SVG vector PingIn Wordmark extracted directly from the brand asset.
+ * Uses fill="currentColor" to seamlessly adapt to ink, bone, or inverted themes.
+ */
+export const PingInSvgLogo: React.FC<PingInLogoSvgProps> = ({
+  className = '',
+  height = 24,
+  width,
+  style,
+  ...props
+}) => {
+  // Original aspect ratio is 514 / 138 ≈ 3.725
+  const computedWidth =
+    width !== undefined
+      ? width
+      : typeof height === 'number'
+      ? Math.round(height * (514 / 138))
+      : undefined;
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 514 138"
+      fill="currentColor"
+      height={height}
+      width={computedWidth}
+      style={{ display: 'inline-block', verticalAlign: 'middle', ...style }}
+      className={`shrink-0 select-none ${className}`}
+      aria-label="PINGIN"
+      role="img"
+      {...props}
+    >
+      <path
+        d="M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z"
+        fillRule="evenodd"
+      />
+    </svg>
+  );
+};
+
+export default PingInSvgLogo;

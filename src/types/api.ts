@@ -38,6 +38,7 @@ export interface VehicleDetails {
   vehicleColour?: string;
   registrationLast4?: string;
   color?: string;
+  colour?: string;
 }
 
 export interface CreateResourcePayload {

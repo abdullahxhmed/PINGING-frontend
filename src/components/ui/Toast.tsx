@@ -45,7 +45,7 @@ const ToastCard: React.FC<{
     <div
       role="alert"
       onClick={() => onDismiss(item.id)}
-      className={`pointer-events-auto inline-flex items-center gap-2.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-sm bg-surface-dark text-[#f5f4ee] border border-black/80 shadow-[0_4px_16px_rgba(0,0,0,0.22)] cursor-pointer select-none max-w-[calc(100vw-2rem)] sm:max-w-md transition-all ${
+      className={`pointer-events-auto inline-flex items-center gap-2.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-full bg-surface-dark text-[#f5f4ee] border border-black/80 shadow-[0_8px_24px_-4px_rgba(0,0,0,0.3)] cursor-pointer select-none max-w-[calc(100vw-2rem)] sm:max-w-md transition-transform active:scale-95 ${
         item.isExiting ? 'toast-item-exit' : 'toast-item-enter'
       }`}
     >

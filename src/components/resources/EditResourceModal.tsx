@@ -50,6 +50,7 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
         ''
       );
       setColor(
+        resource.vehicleDetails?.colour ||
         resource.vehicleDetails?.vehicleColour ||
         resource.vehicleDetails?.color ||
         ''

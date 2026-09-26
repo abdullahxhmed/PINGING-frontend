@@ -86,5 +86,6 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
   );
 };
 
+export { PingInSvgLogo } from './PingInSvgLogo';
 export const ParkPingLogo = PingInLogo;
 export default PingInLogo;
