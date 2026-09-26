@@ -481,10 +481,10 @@ export const PublicContactPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between p-6 sm:p-10 lg:p-14 selection:bg-accent selection:text-ink font-sans">
+    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between p-4 sm:p-8 lg:p-12 selection:bg-accent selection:text-ink font-sans">
       {/* 1. PUBLIC HEADER */}
       <header className="max-w-4xl w-full mx-auto">
-        <div className="flex items-center justify-between pb-5">
+        <div className="flex items-center justify-between pb-4">
           <Link to="/" className="focus:outline-none">
             <PingInLogo height={32} width={136} />
           </Link>
@@ -505,7 +505,7 @@ export const PublicContactPage: React.FC = () => {
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="max-w-4xl w-full mx-auto my-auto py-10 sm:py-14 space-y-10 sm:space-y-12">
+      <main className="max-w-4xl w-full mx-auto my-auto py-6 sm:py-10 space-y-6 sm:space-y-8">
         {isLoading ? (
           <div className="py-24 text-left">
             <div className="inline-flex items-center gap-2.5 text-xs font-sans font-medium tracking-widest uppercase text-muted">
@@ -768,128 +768,112 @@ export const PublicContactPage: React.FC = () => {
                               )}
                             </div>
                           </div>
-                        ) : (
-                          <form onSubmit={handleCallSubmit} className="space-y-4 max-w-lg mt-3">
-                            {/* VEHICLE REGISTRATION NUMBER VERIFICATION FLOW */}
-                            {contact?.hasRegistrationNumber && (
-                              <div
-                                className={`p-4 rounded-sm border transition-all ${
-                                  isRegVerified
-                                    ? 'border-[#315f43]/40 bg-[#315f43]/5'
-                                    : 'border-border bg-surface'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <label
-                                    htmlFor="reg-number-input"
-                                    className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted"
-                                  >
-                                    VERIFY REGISTRATION NUMBER
-                                  </label>
-                                  {isRegVerified && (
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-sans font-semibold text-[#315f43] uppercase tracking-wider">
-                                      <Check className="w-3.5 h-3.5" />
-                                      VERIFIED
-                                    </span>
-                                  )}
-                                </div>
+                        ) : contact?.hasRegistrationNumber && !isRegVerified ? (
+                          /* STEP 1: COMPACT VEHICLE VERIFICATION (Mobile-optimized) */
+                          <div className="space-y-3 max-w-lg mt-3">
+                            <div className="p-3.5 sm:p-4 rounded-sm border border-border bg-surface space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <label
+                                  htmlFor="reg-number-input"
+                                  className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted"
+                                >
+                                  VERIFY VEHICLE PLATE
+                                </label>
+                                <span className="text-[10px] font-sans font-medium tracking-wider text-muted uppercase">
+                                  STEP 1 OF 2
+                                </span>
+                              </div>
 
-                                {!isRegVerified ? (
-                                  <div className="space-y-3">
-                                    <p className="text-xs font-sans text-muted leading-relaxed">
-                                      Enter the last 4 digits of the vehicle's registration number to unlock call access.
-                                    </p>
-                                    <div className="flex items-center gap-2.5">
-                                      <input
-                                        id="reg-number-input"
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        maxLength={4}
-                                        value={regNumber}
-                                        onChange={handleRegNumberChange}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleVerifyReg();
-                                          }
-                                        }}
-                                        placeholder="e.g. 4821"
-                                        disabled={isVerifyingReg}
-                                        autoFocus={contact?.hasRegistrationNumber && !isRegVerified}
-                                        className="w-32 h-11 border border-border focus:border-ink rounded-sm bg-bg px-3 text-center font-mono text-base font-semibold tracking-[0.25em] text-ink outline-none uppercase placeholder:text-muted/40 placeholder:tracking-normal placeholder:font-sans placeholder:text-xs transition-colors"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={handleVerifyReg}
-                                        disabled={isVerifyingReg || regNumber.length !== 4}
-                                        className="h-11 px-4 bg-surface-dark hover:bg-black disabled:opacity-40 disabled:hover:bg-surface-dark text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-                                      >
-                                        {isVerifyingReg ? (
-                                          <>
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-                                            <span>VERIFYING...</span>
-                                          </>
-                                        ) : (
-                                          <span>VERIFY</span>
-                                        )}
-                                      </button>
-                                    </div>
-                                    {regError && (
-                                      <p className="text-xs font-sans text-danger">
-                                        {regError}
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <p className="text-xs font-sans text-muted">
-                                    Vehicle registration ending in{' '}
-                                    <span className="font-mono font-semibold text-ink tracking-wider">
-                                      {regNumber}
-                                    </span>{' '}
-                                    is verified. You can now connect your call.
-                                  </p>
-                                )}
+                              <p className="text-xs font-sans text-muted">
+                                Enter the last 4 digits of the vehicle number to unlock call access.
+                              </p>
+
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id="reg-number-input"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={4}
+                                  value={regNumber}
+                                  onChange={handleRegNumberChange}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleVerifyReg();
+                                    }
+                                  }}
+                                  placeholder="0000"
+                                  disabled={isVerifyingReg}
+                                  autoFocus
+                                  className="w-28 sm:w-32 h-11 border border-border focus:border-ink rounded-sm bg-bg px-3 text-center font-mono text-base font-semibold tracking-[0.25em] text-ink outline-none uppercase placeholder:text-muted/30 placeholder:tracking-normal transition-colors"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleVerifyReg}
+                                  disabled={isVerifyingReg || regNumber.length !== 4}
+                                  className="h-11 px-4 sm:px-5 bg-surface-dark hover:bg-black disabled:opacity-40 disabled:hover:bg-surface-dark text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed shrink-0"
+                                >
+                                  {isVerifyingReg ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                                      <span>CHECKING...</span>
+                                    </>
+                                  ) : (
+                                    <span>VERIFY →</span>
+                                  )}
+                                </button>
+                              </div>
+
+                              {regError && (
+                                <p className="text-xs font-sans text-danger pt-0.5">
+                                  {regError}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 px-1 text-xs font-sans text-muted/60 select-none">
+                              <span className="w-1.5 h-1.5 rounded-full bg-border shrink-0" />
+                              <span>Private call unlocks once plate number is confirmed</span>
+                            </div>
+                          </div>
+                        ) : (
+                          /* STEP 2: PHONE INPUT & PRIVATE CALL (Unlocked & Concise) */
+                          <form onSubmit={handleCallSubmit} className="space-y-3.5 max-w-lg mt-3">
+                            {contact?.hasRegistrationNumber && isRegVerified && (
+                              <div className="flex items-center justify-between px-3 py-2 rounded-sm border border-[#315f43]/30 bg-[#315f43]/5 text-xs font-sans">
+                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#315f43] tracking-wider uppercase text-[11px]">
+                                  <Check className="w-3.5 h-3.5" />
+                                  PLATE VERIFIED
+                                </span>
+                                <span className="font-mono text-ink font-semibold tracking-wider text-xs">
+                                  •••• {regNumber}
+                                </span>
                               </div>
                             )}
 
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <label
-                                  htmlFor="phone-input"
-                                  className={`block text-xs font-sans font-medium tracking-[0.14em] uppercase ${
-                                    isBlockedByRegistration ? 'text-muted/50' : 'text-muted'
-                                  }`}
-                                >
-                                  YOUR MOBILE NUMBER
-                                </label>
-                                {isBlockedByRegistration && (
-                                  <span className="text-[11px] font-sans text-muted/60 tracking-wider uppercase">
-                                    Locked until verified
-                                  </span>
-                                )}
-                              </div>
+                              <label
+                                htmlFor="phone-input"
+                                className="block text-xs font-sans font-medium tracking-[0.14em] uppercase text-muted mb-1.5"
+                              >
+                                YOUR MOBILE NUMBER
+                              </label>
 
                               <div
-                                className={`w-full h-12 border rounded-sm flex items-center px-4 transition-colors ${
-                                  isBlockedByRegistration
-                                    ? 'border-border/60 bg-bg/40 opacity-60 cursor-not-allowed'
-                                    : phoneError
+                                className={`w-full h-11 sm:h-12 border rounded-sm flex items-center px-3.5 sm:px-4 transition-colors ${
+                                  phoneError
                                     ? 'border-danger bg-bg'
                                     : phoneFocused
                                     ? 'border-ink bg-white'
                                     : 'border-border bg-bg hover:border-border-strong'
                                 }`}
                               >
-                                <span
-                                  className={`font-sans text-base font-normal select-none whitespace-nowrap ${
-                                    isBlockedByRegistration ? 'text-muted/40' : 'text-muted'
-                                  }`}
-                                >
+                                <span className="font-sans text-base font-normal text-muted select-none whitespace-nowrap">
                                   +91
                                 </span>
                                 <span
-                                  className="h-4 w-[1px] bg-border mx-3.5 shrink-0"
+                                  className="h-4 w-[1px] bg-border mx-3 shrink-0"
                                   aria-hidden="true"
                                 />
                                 <input
@@ -903,65 +887,37 @@ export const PublicContactPage: React.FC = () => {
                                   onChange={handlePhoneChange}
                                   onFocus={() => setPhoneFocused(true)}
                                   onBlur={() => setPhoneFocused(false)}
-                                  placeholder={
-                                    isBlockedByRegistration
-                                      ? 'Verify registration above to enter number'
-                                      : '10-digit mobile number'
-                                  }
-                                  className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0 disabled:cursor-not-allowed"
-                                  disabled={isBlockedByRegistration || isSubmitting}
-                                  autoFocus={!contact?.hasRegistrationNumber}
+                                  placeholder="10-digit mobile number"
+                                  className="flex-1 bg-transparent outline-none font-sans text-base font-normal text-ink placeholder:text-muted/40 p-0 m-0"
+                                  disabled={isSubmitting}
+                                  autoFocus
                                 />
                               </div>
 
                               {phoneError && (
-                                <p className="mt-2 text-xs font-sans text-danger">
+                                <p className="mt-1.5 text-xs font-sans text-danger">
                                   {phoneError}
                                 </p>
                               )}
-
-                              <div className="mt-2.5 space-y-0.5">
-                                <p
-                                  className={`text-[11px] font-sans font-medium ${
-                                    isBlockedByRegistration ? 'text-muted/60' : 'text-ink'
-                                  }`}
-                                >
-                                  Why do we need your number?
-                                </p>
-                                <p className="text-[11px] font-sans text-muted leading-relaxed">
-                                  It's required to connect the call. The person you're contacting won't see it.
-                                </p>
-                              </div>
                             </div>
 
                             <button
                               type="submit"
-                              disabled={isBlockedByRegistration || isSubmitting}
-                              className={`w-full sm:w-auto h-12 px-6 rounded-sm transition-all text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 ${
-                                isBlockedByRegistration
-                                  ? 'bg-border/80 text-muted cursor-not-allowed opacity-60'
-                                  : 'bg-surface-dark hover:bg-black text-[#f5f4ee] cursor-pointer disabled:opacity-75'
-                              }`}
+                              disabled={isSubmitting}
+                              className="w-full sm:w-auto h-11 sm:h-12 px-6 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm transition-all text-xs font-sans font-semibold tracking-widest uppercase flex items-center justify-between sm:justify-center gap-4 cursor-pointer disabled:opacity-75"
                             >
                               <span>
-                                {isSubmitting
-                                  ? 'CONNECTING...'
-                                  : isBlockedByRegistration
-                                  ? 'VERIFY TO START CALL'
-                                  : 'START PRIVATE CALL'}
+                                {isSubmitting ? 'CONNECTING...' : 'START PRIVATE CALL'}
                               </span>
                               {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
                               ) : (
-                                <span className={isBlockedByRegistration ? 'text-muted' : 'text-accent'}>
-                                  →
-                                </span>
+                                <span className="text-base text-accent">→</span>
                               )}
                             </button>
 
-                            <p className="text-xs font-sans text-muted leading-relaxed pt-1">
-                              <span className="font-medium text-ink">Your number stays private.</span>{' '}
-                              We use it to connect your call and don't store it as part of your Pingin call history.
+                            <p className="text-xs font-sans text-muted leading-relaxed pt-0.5">
+                              <span className="font-medium text-ink">Your number stays private.</span> The vehicle owner will not see it.
                             </p>
                           </form>
                         )}
