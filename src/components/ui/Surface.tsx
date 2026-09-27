@@ -21,13 +21,15 @@ export const Surface: React.FC<SurfaceProps> = ({
       ? 'surface-dark'
       : 'surface';
 
+  const Comp = Component as any;
+
   return (
-    <Component
+    <Comp
       className={`${variantClass} p-5 sm:p-7 ${className}`.trim()}
       {...props}
     >
       {children}
-    </Component>
+    </Comp>
   );
 };
 

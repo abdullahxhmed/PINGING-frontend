@@ -398,7 +398,7 @@ export const HeroRecreation: React.FC = () => {
                               </span>
                             </div>
                             <h3 className="font-display font-bold text-[18px] text-[#11110F] tracking-tight leading-snug">
-                              Suzuki Access 125
+                              Bajaj Pulsar
                             </h3>
                             <div className="mt-1 flex items-center gap-1.5 text-[11px] font-sans text-[#6E6B62]">
                               <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20 shrink-0" />
@@ -552,7 +552,7 @@ export const HeroRecreation: React.FC = () => {
                                 </motion.div>
                               ) : (
                                 <div className="text-center text-[10px] font-sans text-[#8C887E]">
-                                  Encrypted PingIn Relay · Zero spam guarantee
+                                  Encrypted PingIn Connection · Zero spam guarantee
                                 </div>
                               )}
                             </AnimatePresence>

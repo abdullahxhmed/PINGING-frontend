@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PingIn Square Keychain Model Studio</title>
+  <style>
+    @font-face {
+      font-family: 'Clash Display';
+      src: url('/fonts/ClashDisplay-Variable.woff2') format('woff2');
+      font-weight: 200 900;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: 'General Sans';
+      src: url('/fonts/GeneralSans-Variable.woff2') format('woff2');
+      font-weight: 200 900;
+      font-style: normal;
+      font-display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #EDECE6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'General Sans', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 20px;
+      color: #11110F;
+    }
+
+    .studio-container {
+      max-width: 900px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .studio-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #F4F3EE;
+      border: 1px solid #D8D5CC;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      font-family: 'Clash Display', sans-serif;
+      font-weight: 700;
+      font-size: 32px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .controls-card {
+      background: #F4F3EE;
+      border: 1.5px solid #D8D5CC;
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 4px 16px rgba(17, 17, 15, 0.04);
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .counter {
+      font-size: 10px;
+      color: #6E6B62;
+      font-family: monospace;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #EDECE6;
+      border: 1.5px solid #D8D5CC;
+      border-radius: 4px;
+      font-family: 'General Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #11110F;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .text-input:focus {
+      border-color: #11110F;
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #D8D5CC;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-family: 'General Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #D7FF3F;
+      color: #11110F;
+      flex: 1 1 100%;
+    }
+    .btn-primary:hover {
+      background: #C4EB34;
+    }
+
+    .btn-secondary {
+      background: #EDECE6;
+      border: 1px solid #D8D5CC;
+      color: #11110F;
+      flex: 1;
+    }
+    .btn-secondary:hover {
+      border-color: #11110F;
+    }
+
+    /* Live Display Stage */
+    .keychains-stage {
+      display: flex;
+      justify-content: center;
+      gap: 36px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .keychain-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .side-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #6E6B62;
+    }
+
+    /* Square Keychain Physical Tag */
+    .keychain-plate {
+      width: 320px;
+      height: 320px;
+      background: #F4F3EE;
+      border: 2px solid #D8D5CC;
+      border-radius: 32px;
+      box-shadow: 0 12px 32px rgba(17, 17, 15, 0.08);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 22px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Keyhole Cutout Top-Right */
+    .keyhole {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #EDECE6;
+      border: 2px solid #C5C1B6;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+      z-index: 5;
+    }
+
+    /* Logo at Top-Left */
+    .logo-container {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .logo-svg {
+      width: 110px;
+      height: auto;
+      color: #11110F;
+    }
+
+    /* Centered Text Body */
+    .front-text-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      padding: 8px 12px;
+    }
+
+    .front-text-content {
+      font-family: 'Clash Display', 'General Sans', sans-serif;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.12;
+      color: #11110F;
+      text-transform: uppercase;
+      word-break: break-word;
+      width: 100%;
+    }
+
+    /* Back QR Plate */
+    .qr-box {
+      width: 250px;
+      height: 250px;
+      background: #FFFFFF;
+      border-radius: 18px;
+      border: 1px solid rgba(17, 17, 15, 0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+      margin: 8px auto 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .qr-box svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .back-url {
+      font-family: 'General Sans', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      color: rgba(17, 17, 15, 0.65);
+      text-align: center;
+      margin-top: auto;
+      padding-bottom: 2px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="studio-container">
+    
+    <div class="studio-header">
+      <span class="badge">PRINT-READY SQUARE KEYCHAIN</span>
+      <h1 class="title">Square Keychain Model</h1>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-card">
+      <div class="input-group">
+        <div class="input-label-row">
+          <label class="label" for="custom-text-input">Front Side Centered Text</label>
+          <span class="counter" id="char-counter">22 / 40</span>
+        </div>
+        <input
+          type="text"
+          id="custom-text-input"
+          class="text-input"
+          maxlength="40"
+          value="SCAN TO CONTACT OWNER"
+          placeholder="e.g. SCAN TO CONTACT OWNER"
+        >
+      </div>
+
+      <div class="input-group">
+        <label class="label" for="qr-url-input">Back Side QR Destination URL</label>
+        <input
+          type="text"
+          id="qr-url-input"
+          class="text-input"
+          value="https://pingin.co.in"
+          placeholder="https://pingin.co.in"
+        >
+      </div>
+
+      <div class="actions-row">
+        <button type="button" class="btn btn-primary" id="btn-download-both">
+          Download Both Square PNGs (Front + Back)
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-download-front">
+          Download Front PNG (1800×1800)
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-download-back">
+          Download Back PNG (1800×1800)
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Display Stage -->
+    <div class="keychains-stage">
+      
+      <!-- FRONT SIDE -->
+      <div class="keychain-wrapper">
+        <span class="side-title">SIDE 1 · FRONT (SQUARE)</span>
+        
+        <div class="keychain-plate" id="front-plate">
+          <div class="keyhole"></div>
+
+          <div class="logo-container">
+            <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 514 138" fill="currentColor">
+              <path d="M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z" fill="currentColor" fill-rule="evenodd"/>
+            </svg>
+          </div>
+
+          <div class="front-text-area">
+            <div class="front-text-content" id="front-text-display">
+              SCAN TO CONTACT OWNER
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACK SIDE -->
+      <div class="keychain-wrapper">
+        <span class="side-title">SIDE 2 · BACK (SQUARE)</span>
+        
+        <div class="keychain-plate" id="back-plate">
+          <div class="keyhole"></div>
+
+          <div class="qr-box" id="qr-box-container">
+            <!-- QR code rendered here -->
+          </div>
+
+          <div class="back-url">pingin.co.in</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Offscreen High-Res Canvas -->
+  <canvas id="export-canvas" width="1800" height="1800" style="display: none;"></canvas>
+
+  <script type="module">
+    import React from 'https://esm.sh/react@19';
+    import ReactDOMClient from 'https://esm.sh/react-dom@19/client';
+    import { QRCodeSVG } from 'https://esm.sh/qrcode.react@4.2.0?deps=react@19';
+
+    const textInput = document.getElementById('custom-text-input');
+    const qrUrlInput = document.getElementById('qr-url-input');
+    const charCounter = document.getElementById('char-counter');
+    const frontTextDisplay = document.getElementById('front-text-display');
+    const qrBoxContainer = document.getElementById('qr-box-container');
+
+    const qrRoot = ReactDOMClient.createRoot(qrBoxContainer);
+
+    function updateQr(url) {
+      qrRoot.render(
+        React.createElement(QRCodeSVG, {
+          value: url || 'https://pingin.co.in',
+          size: 230,
+          level: 'M',
+          fgColor: '#11110F',
+          bgColor: '#FFFFFF'
+        })
+      );
+    }
+
+    function formatAndRenderText(text) {
+      const clean = text.trim().toUpperCase() || 'SCAN TO CONTACT OWNER';
+      charCounter.textContent = `${text.length} / 40`;
+
+      // Word wrapping logic
+      const words = clean.split(/\s+/);
+      const lines = [];
+      let current = '';
+
+      for (const w of words) {
+        if ((current + ' ' + w).trim().length <= 9) {
+          current = (current + ' ' + w).trim();
+        } else {
+          if (current) lines.push(current);
+          current = w;
+        }
+      }
+      if (current) lines.push(current);
+
+      const lineCount = lines.length;
+      let fontSize = 32;
+      if (lineCount === 1) fontSize = 42;
+      else if (lineCount === 2) fontSize = 35;
+      else if (lineCount === 3) fontSize = 28;
+      else fontSize = 24;
+
+      frontTextDisplay.style.fontSize = `${fontSize}px`;
+      frontTextDisplay.innerHTML = lines.join('<br>');
+    }
+
+    // Event listeners
+    textInput.addEventListener('input', (e) => {
+      formatAndRenderText(e.target.value);
+    });
+
+    qrUrlInput.addEventListener('input', (e) => {
+      updateQr(e.target.value);
+    });
+
+    // Initial render
+    formatAndRenderText(textInput.value);
+    updateQr(qrUrlInput.value);
+
+    // High-Resolution 1800x1800 Square PNG Drawing Functions
+    function drawHighResKeychain(isFront) {
+      const canvas = document.getElementById('export-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const SIZE = 1800;
+
+      // Draw Rounded Square Plate
+      ctx.fillStyle = '#F4F3EE';
+      ctx.beginPath();
+      ctx.roundRect(24, 24, SIZE - 48, SIZE - 48, 144);
+      ctx.fill();
+
+      ctx.strokeStyle = '#D8D5CC';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+
+      // Keyhole Punch at Top-Right
+      ctx.fillStyle = '#EDECE6';
+      ctx.beginPath();
+      ctx.arc(SIZE - 200, 200, 60, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#C5C1B6';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+
+      if (isFront) {
+        // Authentic Vector PingIn Brand Logo Wordmark at Top-Left
+        const PINGIN_PATH = 'M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z';
+        ctx.save();
+        const logoTargetWidth = 380;
+        const logoScale = logoTargetWidth / 514;
+        ctx.translate(160, 140);
+        ctx.scale(logoScale, logoScale);
+        ctx.fillStyle = '#11110F';
+        ctx.fill(new Path2D(PINGIN_PATH), 'evenodd');
+        ctx.restore();
+
+        // Draw Custom Text Centered in the Square - Scaled to QR footprint
+        const rawText = textInput.value.trim().toUpperCase() || 'SCAN TO CONTACT OWNER';
+        const words = rawText.split(/\s+/);
+        const lines = [];
+        let curr = '';
+        for (const w of words) {
+          if ((curr + ' ' + w).trim().length <= 9) {
+            curr = (curr + ' ' + w).trim();
+          } else {
+            if (curr) lines.push(curr);
+            curr = w;
+          }
+        }
+        if (curr) lines.push(curr);
+
+        const TARGET_TEXT_WIDTH = 1380;
+        const MAX_TEXT_HEIGHT = 1000;
+
+        let fontSize = 320;
+        while (fontSize > 40) {
+          ctx.font = `800 ${fontSize}px "Clash Display", "General Sans", sans-serif`;
+          const maxLineWidth = Math.max(...lines.map((l) => ctx.measureText(l).width));
+          const totalHeight = lines.length * (fontSize * 1.04);
+          if (maxLineWidth <= TARGET_TEXT_WIDTH && totalHeight <= MAX_TEXT_HEIGHT) {
+            break;
+          }
+          fontSize -= 2;
+        }
+
+        ctx.fillStyle = '#11110F';
+        ctx.font = `800 ${fontSize}px "Clash Display", "General Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        const lineHeight = fontSize * 1.04;
+        const totalHeight = lines.length * lineHeight;
+        const startY = 1010 - totalHeight / 2 + fontSize * 0.78;
+
+        lines.forEach((line, idx) => {
+          ctx.fillText(line, SIZE / 2, startY + idx * lineHeight);
+        });
+
+      } else {
+        // SIDE 2: BACK (Large QR + Readable Website Link)
+        // White QR container card taking up most of the square
+        const qrBoxSize = 1420;
+        const qrBoxX = (SIZE - qrBoxSize) / 2;
+        const qrBoxY = 100;
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 80);
+        ctx.fill();
+        ctx.strokeStyle = '#D8D5CC';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        // Draw QR code onto canvas
+        const svgEl = qrBoxContainer.querySelector('svg');
+        if (svgEl) {
+          const svgData = new XMLSerializer().serializeToString(svgEl);
+          const img = new Image();
+          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+
+          return new Promise((resolve) => {
+            img.onload = () => {
+              ctx.drawImage(img, qrBoxX + 60, qrBoxY + 60, qrBoxSize - 120, qrBoxSize - 120);
+              URL.revokeObjectURL(url);
+
+              // Website link: clear, legible, slightly faded
+              ctx.fillStyle = 'rgba(17, 17, 15, 0.65)';
+              ctx.font = '700 95px "General Sans", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.letterSpacing = '0.08em';
+              ctx.fillText('pingin.co.in', SIZE / 2, qrBoxY + qrBoxSize + 175);
+
+              resolve();
+            };
+            img.src = url;
+          });
+        }
+      }
+
+      return Promise.resolve();
+    }
+
+    function triggerDownload(filename) {
+      const canvas = document.getElementById('export-canvas');
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    }
+
+    document.getElementById('btn-download-front').addEventListener('click', async () => {
+      await drawHighResKeychain(true);
+      triggerDownload('pingin-keychain-front.png');
+    });
+
+    document.getElementById('btn-download-back').addEventListener('click', async () => {
+      await drawHighResKeychain(false);
+      triggerDownload('pingin-keychain-back.png');
+    });
+
+    document.getElementById('btn-download-both').addEventListener('click', async () => {
+      await drawHighResKeychain(true);
+      triggerDownload('pingin-keychain-front.png');
+      setTimeout(async () => {
+        await drawHighResKeychain(false);
+        triggerDownload('pingin-keychain-back.png');
+      }, 400);
+    });
+
+  </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import { ResourceDetailsPage } from '../pages/ResourceDetails/ResourceDetailsPag
 import { PublicContactPage } from '../pages/PublicContact/PublicContactPage';
 import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
+// import { KeychainPage } from '../pages/Keychain/KeychainPage';
 
 export const router = createBrowserRouter([
   // Public Home Page
@@ -13,6 +14,16 @@ export const router = createBrowserRouter([
     path: '/',
     element: <HomePage />,
   },
+
+  // Keychain Studio (unmounted for now)
+  // {
+  //   path: '/keychain',
+  //   element: <KeychainPage />,
+  // },
+  // {
+  //   path: '/keychain-generator',
+  //   element: <KeychainPage />,
+  // },
 
   // Auth Routes
   {
