@@ -14,6 +14,7 @@ import {
   PhoneCall,
   QrCode,
 } from 'lucide-react';
+import { DelayedSpinner } from '../../components/ui';
 
 export const SettingsPage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -85,14 +86,16 @@ export const SettingsPage: React.FC = () => {
 
       {/* Main Content */}
       {isLoading ? (
-        <div className="py-24 flex flex-col items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
-          <p className="font-sans text-xs text-muted tracking-widest uppercase">
-            Loading settings...
-          </p>
-        </div>
+        <DelayedSpinner delay={180}>
+          <div className="py-24 flex flex-col items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
+            <p className="font-sans text-xs text-muted tracking-widest uppercase">
+              Loading settings...
+            </p>
+          </div>
+        </DelayedSpinner>
       ) : error ? (
-        <div className="py-16 text-center max-w-md mx-auto">
+        <div className="py-16 text-center max-w-md mx-auto animate-fade-in">
           <AlertCircle className="h-8 w-8 text-danger mx-auto mb-3" />
           <h3 className="font-display font-medium text-lg uppercase text-danger">
             Settings Unavailable
@@ -109,7 +112,7 @@ export const SettingsPage: React.FC = () => {
           </button>
         </div>
       ) : profile ? (
-        <div className="py-8 space-y-10 max-w-3xl">
+        <div className="py-8 space-y-10 max-w-3xl animate-fade-in">
           {/* SECTION 01: ACCOUNT */}
           <section className="space-y-4">
             <div className="flex items-center gap-3 border-b border-border pb-2.5">

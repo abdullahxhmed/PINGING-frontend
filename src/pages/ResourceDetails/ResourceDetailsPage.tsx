@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
 import { resourcesApi, extractResourceToken } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
-import { Surface, Button, Modal, useToast } from '../../components/ui';
+import { Surface, Button, Modal, useToast, DelayedSpinner } from '../../components/ui';
 import { EditResourceModal, QrCodeModal, ContactLinkPanel } from '../../components/resources';
 import {
   ArrowLeft,
@@ -70,10 +70,12 @@ export const ResourceDetailsPage: React.FC = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="py-24 flex flex-col items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-ink border-t-transparent mb-3" />
-          <p className="body-sm text-muted">Loading resource details...</p>
-        </div>
+        <DelayedSpinner delay={180}>
+          <div className="py-24 flex flex-col items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-ink border-t-transparent mb-3" />
+            <p className="body-sm text-muted">Loading resource details...</p>
+          </div>
+        </DelayedSpinner>
       </Layout>
     );
   }
@@ -81,7 +83,7 @@ export const ResourceDetailsPage: React.FC = () => {
   if (error || !resource) {
     return (
       <Layout>
-        <div className="py-12 max-w-lg mx-auto text-center">
+        <div className="py-12 max-w-lg mx-auto text-center animate-fade-in">
           <Surface className="border-danger/30 bg-danger/5">
             <h3 className="heading-md text-danger">Error Loading Resource</h3>
             <p className="body-sm text-danger/80 mt-1 mb-4">{error || 'Resource not found'}</p>
@@ -100,16 +102,17 @@ export const ResourceDetailsPage: React.FC = () => {
 
   return (
     <Layout>
-      {/* Back button */}
-      <div className="mb-6">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 body-sm font-semibold text-muted hover:text-ink transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to My Resources
-        </Link>
-      </div>
+      <div className="animate-fade-in">
+        {/* Back button */}
+        <div className="mb-6">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1.5 body-sm font-semibold text-muted hover:text-ink transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to My Resources
+          </Link>
+        </div>
 
       {/* Header bar */}
       {/* Resource Title Header */}
@@ -271,6 +274,7 @@ export const ResourceDetailsPage: React.FC = () => {
           resourceName={resource.name}
         />
       )}
+      </div>
     </Layout>
   );
 };

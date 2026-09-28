@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { publicContactApi, communicationApi } from '../../lib/api';
 import type { PublicResourceContact, CallStatus } from '../../types/api';
-import { validatePhoneNumber, useToast } from '../../components/ui';
+import { validatePhoneNumber, useToast, DelayedSpinner } from '../../components/ui';
 import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
 import { Loader2, Check, HelpCircle } from 'lucide-react';
 
@@ -508,14 +508,16 @@ export const PublicContactPage: React.FC = () => {
       {/* MAIN CONTAINER */}
       <main className="max-w-4xl w-full mx-auto my-auto py-6 sm:py-10 space-y-6 sm:space-y-8">
         {isLoading ? (
-          <div className="py-24 text-left">
-            <div className="inline-flex items-center gap-2.5 text-xs font-sans font-medium tracking-widest uppercase text-muted">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              <span>CONNECTING TO RELAY...</span>
+          <DelayedSpinner delay={180}>
+            <div className="py-24 text-left">
+              <div className="inline-flex items-center gap-2.5 text-xs font-sans font-medium tracking-widest uppercase text-muted">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                <span>CONNECTING TO RELAY...</span>
+              </div>
             </div>
-          </div>
+          </DelayedSpinner>
         ) : fetchError || !contact ? (
-          <div className="max-w-md py-12 space-y-6">
+          <div className="max-w-md py-12 space-y-6 animate-fade-in">
             <div className="pb-3 border-b border-border">
               <span className="text-xs font-sans font-semibold tracking-[0.16em] uppercase text-danger">
                 LINK UNAVAILABLE
@@ -539,7 +541,7 @@ export const PublicContactPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-6 sm:space-y-8 animate-fade-in">
             {/* 2. THE RESOURCE AS HERO */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1135,7 +1137,7 @@ export const PublicContactPage: React.FC = () => {
                 </p>
               </div>
             </section>
-          </>
+          </div>
         )}
       </main>
 

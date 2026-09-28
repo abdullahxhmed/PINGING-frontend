@@ -3,7 +3,7 @@ import type { Resource } from '../../types/api';
 import { resourcesApi } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
 import { ResourceRow, CreateResourceModal, EditResourceModal } from '../../components/resources';
-import { Button } from '../../components/ui';
+import { Button, DelayedSpinner } from '../../components/ui';
 import { Plus, ShieldAlert } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -80,14 +80,16 @@ export const DashboardPage: React.FC = () => {
 
       {/* Main Content Area - Immediate Access to Resources */}
       {isLoading ? (
-        <div className="py-24 flex flex-col items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
-          <p className="font-sans text-xs text-muted tracking-widest uppercase">
-            Loading resources...
-          </p>
-        </div>
+        <DelayedSpinner delay={180}>
+          <div className="py-24 flex flex-col items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
+            <p className="font-sans text-xs text-muted tracking-widest uppercase">
+              Loading resources...
+            </p>
+          </div>
+        </DelayedSpinner>
       ) : error ? (
-        <div className="py-16 text-center max-w-md mx-auto">
+        <div className="py-16 text-center max-w-md mx-auto animate-fade-in">
           <ShieldAlert className="h-7 w-7 text-danger mx-auto mb-3" />
           <h3 className="heading-md text-danger text-lg uppercase">Registry Unavailable</h3>
           <p className="body-sm text-danger/80 mt-1 max-w-md mx-auto mb-6">{error}</p>
@@ -100,7 +102,7 @@ export const DashboardPage: React.FC = () => {
           </Button>
         </div>
       ) : resources.length === 0 ? (
-        <div className="text-center py-24 max-w-md mx-auto">
+        <div className="text-center py-24 max-w-md mx-auto animate-fade-in">
           <span className="label font-sans text-xs text-muted tracking-widest uppercase block mb-3">
             NO RESOURCES REGISTERED
           </span>
@@ -120,7 +122,7 @@ export const DashboardPage: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <>
+        <div className="animate-fade-in">
           {/* Resource List directly following the header */}
           <div className="divide-y-0">
             {resources.map((resource, idx) => (
@@ -153,7 +155,7 @@ export const DashboardPage: React.FC = () => {
               </span>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Modals */}

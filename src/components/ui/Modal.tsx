@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -28,6 +29,18 @@ export const Modal: React.FC<ModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const maxWidths = {
@@ -37,16 +50,17 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-xl',
   };
 
-  return (
+  const modalElement = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         <div
           className="fixed inset-0 bg-surface-dark/60 backdrop-blur-xs transition-opacity"
           onClick={onClose}
+          aria-hidden="true"
         />
 
         <div
-          className={`relative transform overflow-hidden rounded-[var(--radius-sm)] bg-surface text-left transition-all sm:my-8 w-full ${maxWidths[maxWidth]} p-6 sm:p-7 border border-border`}
+          className={`relative transform overflow-hidden rounded-[var(--radius-sm)] bg-surface text-left transition-all sm:my-8 w-full ${maxWidths[maxWidth]} p-6 sm:p-7 border border-border z-10 shadow-2xl`}
         >
           <div className="flex items-start justify-between pb-4 border-b border-border">
             <div>
@@ -68,4 +82,8 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalElement, document.body)
+    : modalElement;
 };
