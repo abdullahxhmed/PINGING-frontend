@@ -836,13 +836,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       {/* Bottom Bar: Protocol & Privacy Metadata */}
       <footer>
         <Divider className="mb-5" />
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] font-sans text-muted tracking-wider uppercase">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] font-sans text-muted tracking-wider">
           <div className="flex items-center gap-2.5">
-            <PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
+            ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
             <span className="text-border-strong">•</span>
             <span>PRIVACY FIRST COMMUNICATION</span>
           </div>
-          <span>© {new Date().getFullYear()} FINDAT</span>
+          {/* <span>© {new Date().getFullYear()} FINDAT</span> */}
         </div>
       </footer>
       </div>

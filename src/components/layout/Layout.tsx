@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Container } from './Container';
 
@@ -20,11 +21,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="border-t border-border bg-surface py-6">
         <Container className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div className="flex items-center gap-3">
-            <PingInSvgLogo height={11} atColor="currentColor" className="text-ink" />
+            ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
             <span className="text-border-strong">•</span>
             <span>Private contact made safe and seamless.</span>
           </div>
-          <p>© {new Date().getFullYear()} FINDAT</p>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/contact"
+              className="px-3 py-1 rounded-sm border border-border hover:border-ink hover:text-ink text-muted font-sans text-xs font-medium uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
+            >
+              Feedback
+            </Link>
+          </div>
         </Container>
       </footer>
     </div>

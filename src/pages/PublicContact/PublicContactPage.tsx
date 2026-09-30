@@ -581,7 +581,7 @@ export const PublicContactPage: React.FC = () => {
                 <h2 className="text-xs font-sans font-semibold tracking-[0.16em] uppercase text-ink">
                   CONTACT OWNER
                 </h2>
-                <span className="text-[14px] font-sans tracking-wider text-muted">
+                <span className="text-[14px] font-sans text-muted leading-relaxed pt-0.5">
                   How would you like to reach them?
                 </span>
               </div>
@@ -833,9 +833,9 @@ export const PublicContactPage: React.FC = () => {
                           <form onSubmit={handleCallSubmit} className="space-y-3.5 max-w-lg mt-3">
                             {contact?.hasRegistrationNumber && isRegVerified && (
                               <div className="flex items-center justify-between px-3 py-2 rounded-sm border border-[#315f43]/30 bg-[#315f43]/5 text-xs font-sans">
-                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#315f43] tracking-wider uppercase text-[11px]">
+                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#315f43] tracking-wider text-[11px]">
                                   <Check className="w-3.5 h-3.5" />
-                                  PLATE VERIFIED
+                                  Plate Verified
                                 </span>
                                 <span className="font-mono text-ink font-semibold tracking-wider text-xs">
                                   •••• {regNumber}

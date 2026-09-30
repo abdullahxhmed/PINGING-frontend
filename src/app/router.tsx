@@ -4,6 +4,7 @@ import { AuthPage } from '../pages/Auth/AuthPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { ResourceDetailsPage } from '../pages/ResourceDetails/ResourceDetailsPage';
 import { PublicContactPage } from '../pages/PublicContact/PublicContactPage';
+import { ContactPage } from '../pages/Contact/ContactPage';
 import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
 // import { KeychainPage } from '../pages/Keychain/KeychainPage';
@@ -38,6 +39,20 @@ export const router = createBrowserRouter([
         element: null,
       },
     ],
+  },
+
+  // Public Contact & Feedback Page
+  {
+    path: '/contact',
+    element: <ContactPage />,
+  },
+  {
+    path: '/help',
+    element: <Navigate to="/contact" replace />,
+  },
+  {
+    path: '/support',
+    element: <Navigate to="/contact" replace />,
   },
 
   // Public Contact Surface (Anonymous QR destination)

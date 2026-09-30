@@ -107,6 +107,14 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                 >
                   Sign In
                 </Link>
+
+                <Link
+                  to="/contact"
+                  onClick={onClose}
+                  className="w-full text-center py-1 text-xs font-sans font-medium tracking-wider uppercase text-muted hover:text-ink transition-colors"
+                >
+                  Contact & Support
+                </Link>
               </div>
 
             </div>

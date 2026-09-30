@@ -350,7 +350,7 @@ export const HomePage: React.FC = () => {
               <span className="text-border">•</span>
               <a href="#faq" className="hover:text-ink transition-colors">FAQ</a>
               <span className="text-border">•</span>
-              <a href="mailto:contact@findat.in" className="hover:text-ink transition-colors">Contact</a>
+              <Link to="/contact" className="hover:text-ink transition-colors">Contact</Link>
             </div>
             <span>© {new Date().getFullYear()} Findat · Built by Abdullah Ahmed</span>
           </div>
