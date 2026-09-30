@@ -20,11 +20,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="border-t border-border bg-surface py-6">
         <Container className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div className="flex items-center gap-3">
-            <PingInSvgLogo height={18} className="text-ink" />
+            <PingInSvgLogo height={11} atColor="currentColor" className="text-ink" />
             <span className="text-border-strong">•</span>
             <span>Private contact made safe and seamless.</span>
           </div>
-          <p>© {new Date().getFullYear()} PINGIN</p>
+          <p>© {new Date().getFullYear()} FINDAT</p>
         </Container>
       </footer>
     </div>

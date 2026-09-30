@@ -108,7 +108,7 @@ body,
   min-height: 100%;
 }
 
-/* Custom sleek scrollbar matching PingIn palette to prevent jarring OS scrollbars on desktop */
+/* Custom sleek scrollbar matching Findat palette to prevent jarring OS scrollbars on desktop */
 ::-webkit-scrollbar {
   width: 10px;
 }

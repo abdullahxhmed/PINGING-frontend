@@ -387,7 +387,7 @@ export function getPublicBaseUrl(): string {
 }
 
 /**
- * Resolves the public domain name (e.g. "pingin.com" or "pingin.vercel.app")
+ * Resolves the public domain name (e.g. "findat.in" or "findat.vercel.app")
  * without protocol or trailing paths.
  */
 export function getPublicDomain(): string {

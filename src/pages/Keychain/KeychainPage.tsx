@@ -15,15 +15,18 @@ import {
 } from 'lucide-react';
 import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
 
-const PINGIN_SVG_PATH =
-  'M 299.0 113.33 L 288.0 112.5 L 279.0 110.0 L 273.0 107.0 L 270.33 105.0 L 267.0 102.33 L 263.0 98.0 L 258.33 90.0 L 256.67 85.0 L 255.67 80.0 L 255.33 74.0 L 256.0 65.0 L 258.0 58.0 L 262.67 50.0 L 268.0 44.33 L 274.0 40.0 L 284.0 35.67 L 296.0 33.67 L 307.0 33.67 L 316.0 35.0 L 323.0 37.0 L 331.0 41.0 L 336.0 45.33 L 339.33 50.0 L 341.33 54.0 L 342.33 57.0 L 342.67 63.0 L 342.0 63.5 L 328.0 63.5 L 327.5 63.0 L 326.5 57.0 L 324.33 53.0 L 321.0 50.0 L 316.0 47.5 L 308.0 45.67 L 298.0 45.5 L 294.0 45.67 L 285.0 47.67 L 279.0 51.0 L 275.0 55.0 L 272.67 59.0 L 271.0 64.0 L 270.0 74.01 L 270.67 82.0 L 272.67 88.0 L 276.0 93.0 L 278.0 95.0 L 280.0 96.5 L 286.0 99.33 L 292.0 100.67 L 300.0 101.33 L 313.0 100.33 L 320.0 98.33 L 325.0 94.67 L 328.0 90.0 L 329.0 82.99 L 328.01 82.0 L 298.0 82.0 L 297.0 81.0 L 297.0 73.0 L 298.0 72.5 L 342.0 72.5 L 342.67 73.0 L 342.67 111.0 L 342.0 112.0 L 331.0 112.0 L 330.0 111.0 L 330.0 96.0 L 329.0 96.0 L 325.0 103.0 L 322.0 106.0 L 317.0 109.33 L 308.0 112.33 L 299.0 113.33 Z M 54.0 112.0 L 41.0 111.99 L 40.67 111.0 L 41.0 35.01 L 89.0 35.0 L 98.0 37.0 L 107.0 42.0 L 110.67 46.0 L 113.33 50.0 L 115.33 57.0 L 115.67 62.0 L 115.0 69.0 L 113.0 73.0 L 113.0 74.0 L 111.0 77.0 L 108.0 80.33 L 104.0 83.5 L 98.0 86.33 L 92.0 87.67 L 91.0 88.33 L 55.0 89.0 L 54.67 111.0 L 54.0 112.0 Z M 142.0 112.0 L 130.0 112.0 L 129.0 111.0 L 129.01 35.0 L 130.0 34.67 L 142.0 34.67 L 143.0 36.0 L 143.0 111.0 L 142.0 112.0 Z M 239.0 112.0 L 225.0 112.0 L 186.0 67.0 L 175.0 53.33 L 174.33 54.0 L 174.67 111.0 L 174.0 112.0 L 161.0 111.99 L 161.0 35.01 L 176.0 35.0 L 214.0 79.33 L 226.0 94.5 L 226.67 94.0 L 226.0 80.0 L 226.01 35.0 L 239.5 35.0 L 240.0 36.0 L 240.0 111.0 L 239.0 112.0 Z M 373.0 111.5 L 372.0 112.0 L 360.0 112.0 L 359.5 111.0 L 359.5 36.0 L 360.0 34.67 L 372.0 34.67 L 372.99 35.0 L 373.33 36.0 L 373.0 111.5 Z M 470.0 112.0 L 456.0 112.0 L 455.0 111.5 L 419.0 70.0 L 406.33 54.0 L 405.0 53.5 L 405.0 111.0 L 404.0 112.0 L 392.0 112.0 L 391.33 111.0 L 391.5 35.0 L 405.0 34.67 L 407.0 35.67 L 440.0 74.0 L 455.0 93.0 L 457.0 94.33 L 457.33 92.0 L 456.5 81.0 L 456.67 35.0 L 470.0 34.67 L 470.5 36.0 L 470.5 111.0 L 470.0 112.0 Z M 88.5 77.0 L 92.0 76.33 L 97.0 73.67 L 100.0 70.0 L 101.33 66.0 L 101.33 57.0 L 99.67 53.0 L 96.0 49.0 L 93.0 47.5 L 86.01 46.0 L 55.0 46.0 L 55.0 77.33 L 84.0 77.5 L 88.5 77.0 Z';
+const FIND_SVG_PATH =
+  'm 171.50961,578.26388 v -72.384 h 29.76 v -23.808 h -30.912 c -0.768,-9.408 5.184,-11.52 17.856,-11.52 h 13.056 v -20.928 h -8.448 c -29.568,0 -46.464,13.056 -49.536,32.448 h -14.208 v 23.808 h 13.632 v 72.384 z m 68.16,-105.984 v -22.656 h -28.8 v 22.656 z m 0,105.984 v -96.192 h -28.8 v 96.192 z m 43.9681,0 v -48.576 c 0,-16.32 6.528,-23.616 24.768,-23.616 17.664,0 24,6.528 24,21.888 v 50.304 h 28.8 v -59.904 c 0,-21.312 -12.48,-38.208 -38.784,-38.208 -25.152,0 -36.672,15.36 -39.168,31.488 h -1.728 v -29.568 h -26.688 v 96.192 z m 135.16784,1.92 c 22.08,0 34.752,-9.6 38.4,-28.608 h 1.536 v 26.688 h 26.88 v -128.64 h -28.8 v 57.984 h -1.728 c -3.264,-16.128 -14.976,-27.456 -37.824,-27.456 -28.608,0 -44.928,19.392 -44.928,50.112 0,30.336 16.512,49.92 46.464,49.92 z m -17.28,-49.92 c 0,-17.664 8.64,-23.808 27.072,-23.808 18.432,0 24.60596,4.2873 24.60596,20.9913 v 7.57029 c 0,10.35437 -6.36596,18.86241 -24.60596,18.86241 -18.432,0 -27.072,-6.144 -27.072,-23.616 z';
+
+const AT_SVG_PATH =
+  'm 185.53097,153.18947 h -6.15118 c -5.6338,0 -9.25552,-2.08281 -9.25552,-7.9756 v -14.02079 h -5.05891 v -3.0988 h 5.05891 v -5.99439 h 4.13912 v 5.99439 h 11.26758 v 3.0988 h -11.26758 v 14.22399 c 0,3.5052 1.95457,4.4704 6.09369,4.4704 h 5.17389 z m -43.11753,-5.90117 c 0.1635,2.90612 2.20674,3.46511 2.64615,3.61517 2.76185,0.94318 12.35986,-2.6924 12.35986,-8.73759 v -0.2032 l -12.24488,1.21919 c -1.52284,0.10997 -2.89295,1.76356 -2.76113,4.10643 z m 1.72636,6.40916 c -5.57631,0 -9.3705,-2.33679 -9.3705,-6.40079 0,-4.1148 3.85168,-5.89279 9.14054,-6.40079 l 13.50961,-1.3208 v -1.9304 c 0,-4.87679 -2.41448,-6.8072 -8.62316,-6.8072 -6.09369,0 -4.053,6.03746 -5.98799,6.22719 l -3.32501,0.32601 h -4.08163 v -0.2032 c 0,-5.2832 4.94394,-9.60119 13.68208,-9.60119 8.62315,0 12.30236,4.36879 12.30236,9.90599 v 15.69719 h -3.67921 v -6.7564 h -0.28744 c -1.66715,4.6228 -6.66857,7.26439 -13.27965,7.26439 z';
 
 const MAX_CHAR_LIMIT = 40;
 const CANVAS_SIZE = 1800; // Ultra high-definition 1800 x 1800 px (300 DPI ready)
 
 export const KeychainPage: React.FC = () => {
   const [customText, setCustomText] = useState('SCAN TO CONTACT OWNER');
-  const [qrValue, setQrValue] = useState('https://pingin.co.in');
+  const [qrValue, setQrValue] = useState('https://findat.in');
   const [colorTheme, setColorTheme] = useState<'bone' | 'dark'>('bone');
   const [includeKeyhole, setIncludeKeyhole] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -117,14 +120,28 @@ export const KeychainPage: React.FC = () => {
 
     if (isFront) {
       // ── FRONT SIDE ──────────────────────────────────────────
-      // Authentic Vector PingIn Brand Logo Wordmark at Top-Left
+      // Authentic Vector Findat Brand Logo Wordmark at Top-Left
       ctx.save();
-      const logoTargetWidth = 380;
-      const logoScale = logoTargetWidth / 514;
+      const logoTargetHeight = 58;
+      const logoScale = logoTargetHeight / 34.734486;
       ctx.translate(160, 140);
       ctx.scale(logoScale, logoScale);
+      ctx.translate(-21.299147, -118.963);
+
+      // "find" wordmark segment
+      ctx.save();
+      ctx.transform(0.3055025, 0, 0, 0.26458333, -18.134387, 0);
       ctx.fillStyle = textColor;
-      ctx.fill(new Path2D(PINGIN_SVG_PATH), 'evenodd');
+      ctx.fill(new Path2D(FIND_SVG_PATH));
+      ctx.restore();
+
+      // "at" wordmark segment
+      ctx.save();
+      ctx.transform(0.97947062, 0, 0, 1, 1.724624, 0);
+      ctx.fillStyle = '#8f8f8f';
+      ctx.fill(new Path2D(AT_SVG_PATH));
+      ctx.restore();
+
       ctx.restore();
 
       // Scaled Clash Display Typography fitting the entirety of the QR footprint (1380px)
@@ -203,7 +220,7 @@ export const KeychainPage: React.FC = () => {
       ctx.font = '700 95px "General Sans", sans-serif';
       ctx.textAlign = 'center';
       ctx.letterSpacing = '0.08em';
-      ctx.fillText('pingin.co.in', CANVAS_SIZE / 2, qrBoxY + qrBoxSize + 175);
+      ctx.fillText('findat.in', CANVAS_SIZE / 2, qrBoxY + qrBoxSize + 175);
 
       return canvas;
     }
@@ -269,7 +286,7 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const canvas = await renderCanvas(true);
     if (canvas) {
-      const ok = await saveCanvasAsPng(canvas, 'pingin-keychain-front.png');
+      const ok = await saveCanvasAsPng(canvas, 'findat-keychain-front.png');
       if (ok) {
         setDownloadSuccess('Front Square PNG saved!');
         setTimeout(() => setDownloadSuccess(null), 3000);
@@ -283,7 +300,7 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const canvas = await renderCanvas(false);
     if (canvas) {
-      const ok = await saveCanvasAsPng(canvas, 'pingin-keychain-back.png');
+      const ok = await saveCanvasAsPng(canvas, 'findat-keychain-back.png');
       if (ok) {
         setDownloadSuccess('Back Square PNG saved!');
         setTimeout(() => setDownloadSuccess(null), 3000);
@@ -297,11 +314,11 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const frontCanvas = await renderCanvas(true);
     if (frontCanvas) {
-      const okFront = await saveCanvasAsPng(frontCanvas, 'pingin-keychain-front.png');
+      const okFront = await saveCanvasAsPng(frontCanvas, 'findat-keychain-front.png');
       if (okFront) {
         const backCanvas = await renderCanvas(false);
         if (backCanvas) {
-          await saveCanvasAsPng(backCanvas, 'pingin-keychain-back.png');
+          await saveCanvasAsPng(backCanvas, 'findat-keychain-back.png');
           setDownloadSuccess('Both Front & Back Square PNGs saved!');
           setTimeout(() => setDownloadSuccess(null), 3500);
         }
@@ -325,8 +342,8 @@ export const KeychainPage: React.FC = () => {
               <span>Back</span>
             </Link>
             <div className="h-4 w-[1px] bg-border" />
-            <Link to="/" aria-label="PingIn Home">
-              <PingInLogo className="w-[110px] h-[26px]" width={110} height={26} />
+            <Link to="/" aria-label="Findat Home">
+              <PingInLogo height={16} className="w-auto h-4 sm:h-[16px]" />
             </Link>
           </div>
 
@@ -352,7 +369,7 @@ export const KeychainPage: React.FC = () => {
             Square Keychain Studio.
           </h1>
           <p className="text-xs sm:text-sm font-sans text-muted leading-relaxed">
-            Outputs two square PNGs: Front side with PingIn logo top-left and bold centered text covering the plate; Back side with a large QR code and website link.
+            Outputs two square PNGs: Front side with Findat logo top-left and bold centered text covering the plate; Back side with a large QR code and website link.
           </p>
         </div>
 
@@ -425,12 +442,12 @@ export const KeychainPage: React.FC = () => {
                   type="text"
                   value={qrValue}
                   onChange={(e) => setQrValue(e.target.value)}
-                  placeholder="https://pingin.co.in"
+                  placeholder="https://findat.in"
                   className="w-full p-3 bg-bg border border-border focus:border-ink rounded-xs text-xs font-mono text-ink focus:outline-none transition-colors"
                 />
 
                 <p className="text-[11px] font-sans text-muted">
-                  Scanned with any smartphone. Website displays as <strong>pingin.co.in</strong> directly below the QR code.
+                  Scanned with any smartphone. Website displays as <strong>findat.in</strong> directly below the QR code.
                 </p>
               </div>
 
@@ -593,10 +610,10 @@ export const KeychainPage: React.FC = () => {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Top Row: PingIn Logo at Top-Left, Optional Keyhole Punch at Top-Right */}
+                    {/* Top Row: Findat Logo at Top-Left, Optional Keyhole Punch at Top-Right */}
                     <div className="w-full flex items-center justify-between">
                       <div className="flex items-center">
-                        <PingInSvgLogo height={24} className={isDark ? 'text-[#F5F4EE]' : 'text-[#11110F]'} />
+                        <PingInSvgLogo height={16} className={isDark ? 'text-[#F5F4EE]' : 'text-[#11110F]'} />
                       </div>
 
                       {includeKeyhole && (
@@ -673,7 +690,7 @@ export const KeychainPage: React.FC = () => {
                     <div className="flex-1 w-full flex items-center justify-center">
                       <div className="p-3 bg-white rounded-2xl shadow-xs border border-current/10 flex items-center justify-center">
                         <QRCodeSVG
-                          value={qrValue || 'https://pingin.co.in'}
+                          value={qrValue || 'https://findat.in'}
                           size={220}
                           level="M"
                           fgColor="#11110F"
@@ -688,7 +705,7 @@ export const KeychainPage: React.FC = () => {
                         className="font-sans font-bold text-sm tracking-wider"
                         style={{ color: fadedTextColor }}
                       >
-                        pingin.co.in
+                        findat.in
                       </p>
                     </div>
                   </div>
@@ -718,7 +735,7 @@ export const KeychainPage: React.FC = () => {
           aria-hidden="true"
         >
           <QRCodeSVG
-            value={qrValue || 'https://pingin.co.in'}
+            value={qrValue || 'https://findat.in'}
             size={1300}
             level="M"
             fgColor="#11110F"

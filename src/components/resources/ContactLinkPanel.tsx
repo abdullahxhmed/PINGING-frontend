@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Share2,
 } from 'lucide-react';
+import { PingInSvgLogo } from '../brand/PingInLogo';
 
 export interface ContactLinkPanelProps {
   resource: Resource;
@@ -135,7 +136,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
                     Privacy by Design
                   </h4>
                   <p className="body-sm text-muted mt-1 leading-relaxed">
-                    PingIn never transmits your personal phone number to visitors. When someone scans your QR code and submits a contact request, our secure backend proxies the communication without disclosing private credentials.
+                    <PingInSvgLogo inline className="mr-1 text-ink" /> never transmits your personal phone number to visitors. When someone scans your QR code and submits a contact request, our secure backend proxies the communication without disclosing private credentials.
                   </p>
                 </div>
               </div>
@@ -166,7 +167,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
         <div className="bg-[#151513] text-[#f5f4ee] p-6 rounded-sm border border-[#151513] flex flex-col items-center text-center select-none">
           <div className="flex items-center justify-between w-full pb-3 mb-4 border-b border-[#2a2a26]">
             <span className="font-display font-medium text-[11px] tracking-[0.14em] uppercase text-white">
-              PINGIN
+              FINDAT
             </span>
           </div>
 
@@ -183,7 +184,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
               </div>
 
               <span className="font-display font-medium text-xs tracking-[0.18em] uppercase text-white mt-3 block">
-                PINGIN
+                FINDAT
               </span>
               <span className="font-sans text-[10px] text-[#929087] uppercase tracking-wider block mb-4">
                 {resource.name}

@@ -503,8 +503,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         {/* Top Bar: Brand Identity & Metadata */}
         <header>
           <div className="flex items-center justify-between pb-5">
-            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0">
-              <PingInLogo height={32} width={136} />
+            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0" aria-label="Findat Home">
+              <PingInLogo height={16} />
             </Link>
             <div className="flex items-center gap-3">
               {/* <span className="label text-[10px] text-muted tracking-widest uppercase">
@@ -583,7 +583,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
                 >
                   <Input
                     label="Full name"
-                    placeholder="Jane Doe"
+                    placeholder="Your name"
                     value={name}
                     onChange={(e) => {
                       setName(e.target.value);
@@ -838,11 +838,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         <Divider className="mb-5" />
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] font-sans text-muted tracking-wider uppercase">
           <div className="flex items-center gap-2.5">
-            <PingInSvgLogo height={16} className="text-muted/70 hover:text-ink transition-colors" />
+            <PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
             <span className="text-border-strong">•</span>
             <span>PRIVACY FIRST COMMUNICATION</span>
           </div>
-          <span>© {new Date().getFullYear()} PINGIN</span>
+          <span>© {new Date().getFullYear()} FINDAT</span>
         </div>
       </footer>
       </div>

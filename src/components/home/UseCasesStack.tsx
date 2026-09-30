@@ -264,7 +264,7 @@ export const UseCasesStack: React.FC = () => {
               >
                 {/* Tag Top Bar */}
                 <div className="w-full flex items-center justify-between pb-3 sm:pb-3.5 border-b border-[#D8D5CC]">
-                  <PingInSvgLogo height={18} className="text-ink" />
+                  <PingInSvgLogo height={14} className="text-ink" />
                   <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-accent border-[1.5px] border-ink" />
                 </div>
 

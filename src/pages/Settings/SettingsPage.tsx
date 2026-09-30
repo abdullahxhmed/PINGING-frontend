@@ -15,6 +15,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { DelayedSpinner } from '../../components/ui';
+import { PingInSvgLogo } from '../../components/brand/PingInLogo';
 
 export const SettingsPage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -186,7 +187,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <p className="font-sans text-xs text-muted">
-              Your PingIn calls are forwarded to this number.
+              Your Findat calls are forwarded to this number.
             </p>
 
             {/* Contact Number Card */}
@@ -220,7 +221,7 @@ export const SettingsPage: React.FC = () => {
             <div className="p-4 border border-border/80 bg-surface/20 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans text-xs">
               <p className="text-muted leading-relaxed">
                 <span className="font-medium text-ink">Your contact number is private.</span>{' '}
-                PingIn connects visitors to you without revealing your number.
+                <PingInSvgLogo inline className="mr-1 text-ink" /> connects visitors to you without revealing your number.
               </p>
               <button
                 type="button"
@@ -261,7 +262,7 @@ export const SettingsPage: React.FC = () => {
 
               <div className="p-4 border border-border bg-surface/30 rounded-sm space-y-1">
                 <span className="text-muted text-[10px] tracking-widest uppercase block font-medium">
-                  PingIn Status
+                  Findat Status
                 </span>
                 <span className="font-medium text-accent text-sm flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -328,7 +329,7 @@ export const SettingsPage: React.FC = () => {
                     2. Connecting the Call
                   </div>
                   <p className="text-muted leading-relaxed">
-                    When someone calls, PingIn connects both phones without revealing your personal number.
+                    When someone calls, <PingInSvgLogo inline className="mx-1 text-ink" /> connects both phones without revealing your personal number.
                   </p>
                 </div>
               </div>

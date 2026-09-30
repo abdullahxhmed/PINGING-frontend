@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="61.583111mm"
+   height="57.672054mm"
+   viewBox="0 0 61.583111 57.672054"
+   version="1.1"
+   id="svg1"
+   inkscape:export-filename="bitmap.svg"
+   inkscape:export-xdpi="111.3617"
+   inkscape:export-ydpi="111.3617"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#edece6"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showguides="false">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="61.583111"
+       height="57.672054"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <defs id="defs1">
+    <linearGradient id="findat-bone-surface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5f4ee"/>
+      <stop offset="100%" stop-color="#edece6"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#findat-bone-surface)"/>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="matrix(1.4774897,0,0,1,-93.575739,-134.08139)">
+    <path
+       style="font-weight:600;font-size:325.333px;font-family:'Clash Display';-inkscape-font-specification:'Clash Display Semi-Bold';white-space:pre;display:inline;fill:#858582;fill-opacity:1;stroke-width:0.28038"
+       d="m 105.01518,159.57636 -0.12281,-11.19347 H 91.347496 l -0.122813,11.19347 z"
+       id="path4" />
+    <path
+       style="font-weight:600;font-size:325.333px;font-family:'Clash Display';-inkscape-font-specification:'Clash Display Semi-Bold';white-space:pre;display:inline;fill:#b5b3b0;fill-opacity:1;stroke-width:0.270994"
+       d="m 105.01518,174.42291 -0.12281,-10.45659 H 91.347498 l -0.122813,10.45659 z"
+       id="path5" />
+    <path
+       style="font-weight:600;font-size:325.333px;font-family:'Clash Display';-inkscape-font-specification:'Clash Display Semi-Bold';white-space:pre;display:inline;fill:#d5d4cf;fill-opacity:1;stroke-width:0.270994"
+       d="m 105.01518,189.26946 -0.12281,-10.45659 H 91.347498 l -0.122813,10.45659 z"
+       id="path6" />
+    <path
+       style="font-weight:600;font-size:325.333px;font-family:'Clash Display';-inkscape-font-specification:'Clash Display Semi-Bold';white-space:pre;display:inline;fill:#000000;fill-opacity:1;stroke-width:0.267697"
+       d="m 104.89237,143.99293 v -9.91154 H 91.347496 v 9.91154 z"
+       id="path3" />
+  </g>
+  <g
+     id="g1"
+     inkscape:label="g1"
+     inkscape:groupmode="layer"
+     transform="translate(-50.016892,-134.08139)">
+    <path
+       d="m 69.040062,191.75345 v -32.45129 l 19.359894,0.2742 v -10.45659 l -19.87636,-0.49125 c -0.344311,-4.21781 2.07847,-4.63559 7.759599,-4.63559 h 11.625508 l 0.245626,-9.91154 h -9.559643 c -13.255965,0 -20.830803,5.85328 -22.208046,14.54713 h -6.369749 v 10.67364 h 6.111516 v 32.45129 z"
+       id="text6"
+       style="font-weight:600;font-size:86.0777px;font-family:'Clash Display';-inkscape-font-specification:'Clash Display Semi-Bold';stroke-width:0.264583"
+       aria-label="f"
+       sodipodi:nodetypes="cccccsccscccccc" />
+  </g>
+</svg>

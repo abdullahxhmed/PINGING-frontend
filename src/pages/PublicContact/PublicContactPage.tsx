@@ -486,8 +486,8 @@ export const PublicContactPage: React.FC = () => {
       {/* 1. PUBLIC HEADER */}
       <header className="max-w-4xl w-full mx-auto">
         <div className="flex items-center justify-between pb-4">
-          <Link to="/" className="focus:outline-none -ml-1 sm:ml-0">
-            <PingInLogo height={32} width={136} />
+          <Link to="/" className="focus:outline-none -ml-1 sm:ml-0" aria-label="Findat Home">
+            <PingInLogo height={16} />
           </Link>
 
           {/* Desktop header label */}
@@ -536,7 +536,7 @@ export const PublicContactPage: React.FC = () => {
                 to="/"
                 className="text-xs font-sans font-medium tracking-wider uppercase text-ink underline hover:text-muted"
               >
-                ← RETURN TO PINGIN
+                ← RETURN TO FINDAT
               </Link>
             </div>
           </div>
@@ -546,7 +546,7 @@ export const PublicContactPage: React.FC = () => {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-sans font-medium tracking-[0.18em] uppercase text-muted">
-                  PUBLIC CONTACT
+                  CONTACT
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-sans font-medium tracking-widest uppercase text-ink">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent ring-1 ring-ink/20" />
@@ -567,7 +567,7 @@ export const PublicContactPage: React.FC = () => {
 
                 {contact.vehicleDetails?.colour && (
                   <div className="flex items-center gap-2 text-xs font-sans text-muted mt-2 ml-7 sm:ml-8">
-                    <span className="tracking-wider">COLOUR: {contact.vehicleDetails.colour}</span>
+                    <span className="tracking-wider font-semibold">COLOUR: {contact.vehicleDetails.colour}</span>
                   </div>
                 )}
               </div>
@@ -581,8 +581,8 @@ export const PublicContactPage: React.FC = () => {
                 <h2 className="text-xs font-sans font-semibold tracking-[0.16em] uppercase text-ink">
                   CONTACT OWNER
                 </h2>
-                <span className="text-[10px] font-sans tracking-wider uppercase text-muted">
-                  HOW WOULD YOU LIKE TO REACH THEM?
+                <span className="text-[14px] font-sans tracking-wider text-muted">
+                  How would you like to reach them?
                 </span>
               </div>
 
@@ -940,7 +940,7 @@ export const PublicContactPage: React.FC = () => {
                             </button>
 
                             <p className="text-xs font-sans text-muted leading-relaxed pt-0.5">
-                              <span className="font-medium text-ink">Your number stays private.</span> We use it to connect your call and don't store it as part of your Pingin call history.
+                              <span className="font-medium text-ink">Your number stays private.</span> We use it to connect your call and don't store it as part of your Findat call history.
                             </p>
                           </form>
                         )}
@@ -1133,7 +1133,7 @@ export const PublicContactPage: React.FC = () => {
                   YOUR NUMBER STAYS PRIVATE
                 </h3>
                 <p className="text-sm font-sans text-muted leading-relaxed">
-                  We use it to connect your call and don't store it as part of your Pingin call history.
+                  We use it to connect your call and don't store it as part of your Findat call history.
                 </p>
               </div>
             </section>
@@ -1147,11 +1147,11 @@ export const PublicContactPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 sm:gap-8">
           <div className="space-y-2.5 max-w-md">
-            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="PINGIN">
-              <PingInSvgLogo height={18} className="text-ink" />
+            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="FINDAT">
+              <PingInSvgLogo height={13} className="text-ink" />
             </Link>
             <p className="font-display font-medium text-base sm:text-lg text-ink">
-              Tag it. Scan it. Ping it.
+              Tag it. Stay Connected.
             </p>
             <p className="text-xs sm:text-sm font-sans text-muted leading-relaxed">
               Give people a way to reach you without sharing your phone number.
@@ -1172,7 +1172,7 @@ export const PublicContactPage: React.FC = () => {
         <div className="h-[1px] bg-border w-full mt-8 sm:mt-10 mb-4" />
 
         <div className="flex items-center justify-between text-[11px] font-sans text-muted tracking-wider uppercase">
-          <span>© 2026 PINGIN</span>
+          <span>© {new Date().getFullYear()} FINDAT</span>
         </div>
       </footer>
     </div>

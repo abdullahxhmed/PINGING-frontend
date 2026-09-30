@@ -34,7 +34,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 top-16 bg-black/15 z-40 sm:hidden"
+            className="fixed inset-0 top-14 sm:top-16 bg-black/15 z-40 sm:hidden"
             aria-hidden="true"
           />
 
@@ -89,7 +89,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
               {/* Minimal Divider */}
               <div className="border-t border-[#D8D5CC]" />
 
-              {/* Signature PingIn Action Buttons */}
+              {/* Signature Findat Action Buttons */}
               <div className="flex flex-col gap-2.5">
                 <Link
                   to="/signup"

@@ -50,7 +50,7 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: 'No. All calls pass through a private relay. The caller only ever sees "Connecting..." — your actual digits are never transmitted to their device.',
   },
   {
-    question: 'Is Pingin available in my country right now?',
+    question: 'Is Findat available in my country right now?',
     answer: 'Honestly, it depends. Voice relay currently works reliably in India. International numbers and certain VoIP providers behave inconsistently — we are still working through it.',
   },
   {
@@ -62,7 +62,7 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: 'Yes. From your dashboard, toggle any tag inactive with one tap. Visitors see the link is unavailable. No need to touch the physical sticker.',
   },
   {
-    question: 'What can I put a Pingin tag on?',
+    question: 'What can I put a Findat tag on?',
     answer: 'Vehicles, front doors, delivery boxes, office desks, equipment, pet collars, luggage — anything physical where someone might need the owner.',
   },
 ];
@@ -108,9 +108,9 @@ export const HomePage: React.FC = () => {
 
       {/* ── NAVIGATION ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-bg/90 backdrop-blur-md border-b border-border transition-colors">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity -ml-1 sm:ml-0" aria-label="PingIn Home">
-            <PingInLogo className="w-[114px] h-[27px] sm:w-[136px] sm:h-[32px]" width={136} height={32} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity" aria-label="Findat Home">
+            <PingInLogo height={18} className="w-auto h-[18px] sm:h-[19px]" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-xs font-sans font-medium tracking-wider uppercase text-muted">
@@ -133,7 +133,7 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="sm:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg text-ink hover:bg-black/5 active:scale-95 focus:outline-none transition-all cursor-pointer"
+            className="sm:hidden w-10 h-10 -mr-2 flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg text-ink hover:bg-black/5 active:scale-95 focus:outline-none transition-all cursor-pointer"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
@@ -199,8 +199,11 @@ export const HomePage: React.FC = () => {
                 </RevealBlock>
 
                 <RevealBlock delay={120}>
-                  <p className="font-display font-medium text-xl sm:text-2xl text-ink border-t border-border pt-6 mt-2">
-                    Pingin gives physical things a private way to reach you.
+                  <p className="font-display font-medium text-xl sm:text-2xl text-ink border-t border-border pt-6 mt-2 leading-snug">
+                    <span className="inline-flex items-baseline flex-wrap gap-x-2.5">
+                      <PingInSvgLogo inline height="0.74em" className="ml-2.5 sm:ml-3" />
+                      <span>gives physical things a private way to reach you.</span>
+                    </span>
                   </p>
                 </RevealBlock>
               </div>
@@ -293,7 +296,7 @@ export const HomePage: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-8">
             <RevealBlock>
               <h2 className="font-display font-medium text-[clamp(3rem,8vw,6.5rem)] text-[#f5f4ee] tracking-tight uppercase leading-[0.9]">
-                Put a Pingin<br />on something.
+                Put a <PingInSvgLogo inline findColor="#f5f4ee" atColor="#8f8f8f" className="mx-2" /> tag<br />on something.
               </h2>
             </RevealBlock>
             <RevealBlock delay={60}>
@@ -324,8 +327,8 @@ export const HomePage: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
             <div className="space-y-2 max-w-md">
-              <Link to="/" className="inline-block hover:opacity-80 transition-opacity -ml-0.5" aria-label="PingIn Home">
-                <PingInSvgLogo height={20} className="text-ink" />
+              <Link to="/" className="inline-block hover:opacity-80 transition-opacity -ml-0.5" aria-label="Findat Home">
+                <PingInSvgLogo height={14} className="text-ink" />
               </Link>
               <p className="text-xs sm:text-sm font-sans text-muted">Give things a way to reach you.</p>
             </div>
@@ -347,9 +350,9 @@ export const HomePage: React.FC = () => {
               <span className="text-border">•</span>
               <a href="#faq" className="hover:text-ink transition-colors">FAQ</a>
               <span className="text-border">•</span>
-              <a href="mailto:contact@pingin.in" className="hover:text-ink transition-colors">Contact</a>
+              <a href="mailto:contact@findat.in" className="hover:text-ink transition-colors">Contact</a>
             </div>
-            <span>© {new Date().getFullYear()} Pingin · Built by Abdullah Ahmed</span>
+            <span>© {new Date().getFullYear()} Findat · Built by Abdullah Ahmed</span>
           </div>
         </div>
       </footer>

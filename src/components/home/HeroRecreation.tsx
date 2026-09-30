@@ -156,7 +156,7 @@ export const HeroRecreation: React.FC = () => {
                 >
                   {/* Top brand header on physical plate */}
                   <div className="flex items-center justify-between gap-6 mb-5 px-1">
-                    <PingInSvgLogo height={18} className="text-[#11110F]" />
+                    <PingInSvgLogo height={14} className="text-[#11110F]" />
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-mono font-bold text-[#6E6B62]">
                         TAG #PG-4421
@@ -174,7 +174,7 @@ export const HeroRecreation: React.FC = () => {
                   {/* QR Core Container with Scan Viewport */}
                   <div className="relative bg-white p-4 sm:p-5 rounded-2xl border border-[#D8D5CC] overflow-hidden shadow-inner">
                     <QRCodeSVG
-                      value="https://pingin.co.in"
+                      value="https://findat.in"
                       size={220}
                       level="H"
                       fgColor="#11110F"
@@ -216,7 +216,7 @@ export const HeroRecreation: React.FC = () => {
 
                   {/* Bottom plate metadata */}
                   <div className="mt-4 flex items-center justify-between text-xs font-mono text-[#6E6B62] px-1">
-                    <span className="tracking-wider">pingin.co.in</span>
+                    <span className="tracking-wider">findat.in</span>
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm transition-all ${
                         heroState === 'scanning'
@@ -317,7 +317,7 @@ export const HeroRecreation: React.FC = () => {
 
                     {/* App Bar inside Public Page */}
                     <div className="px-5 py-2.5 flex items-center justify-between border-b border-[#E3E0D8] bg-[#F4F3EE]/80 backdrop-blur-md shrink-0">
-                      <PingInSvgLogo height={16} className="text-[#11110F]" />
+                      <PingInSvgLogo height={12} className="text-[#11110F]" />
                       <span className="text-[9.5px] font-mono uppercase tracking-wider text-[#6E6B62] font-medium">
                         Tag #PG-4421
                       </span>
@@ -552,7 +552,7 @@ export const HeroRecreation: React.FC = () => {
                                 </motion.div>
                               ) : (
                                 <div className="text-center text-[10px] font-sans text-[#8C887E]">
-                                  Encrypted PingIn Connection · Zero spam guarantee
+                                  Encrypted Findat Connection · Zero spam guarantee
                                 </div>
                               )}
                             </AnimatePresence>

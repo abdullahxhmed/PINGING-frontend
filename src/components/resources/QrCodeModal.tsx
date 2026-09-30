@@ -37,7 +37,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   isOpen,
   onClose,
   token = '',
-  resourceName = 'PingIn',
+  resourceName = 'Findat',
   customUrl,
   customDisplayUrl,
 }) => {
@@ -54,7 +54,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   // Dynamically resolve environment / Vercel / custom live domain URL
   const baseUrl = getPublicBaseUrl();
-  const domain = customDisplayUrl ? customDisplayUrl.replace(/^https?:\/\//, '') : getPublicDomain();
+  const rawDomain = customDisplayUrl ? customDisplayUrl.replace(/^https?:\/\//, '') : getPublicDomain();
+  const domain = rawDomain.includes('localhost') ? 'findat.in' : rawDomain;
   const publicUrl = customUrl || `${baseUrl}/c/${token}`;
 
   const shortToken = token ? (token.length > 8 ? token.slice(0, 8) : token) : 'qr';
@@ -109,8 +110,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `PingIn Contact QR`,
-          text: `Contact owner anonymously via PingIn:`,
+          title: `Findat Contact QR`,
+          text: `Contact owner anonymously via Findat:`,
           url: publicUrl,
         });
       } else {
@@ -193,14 +194,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
         // 3. Top Header: Logo SVG + Circular Green Ring
         if (logoImg.complete && logoImg.naturalWidth > 0) {
-          const logoHeight = 26;
-          const logoWidth = Math.round(logoHeight * (514 / 138));
-          ctx.drawImage(logoImg, 36, 24, logoWidth, logoHeight);
+          const logoHeight = 17;
+          const logoWidth = Math.round(logoHeight * (162.14761 / 34.734486));
+          ctx.drawImage(logoImg, 36, 26, logoWidth, logoHeight);
         } else {
           ctx.fillStyle = '#11110F';
-          ctx.font = '600 24px "Clash Display", -apple-system, sans-serif';
+          ctx.font = '600 22px "Clash Display", -apple-system, sans-serif';
           ctx.textAlign = 'left';
-          ctx.fillText('PINGIN', 36, 44);
+          ctx.fillText('FINDAT', 36, 44);
         }
 
         // Circular ring on right
@@ -263,14 +264,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
         // 9. Download the crystal-clear, ultra-HD sticker PNG
         const link = document.createElement('a');
-        link.download = `PingIn-Sticker-${shortToken}.png`;
+        link.download = `Findat-Sticker-${shortToken}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
 
         setIsGeneratingPng(false);
       };
 
-      logoImg.src = '/pingin_logo.svg';
+      logoImg.src = '/findat.svg';
       qrImg.onload = () => {
         if (logoImg.complete) {
           renderPng();
@@ -295,13 +296,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2.5">
-          <PingInSvgLogo height={20} className="text-ink" />
-          <span className="text-border font-light">/</span>
-          <span className="tracking-wider uppercase text-sm font-semibold">Printable Sticker</span>
-        </div>
-      }
+      title="Printable Sticker"
       description={`Physical adhesive sticker for ${resourceName || 'your resource'}.`}
     >
       <div className="flex flex-col items-center space-y-4">
@@ -341,7 +336,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             >
               {/* Top Bar: Wordmark Logo SVG + green circular ring indicator */}
               <div className="flex items-center justify-between w-full pb-1">
-                <PingInSvgLogo height={16} className="text-[#11110F]" />
+                <PingInSvgLogo height={13} className="text-[#11110F]" />
                 <span className="w-2.5 h-2.5 rounded-full bg-[#D7FF3F] border border-[#11110F]" />
               </div>
 

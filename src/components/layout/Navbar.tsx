@@ -16,9 +16,9 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface sm:bg-surface/95 sm:backdrop-blur-md will-change-transform">
       <Container className="h-14 sm:h-16 flex items-center justify-between">
-        {/* Brand with Rive Animation */}
-        <Link to="/dashboard" className="flex items-center gap-2.5 sm:gap-3 group shrink-0 -ml-1 sm:ml-0">
-          <PingInLogo className="w-[114px] h-[27px] sm:w-[136px] sm:h-[32px]" />
+        {/* Brand */}
+        <Link to="/dashboard" className="flex items-center gap-2.5 sm:gap-3 group shrink-0" aria-label="Findat Home">
+          <PingInLogo height={18} className="w-auto h-[18px] sm:h-[19px]" />
         </Link>
 
         {/* User / Actions */}

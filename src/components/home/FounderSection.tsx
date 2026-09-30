@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail } from 'lucide-react';
+import { PingInSvgLogo } from '../brand/PingInLogo';
 
 /**
  * Founder section — deliberately the one place on the page with no border,
@@ -60,7 +61,7 @@ export const FounderSection: React.FC<FounderSectionProps> = ({ photoSrc }) => {
           {/* Copy — no border, no card, just type */}
           <div className="lg:col-span-8 space-y-6">
             <h2 className="font-display font-medium text-3xl sm:text-4xl text-ink tracking-tight leading-tight">
-              Why I built Pingin.
+              Why I built <PingInSvgLogo inline className="mx-1" />.
             </h2>
 
             <div className="space-y-4 text-base font-sans text-ink/80 leading-relaxed max-w-2xl">
@@ -77,7 +78,7 @@ export const FounderSection: React.FC<FounderSectionProps> = ({ photoSrc }) => {
                 over your number eventually.
               </p>
               <p className="text-ink">
-                Before this I did full-stack freelance work. Pingin is my first real
+                Before this I did full-stack freelance work. <PingInSvgLogo inline className="mx-1" /> is my first real
                 product. It isn't finished. I use it daily, on that scooter.
               </p>
             </div>
@@ -95,7 +96,7 @@ export const FounderSection: React.FC<FounderSectionProps> = ({ photoSrc }) => {
                 <span>GitHub</span>
               </a>
               <a
-                href="mailto:contact@pingin.in"
+                href="mailto:contact@findat.in"
                 className="inline-flex items-center gap-1.5 text-muted hover:text-ink transition-colors uppercase tracking-wider"
               >
                 <Mail className="w-3.5 h-3.5" />
