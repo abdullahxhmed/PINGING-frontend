@@ -15,18 +15,38 @@ import {
 } from 'lucide-react';
 import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
 
-const FIND_SVG_PATH =
-  'm 171.50961,578.26388 v -72.384 h 29.76 v -23.808 h -30.912 c -0.768,-9.408 5.184,-11.52 17.856,-11.52 h 13.056 v -20.928 h -8.448 c -29.568,0 -46.464,13.056 -49.536,32.448 h -14.208 v 23.808 h 13.632 v 72.384 z m 68.16,-105.984 v -22.656 h -28.8 v 22.656 z m 0,105.984 v -96.192 h -28.8 v 96.192 z m 43.9681,0 v -48.576 c 0,-16.32 6.528,-23.616 24.768,-23.616 17.664,0 24,6.528 24,21.888 v 50.304 h 28.8 v -59.904 c 0,-21.312 -12.48,-38.208 -38.784,-38.208 -25.152,0 -36.672,15.36 -39.168,31.488 h -1.728 v -29.568 h -26.688 v 96.192 z m 135.16784,1.92 c 22.08,0 34.752,-9.6 38.4,-28.608 h 1.536 v 26.688 h 26.88 v -128.64 h -28.8 v 57.984 h -1.728 c -3.264,-16.128 -14.976,-27.456 -37.824,-27.456 -28.608,0 -44.928,19.392 -44.928,50.112 0,30.336 16.512,49.92 46.464,49.92 z m -17.28,-49.92 c 0,-17.664 8.64,-23.808 27.072,-23.808 18.432,0 24.60596,4.2873 24.60596,20.9913 v 7.57029 c 0,10.35437 -6.36596,18.86241 -24.60596,18.86241 -18.432,0 -27.072,-6.144 -27.072,-23.616 z';
+// Kauntact Vector Brand Segments
+const KAUN_K_PATH =
+  'm 108.01526,244.80486 v -45.61978 h 31.91139 l 33.03499,45.61978 h 28.54046 l -41.79941,-57.97981 42.02412,-53.70997 h -28.31569 l -33.48447,44.27141 H 108.01526 V 94.237154 H 83.744665 V 244.80486 Z';
+const KAUN_U_PATH =
+  'm 387.3519,247.05212 c 28.76518,0 71.17607,-0.10287 70.68595,-47.32511 l -22.14471,10.46976 v 0.13476 l 22.50342,-9.44832 -0.25535,-67.76795 H 434.0953 v 55.28311 c 0,33.46354 -11.46111,36.85537 -36.1812,36.85537 -23.59642,0 -33.25971,-10.56221 -33.25971,-31.46191 v -60.67657 h -24.04591 v 67.19366 c 0,25.84372 15.28151,46.74343 46.74342,46.74343 z';
+const KAUN_N_PATH =
+  'm 504.43533,244.80486 v -55.28308 c 0,-24.27062 11.01168,-36.85537 35.50705,-36.85537 23.14696,0 32.58555,10.5622 32.58555,31.46192 v 60.67653 h 24.2706 v -67.19365 c 0,-25.84371 -15.28152,-46.74343 -46.29395,-46.74343 -28.31574,0 -43.14777,17.97826 -46.51871,36.85539 h -1.57308 v -34.60809 h -22.24806 v 111.68978 z';
+const KAUN_A1_OUTER =
+  'm 353.52481,240.28978 c 0.25,-17.45594 -16.80384,-18.958 -23.55662,-19.51945 -10.57803,-0.87951 -20.97728,4.91216 -21.37581,18.82924 l -0.15151,5.29096 8.48262,0.12843 0.31577,-3.96074 c 0.74964,-9.40273 3.89746,-12.57863 12.72946,-12.57863 9.12,0 14.02192,3.6339 13.8724,13.73616 l -0.24234,16.37377 -21.696,2.9571 c -9.408,1.35532 -15.36,6.28381 -15.36,15.77114 0,10.1034 6.24,16.01759 16.128,16.01759 10.848,0 18.432,-6.16061 20.928,-16.51043 h 0.672 v 15.2783 h 9.504 v -37.21006 z';
+const KAUN_A1_HOLE =
+  'm 316.91081,276.45528 c 0,-4.80527 2.592,-6.40703 7.968,-7.26952 l 18.72,-2.71066 c 0,12.07479 -7.296,17.24969 -18.144,17.24969 -5.952,0 -8.544,-2.34102 -8.544,-7.26951 z';
 
-const AT_SVG_PATH =
-  'm 185.53097,153.18947 h -6.15118 c -5.6338,0 -9.25552,-2.08281 -9.25552,-7.9756 v -14.02079 h -5.05891 v -3.0988 h 5.05891 v -5.99439 h 4.13912 v 5.99439 h 11.26758 v 3.0988 h -11.26758 v 14.22399 c 0,3.5052 1.95457,4.4704 6.09369,4.4704 h 5.17389 z m -43.11753,-5.90117 c 0.1635,2.90612 2.20674,3.46511 2.64615,3.61517 2.76185,0.94318 12.35986,-2.6924 12.35986,-8.73759 v -0.2032 l -12.24488,1.21919 c -1.52284,0.10997 -2.89295,1.76356 -2.76113,4.10643 z m 1.72636,6.40916 c -5.57631,0 -9.3705,-2.33679 -9.3705,-6.40079 0,-4.1148 3.85168,-5.89279 9.14054,-6.40079 l 13.50961,-1.3208 v -1.9304 c 0,-4.87679 -2.41448,-6.8072 -8.62316,-6.8072 -6.09369,0 -4.053,6.03746 -5.98799,6.22719 l -3.32501,0.32601 h -4.08163 v -0.2032 c 0,-5.2832 4.94394,-9.60119 13.68208,-9.60119 8.62315,0 12.30236,4.36879 12.30236,9.90599 v 15.69719 h -3.67921 v -6.7564 h -0.28744 c -1.66715,4.6228 -6.66857,7.26439 -13.27965,7.26439 z';
+// tact segment
+const TACT_T1_PATH =
+  'm 691.63366,244.80486 v -21.79862 h -20.22549 c -13.93312,0 -20.22551,-3.59564 -20.22551,-17.30403 v -52.36163 h 40.451 v -20.2255 h -40.451 v -24.49535 h -24.04591 v 24.49535 h -18.87713 v 20.2255 h 18.87713 v 53.71 c 0,27.19207 14.83205,37.75428 38.87794,37.75428 z';
+const TACT_A2_OUTER =
+  'm 532.58725,293.51529 c 10.848,0 18.432,-4.8 20.928,-12.864 h 0.672 v 11.904 h 9.504 v -28.992 c 0,-11.424 -6.816,-19.68 -21.984,-19.68 -15.168,0 -24.192,8.16 -24.192,19.008 v 0.384 h 10.272 v -0.384 c 0,-7.008 4.32,-9.888 13.152,-9.888 9.12,0 12.576,2.784 12.576,10.656 v 2.784 l -21.696,2.304 c -9.408,1.056 -15.36,4.896 -15.36,12.288 0,7.872 6.24,12.48 16.128,12.48 z';
+const TACT_A2_HOLE =
+  'm 526.82725,280.36329 c 0,-3.744 2.592,-4.992 7.968,-5.664 l 18.72,-2.112 c 0,9.408 -7.296,13.44 -18.144,13.44 -5.952,0 -8.544,-1.824 -8.544,-5.664 z';
+const TACT_C_PATH =
+  'm 890.51772,247.05212 c 33.48445,0 57.97981,-18.87712 57.97981,-46.74339 v -2.47201 h -24.04592 v 1.57311 c 0,17.30403 -12.58476,25.84372 -34.38336,25.84372 -25.16953,0 -36.40593,-12.13533 -36.40593,-36.18124 0,-24.49533 11.2364,-36.4059 36.40593,-36.4059 21.7986,0 34.38336,8.53966 34.38336,25.8437 v 1.34836 h 24.04592 v -2.24726 c 0,-27.86627 -24.49536,-46.74343 -57.97981,-46.74343 -36.8554,0 -60.90127,23.3717 -60.90127,58.20453 0,34.3834 24.04587,57.97981 60.90127,57.97981 z';
+const TACT_T2_PATH =
+  'm 1039.7372,244.80486 v -21.79862 h -20.2255 c -13.9331,0 -20.22545,-3.59564 -20.22545,-17.30403 v -52.36163 h 40.45095 v -20.2255 H 999.28625 V 108.61973 H 975.2403 v 24.49535 h -18.87715 v 20.2255 h 18.87715 v 53.71 c 0,27.19207 14.83215,37.75428 38.8779,37.75428 z';
+const TACT_CURVE_PATH =
+  'm 627.15703,108.60968 c 0,0 0.43892,-12.289806 -10.97305,-12.362956 -11.41196,-0.073 -8.90184,0 -8.90184,0 l 0.0253,-16.959014 18.67916,0.06052 c 0,0 25.20892,-0.743074 25.20892,29.41526 0,30.15835 -24.03846,-0.15383 -24.03846,-0.15383 z';
 
 const MAX_CHAR_LIMIT = 40;
 const CANVAS_SIZE = 1800; // Ultra high-definition 1800 x 1800 px (300 DPI ready)
 
 export const KeychainPage: React.FC = () => {
   const [customText, setCustomText] = useState('SCAN TO CONTACT OWNER');
-  const [qrValue, setQrValue] = useState('https://findat.in');
+  const [qrValue, setQrValue] = useState('https://kauntact.com');
   const [colorTheme, setColorTheme] = useState<'bone' | 'dark'>('bone');
   const [includeKeyhole, setIncludeKeyhole] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -120,26 +140,48 @@ export const KeychainPage: React.FC = () => {
 
     if (isFront) {
       // ── FRONT SIDE ──────────────────────────────────────────
-      // Authentic Vector Findat Brand Logo Wordmark at Top-Left
+      // Authentic Vector Kauntact Brand Logo Wordmark at Top-Left
       ctx.save();
       const logoTargetHeight = 58;
-      const logoScale = logoTargetHeight / 34.734486;
+      const logoScale = logoTargetHeight / 167.904;
       ctx.translate(160, 140);
       ctx.scale(logoScale, logoScale);
-      ctx.translate(-21.299147, -118.963);
+      ctx.translate(-41.392, -79.148);
 
-      // "find" wordmark segment
-      ctx.save();
-      ctx.transform(0.3055025, 0, 0, 0.26458333, -18.134387, 0);
+      // kaun wordmark segment
       ctx.fillStyle = textColor;
-      ctx.fill(new Path2D(FIND_SVG_PATH));
+      ctx.fillRect(41.392426, 79.148033, 552.23987, 17.248861);
+
+      ctx.save();
+      ctx.rotate((44.292682 * Math.PI) / 180);
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(359.74109, -201.24054, 21.153557, 20.870388, 4.2028522);
+      } else {
+        (ctx as any).rect(359.74109, -201.24054, 21.153557, 20.870388);
+      }
+      ctx.fill();
       ctx.restore();
 
-      // "at" wordmark segment
+      ctx.fill(new Path2D(KAUN_K_PATH));
+      ctx.fill(new Path2D(KAUN_U_PATH));
+      ctx.fill(new Path2D(KAUN_N_PATH));
+
       ctx.save();
-      ctx.transform(0.97947062, 0, 0, 1, 1.724624, 0);
-      ctx.fillStyle = '#8f8f8f';
-      ctx.fill(new Path2D(AT_SVG_PATH));
+      ctx.transform(2.3409161, 0, 0, 2.3043064, -507.01683, -429.30362);
+      ctx.fill(new Path2D(`${KAUN_A1_OUTER} ${KAUN_A1_HOLE}`), 'evenodd');
+      ctx.restore();
+
+      // tact wordmark segment
+      ctx.fillStyle = '#808080';
+      ctx.fill(new Path2D(TACT_T1_PATH));
+      ctx.fill(new Path2D(TACT_CURVE_PATH));
+      ctx.fill(new Path2D(TACT_C_PATH));
+      ctx.fill(new Path2D(TACT_T2_PATH));
+
+      ctx.save();
+      ctx.transform(2.3409161, 0, 0, 2.3409161, -507.01683, -440.04252);
+      ctx.fill(new Path2D(`${TACT_A2_OUTER} ${TACT_A2_HOLE}`), 'evenodd');
       ctx.restore();
 
       ctx.restore();
@@ -220,7 +262,7 @@ export const KeychainPage: React.FC = () => {
       ctx.font = '700 95px "General Sans", sans-serif';
       ctx.textAlign = 'center';
       ctx.letterSpacing = '0.08em';
-      ctx.fillText('findat.in', CANVAS_SIZE / 2, qrBoxY + qrBoxSize + 175);
+      ctx.fillText('kauntact.com', CANVAS_SIZE / 2, qrBoxY + qrBoxSize + 175);
 
       return canvas;
     }
@@ -286,7 +328,7 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const canvas = await renderCanvas(true);
     if (canvas) {
-      const ok = await saveCanvasAsPng(canvas, 'findat-keychain-front.png');
+      const ok = await saveCanvasAsPng(canvas, 'kauntact-keychain-front.png');
       if (ok) {
         setDownloadSuccess('Front Square PNG saved!');
         setTimeout(() => setDownloadSuccess(null), 3000);
@@ -300,7 +342,7 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const canvas = await renderCanvas(false);
     if (canvas) {
-      const ok = await saveCanvasAsPng(canvas, 'findat-keychain-back.png');
+      const ok = await saveCanvasAsPng(canvas, 'kauntact-keychain-back.png');
       if (ok) {
         setDownloadSuccess('Back Square PNG saved!');
         setTimeout(() => setDownloadSuccess(null), 3000);
@@ -314,11 +356,11 @@ export const KeychainPage: React.FC = () => {
     setIsGenerating(true);
     const frontCanvas = await renderCanvas(true);
     if (frontCanvas) {
-      const okFront = await saveCanvasAsPng(frontCanvas, 'findat-keychain-front.png');
+      const okFront = await saveCanvasAsPng(frontCanvas, 'kauntact-keychain-front.png');
       if (okFront) {
         const backCanvas = await renderCanvas(false);
         if (backCanvas) {
-          await saveCanvasAsPng(backCanvas, 'findat-keychain-back.png');
+          await saveCanvasAsPng(backCanvas, 'kauntact-keychain-back.png');
           setDownloadSuccess('Both Front & Back Square PNGs saved!');
           setTimeout(() => setDownloadSuccess(null), 3500);
         }
@@ -342,7 +384,7 @@ export const KeychainPage: React.FC = () => {
               <span>Back</span>
             </Link>
             <div className="h-4 w-[1px] bg-border" />
-            <Link to="/" aria-label="Findat Home">
+            <Link to="/" aria-label="Kauntact Home">
               <PingInLogo height={16} className="w-auto h-4 sm:h-[16px]" />
             </Link>
           </div>
@@ -369,7 +411,7 @@ export const KeychainPage: React.FC = () => {
             Square Keychain Studio.
           </h1>
           <p className="text-xs sm:text-sm font-sans text-muted leading-relaxed">
-            Outputs two square PNGs: Front side with Findat logo top-left and bold centered text covering the plate; Back side with a large QR code and website link.
+            Outputs two square PNGs: Front side with Kauntact logo top-left and bold centered text covering the plate; Back side with a large QR code and website link.
           </p>
         </div>
 
@@ -442,12 +484,12 @@ export const KeychainPage: React.FC = () => {
                   type="text"
                   value={qrValue}
                   onChange={(e) => setQrValue(e.target.value)}
-                  placeholder="https://findat.in"
+                  placeholder="https://kauntact.com"
                   className="w-full p-3 bg-bg border border-border focus:border-ink rounded-xs text-xs font-mono text-ink focus:outline-none transition-colors"
                 />
 
                 <p className="text-[11px] font-sans text-muted">
-                  Scanned with any smartphone. Website displays as <strong>findat.in</strong> directly below the QR code.
+                  Scanned with any smartphone. Website displays as <strong>kauntact.com</strong> directly below the QR code.
                 </p>
               </div>
 
@@ -610,7 +652,7 @@ export const KeychainPage: React.FC = () => {
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Top Row: Findat Logo at Top-Left, Optional Keyhole Punch at Top-Right */}
+                    {/* Top Row: Kauntact Logo at Top-Left, Optional Keyhole Punch at Top-Right */}
                     <div className="w-full flex items-center justify-between">
                       <div className="flex items-center">
                         <PingInSvgLogo height={16} className={isDark ? 'text-[#F5F4EE]' : 'text-[#11110F]'} />
@@ -690,7 +732,7 @@ export const KeychainPage: React.FC = () => {
                     <div className="flex-1 w-full flex items-center justify-center">
                       <div className="p-3 bg-white rounded-2xl shadow-xs border border-current/10 flex items-center justify-center">
                         <QRCodeSVG
-                          value={qrValue || 'https://findat.in'}
+                          value={qrValue || 'https://kauntact.com'}
                           size={220}
                           level="M"
                           fgColor="#11110F"
@@ -705,7 +747,7 @@ export const KeychainPage: React.FC = () => {
                         className="font-sans font-bold text-sm tracking-wider"
                         style={{ color: fadedTextColor }}
                       >
-                        findat.in
+                        kauntact.com
                       </p>
                     </div>
                   </div>
@@ -735,7 +777,7 @@ export const KeychainPage: React.FC = () => {
           aria-hidden="true"
         >
           <QRCodeSVG
-            value={qrValue || 'https://findat.in'}
+            value={qrValue || 'https://kauntact.com'}
             size={1300}
             level="M"
             fgColor="#11110F"

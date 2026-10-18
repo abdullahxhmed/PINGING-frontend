@@ -387,7 +387,7 @@ export function getPublicBaseUrl(): string {
 }
 
 /**
- * Resolves the public domain name (e.g. "findat.in" or "findat.vercel.app")
+ * Resolves the public domain name (e.g. "kauntact.com" or "kauntact.vercel.app")
  * without protocol or trailing paths.
  */
 export function getPublicDomain(): string {

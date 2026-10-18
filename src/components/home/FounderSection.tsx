@@ -96,7 +96,7 @@ export const FounderSection: React.FC<FounderSectionProps> = ({ photoSrc }) => {
                 <span>GitHub</span>
               </a>
               <a
-                href="mailto:contact@findat.in"
+                href="mailto:contact@kauntact.com"
                 className="inline-flex items-center gap-1.5 text-muted hover:text-ink transition-colors uppercase tracking-wider"
               >
                 <Mail className="w-3.5 h-3.5" />

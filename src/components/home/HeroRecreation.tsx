@@ -174,7 +174,7 @@ export const HeroRecreation: React.FC = () => {
                   {/* QR Core Container with Scan Viewport */}
                   <div className="relative bg-white p-4 sm:p-5 rounded-2xl border border-[#D8D5CC] overflow-hidden shadow-inner">
                     <QRCodeSVG
-                      value="https://findat.in"
+                      value="https://kauntact.com"
                       size={220}
                       level="H"
                       fgColor="#11110F"
@@ -216,7 +216,7 @@ export const HeroRecreation: React.FC = () => {
 
                   {/* Bottom plate metadata */}
                   <div className="mt-4 flex items-center justify-between text-xs font-mono text-[#6E6B62] px-1">
-                    <span className="tracking-wider">findat.in</span>
+                    <span className="tracking-wider">kauntact.com</span>
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm transition-all ${
                         heroState === 'scanning'
@@ -552,7 +552,7 @@ export const HeroRecreation: React.FC = () => {
                                 </motion.div>
                               ) : (
                                 <div className="text-center text-[10px] font-sans text-[#8C887E]">
-                                  Encrypted Findat Connection · Zero spam guarantee
+                                  Encrypted Kauntact Connection · Zero spam guarantee
                                 </div>
                               )}
                             </AnimatePresence>

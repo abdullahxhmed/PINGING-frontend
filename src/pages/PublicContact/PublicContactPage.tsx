@@ -486,7 +486,7 @@ export const PublicContactPage: React.FC = () => {
       {/* 1. PUBLIC HEADER */}
       <header className="max-w-4xl w-full mx-auto">
         <div className="flex items-center justify-between pb-4">
-          <Link to="/" className="focus:outline-none -ml-1 sm:ml-0" aria-label="Findat Home">
+          <Link to="/" className="focus:outline-none -ml-1 sm:ml-0" aria-label="Kauntact Home">
             <PingInLogo height={16} />
           </Link>
 
@@ -536,7 +536,7 @@ export const PublicContactPage: React.FC = () => {
                 to="/"
                 className="text-xs font-sans font-medium tracking-wider uppercase text-ink underline hover:text-muted"
               >
-                ← RETURN TO FINDAT
+                ← RETURN TO KAUNTACT
               </Link>
             </div>
           </div>
@@ -940,7 +940,7 @@ export const PublicContactPage: React.FC = () => {
                             </button>
 
                             <p className="text-xs font-sans text-muted leading-relaxed pt-0.5">
-                              <span className="font-medium text-ink">Your number stays private.</span> We use it to connect your call and don't store it as part of your Findat call history.
+                              <span className="font-medium text-ink">Your number stays private.</span> We use it to connect your call and don't store it as part of your Kauntact call history.
                             </p>
                           </form>
                         )}
@@ -1133,7 +1133,7 @@ export const PublicContactPage: React.FC = () => {
                   YOUR NUMBER STAYS PRIVATE
                 </h3>
                 <p className="text-sm font-sans text-muted leading-relaxed">
-                  We use it to connect your call and don't store it as part of your Findat call history.
+                  We use it to connect your call and don't store it as part of your Kauntact call history.
                 </p>
               </div>
             </section>
@@ -1147,7 +1147,7 @@ export const PublicContactPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 sm:gap-8">
           <div className="space-y-2.5 max-w-md">
-            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="FINDAT">
+            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="KAUNTACT">
               <PingInSvgLogo height={13} className="text-ink" />
             </Link>
             <p className="font-display font-medium text-base sm:text-lg text-ink">
@@ -1172,7 +1172,7 @@ export const PublicContactPage: React.FC = () => {
         <div className="h-[1px] bg-border w-full mt-8 sm:mt-10 mb-4" />
 
         <div className="flex items-center justify-between text-[11px] font-sans text-muted tracking-wider uppercase">
-          <span>© {new Date().getFullYear()} FINDAT</span>
+          <span>© {new Date().getFullYear()} KAUNTACT</span>
         </div>
       </footer>
     </div>

@@ -503,7 +503,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         {/* Top Bar: Brand Identity & Metadata */}
         <header>
           <div className="flex items-center justify-between pb-5">
-            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0" aria-label="Findat Home">
+            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0" aria-label="Kauntact Home">
               <PingInLogo height={16} />
             </Link>
             <div className="flex items-center gap-3">
@@ -842,7 +842,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
             <span className="text-border-strong">•</span>
             <span>PRIVACY FIRST COMMUNICATION</span>
           </div>
-          {/* <span>© {new Date().getFullYear()} FINDAT</span> */}
+          {/* <span>© {new Date().getFullYear()} KAUNTACT</span> */}
         </div>
       </footer>
       </div>

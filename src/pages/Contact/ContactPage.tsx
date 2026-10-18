@@ -18,12 +18,12 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const HELP_EMAIL = 'contact@findat.in';
+const HELP_EMAIL = 'contact@kauntact.com';
 const PERSONAL_EMAIL = 'abdahm550@gmail.com';
 
 const INQUIRY_CATEGORIES = [
   { id: 'bug', label: 'Problem / Bug Report', icon: Bug, placeholder: 'Describe what happened, what device or browser you are using, and steps to reproduce...' },
-  { id: 'suggestion', label: 'Suggestion / Feature Request', icon: Sparkles, placeholder: 'Share your idea! What would make Findat more useful for your everyday life?' },
+  { id: 'suggestion', label: 'Suggestion / Feature Request', icon: Sparkles, placeholder: 'Share your idea! What would make Kauntact more useful for your everyday life?' },
   { id: 'tag_inquiry', label: 'Physical Tag / Sticker Inquiry', icon: Tag, placeholder: 'Ask about sticker durability, custom plate engraving, batch printing, or replacement tags...' },
   { id: 'privacy', label: 'Privacy & Security Question', icon: ShieldCheck, placeholder: 'Ask any question regarding our zero-knowledge phone relay or data handling policies...' },
   { id: 'account', label: 'Account & Login Assistance', icon: HelpCircle, placeholder: 'Describe the issue you encountered with OTP, phone number login, or profile settings...' },
@@ -62,7 +62,7 @@ export const ContactPage: React.FC = () => {
   const buildEmailContent = () => {
     const resolvedSubject = subject.trim()
       ? `[${selectedCategory.label}] ${subject.trim()}`
-      : `[Findat Feedback] ${selectedCategory.label}`;
+      : `[Kauntact Feedback] ${selectedCategory.label}`;
 
     const bodyLines = [
       `Category: ${selectedCategory.label}`,
@@ -74,7 +74,7 @@ export const ContactPage: React.FC = () => {
       message.trim(),
       '',
       '----------------',
-      'Sent via Findat Contact & Support Portal',
+      'Sent via Kauntact Contact & Support Portal',
     ].filter(Boolean);
 
     return {
@@ -109,7 +109,7 @@ export const ContactPage: React.FC = () => {
       {/* ── HEADER ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-bg/90 backdrop-blur-md border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity" aria-label="Findat Home">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity" aria-label="Kauntact Home">
             <PingInLogo height={18} className="w-auto h-[18px] sm:h-[19px]" />
           </Link>
 

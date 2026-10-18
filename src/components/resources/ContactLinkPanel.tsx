@@ -166,9 +166,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
       <div>
         <div className="bg-[#151513] text-[#f5f4ee] p-6 rounded-sm border border-[#151513] flex flex-col items-center text-center select-none">
           <div className="flex items-center justify-between w-full pb-3 mb-4 border-b border-[#2a2a26]">
-            <span className="font-display font-medium text-[11px] tracking-[0.14em] uppercase text-white">
-              FINDAT
-            </span>
+            <PingInSvgLogo height={12} className="text-white" />
           </div>
 
           {publicUrl ? (
@@ -184,7 +182,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
               </div>
 
               <span className="font-display font-medium text-xs tracking-[0.18em] uppercase text-white mt-3 block">
-                FINDAT
+                KAUNTACT
               </span>
               <span className="font-sans text-[10px] text-[#929087] uppercase tracking-wider block mb-4">
                 {resource.name}

@@ -187,7 +187,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <p className="font-sans text-xs text-muted">
-              Your Findat calls are forwarded to this number.
+              Your Kauntact calls are forwarded to this number.
             </p>
 
             {/* Contact Number Card */}
@@ -262,7 +262,7 @@ export const SettingsPage: React.FC = () => {
 
               <div className="p-4 border border-border bg-surface/30 rounded-sm space-y-1">
                 <span className="text-muted text-[10px] tracking-widest uppercase block font-medium">
-                  Findat Status
+                  Kauntact Status
                 </span>
                 <span className="font-medium text-accent text-sm flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />

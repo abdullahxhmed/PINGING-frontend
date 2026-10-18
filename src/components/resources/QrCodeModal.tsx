@@ -37,7 +37,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   isOpen,
   onClose,
   token = '',
-  resourceName = 'Findat',
+  resourceName = 'Kauntact',
   customUrl,
   customDisplayUrl,
 }) => {
@@ -55,7 +55,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   // Dynamically resolve environment / Vercel / custom live domain URL
   const baseUrl = getPublicBaseUrl();
   const rawDomain = customDisplayUrl ? customDisplayUrl.replace(/^https?:\/\//, '') : getPublicDomain();
-  const domain = rawDomain.includes('localhost') ? 'findat.in' : rawDomain;
+  const domain = rawDomain.includes('localhost') ? 'kauntact.com' : rawDomain;
   const publicUrl = customUrl || `${baseUrl}/c/${token}`;
 
   const shortToken = token ? (token.length > 8 ? token.slice(0, 8) : token) : 'qr';
@@ -110,8 +110,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `Findat Contact QR`,
-          text: `Contact owner anonymously via Findat:`,
+          title: `Kauntact Contact QR`,
+          text: `Contact owner anonymously via Kauntact:`,
           url: publicUrl,
         });
       } else {
@@ -195,13 +195,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         // 3. Top Header: Logo SVG + Circular Green Ring
         if (logoImg.complete && logoImg.naturalWidth > 0) {
           const logoHeight = 17;
-          const logoWidth = Math.round(logoHeight * (162.14761 / 34.734486));
+          const logoWidth = Math.round(logoHeight * (998.35 / 167.90));
           ctx.drawImage(logoImg, 36, 26, logoWidth, logoHeight);
         } else {
           ctx.fillStyle = '#11110F';
           ctx.font = '600 22px "Clash Display", -apple-system, sans-serif';
           ctx.textAlign = 'left';
-          ctx.fillText('FINDAT', 36, 44);
+          ctx.fillText('KAUNTACT', 36, 44);
         }
 
         // Circular ring on right
@@ -264,14 +264,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
         // 9. Download the crystal-clear, ultra-HD sticker PNG
         const link = document.createElement('a');
-        link.download = `Findat-Sticker-${shortToken}.png`;
+        link.download = `Kauntact-Sticker-${shortToken}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
 
         setIsGeneratingPng(false);
       };
 
-      logoImg.src = '/findat.svg';
+      logoImg.src = '/kauntact.svg';
       qrImg.onload = () => {
         if (logoImg.complete) {
           renderPng();

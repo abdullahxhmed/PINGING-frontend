@@ -1,13 +1,13 @@
 import React from 'react';
-import { FindatLogo, type FindatLogoProps } from './FindatLogo';
+import { KauntactLogo, type KauntactLogoProps } from './KauntactLogo';
 
-export interface PingInLogoProps extends FindatLogoProps {
+export interface PingInLogoProps extends KauntactLogoProps {
   fallbackText?: boolean;
   alignFlushLeft?: boolean;
 }
 
 /**
- * PingInLogo renders the official Findat vector logo from public/findat.svg.
+ * PingInLogo renders the official Kauntact vector logo.
  * Default height is 16px for an understated, balanced look.
  */
 export const PingInLogo: React.FC<PingInLogoProps> = ({
@@ -17,7 +17,7 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
   ...props
 }) => {
   return (
-    <FindatLogo
+    <KauntactLogo
       height={height}
       width={width}
       className={className}
@@ -26,7 +26,9 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
   );
 };
 
-export { FindatLogo, FindatSvgLogo } from './FindatLogo';
+export { KauntactLogo, KauntactSvgLogo } from './KauntactLogo';
+export { KauntactFavicon } from './KauntactFavicon';
 export { PingInSvgLogo } from './PingInSvgLogo';
+export { FindatLogo, FindatSvgLogo } from './FindatLogo';
 export const ParkPingLogo = PingInLogo;
 export default PingInLogo;

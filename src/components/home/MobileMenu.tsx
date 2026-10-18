@@ -89,7 +89,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
               {/* Minimal Divider */}
               <div className="border-t border-[#D8D5CC]" />
 
-              {/* Signature Findat Action Buttons */}
+              {/* Signature Kauntact Action Buttons */}
               <div className="flex flex-col gap-2.5">
                 <Link
                   to="/signup"

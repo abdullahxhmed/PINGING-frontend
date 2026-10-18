@@ -1,14 +1,13 @@
 import React from 'react';
-import { FindatLogo, type FindatLogoProps } from './FindatLogo';
+import { KauntactLogo, type KauntactLogoProps } from './KauntactLogo';
 
-export type PingInLogoSvgProps = FindatLogoProps;
+export type PingInLogoSvgProps = KauntactLogoProps;
 
 /**
- * PingInSvgLogo now renders the new Findat vector logo from public/findat.svg.
- * Re-exported for seamless backwards-compatibility across the app.
+ * PingInSvgLogo renders the official Kauntact vector logo.
  */
 export const PingInSvgLogo: React.FC<PingInLogoSvgProps> = (props) => {
-  return <FindatLogo {...props} />;
+  return <KauntactLogo {...props} />;
 };
 
 export default PingInSvgLogo;

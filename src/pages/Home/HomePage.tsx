@@ -50,7 +50,7 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: 'No. All calls pass through a private relay. The caller only ever sees "Connecting..." — your actual digits are never transmitted to their device.',
   },
   {
-    question: 'Is Findat available in my country right now?',
+    question: 'Is Kauntact available in my country right now?',
     answer: 'Honestly, it depends. Voice relay currently works reliably in India. International numbers and certain VoIP providers behave inconsistently — we are still working through it.',
   },
   {
@@ -62,7 +62,7 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: 'Yes. From your dashboard, toggle any tag inactive with one tap. Visitors see the link is unavailable. No need to touch the physical sticker.',
   },
   {
-    question: 'What can I put a Findat tag on?',
+    question: 'What can I put a Kauntact tag on?',
     answer: 'Vehicles, front doors, delivery boxes, office desks, equipment, pet collars, luggage — anything physical where someone might need the owner.',
   },
 ];
@@ -109,7 +109,7 @@ export const HomePage: React.FC = () => {
       {/* ── NAVIGATION ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-bg/90 backdrop-blur-md border-b border-border transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity" aria-label="Findat Home">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity" aria-label="Kauntact Home">
             <PingInLogo height={18} className="w-auto h-[18px] sm:h-[19px]" />
           </Link>
 
@@ -327,7 +327,7 @@ export const HomePage: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
             <div className="space-y-2 max-w-md">
-              <Link to="/" className="inline-block hover:opacity-80 transition-opacity -ml-0.5" aria-label="Findat Home">
+              <Link to="/" className="inline-block hover:opacity-80 transition-opacity -ml-0.5" aria-label="Kauntact Home">
                 <PingInSvgLogo height={14} className="text-ink" />
               </Link>
               <p className="text-xs sm:text-sm font-sans text-muted">Give things a way to reach you.</p>
@@ -352,7 +352,7 @@ export const HomePage: React.FC = () => {
               <span className="text-border">•</span>
               <Link to="/contact" className="hover:text-ink transition-colors">Contact</Link>
             </div>
-            <span>© {new Date().getFullYear()} Findat · Built by Abdullah Ahmed</span>
+            <span>© {new Date().getFullYear()} Kauntact · Built by Abdullah Ahmed</span>
           </div>
         </div>
       </footer>
