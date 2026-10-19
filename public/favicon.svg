@@ -27,12 +27,12 @@
     />
     <!-- Diamond accent dot -->
     <rect
-      x="142"
-      y="-172"
-      width="17"
-      height="17"
-      transform="rotate(44.292682)"
-      ry="3.5"
+      x="168"
+      y="180"
+      width="16"
+      height="16"
+      transform="rotate(45 176 188)"
+      rx="3.5"
       fill="#11110F"
     />
   </g>

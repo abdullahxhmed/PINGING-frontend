@@ -57,8 +57,8 @@ export const KauntactLogo: React.FC<KauntactLogoProps> = ({
       height={resolvedHeight}
       width={computedWidth}
       style={{
-        display: inline ? 'inline-block' : 'inline-block',
-        verticalAlign: inline ? '-0.08em' : 'middle',
+        display: 'inline-block',
+        verticalAlign: inline ? '0em' : 'middle',
         width: computedWidth,
         height: resolvedHeight,
         transform: scale !== 1 ? `scale(${scale})` : undefined,

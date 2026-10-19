@@ -44,8 +44,18 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isGeneratingPng, setIsGeneratingPng] = useState(false);
+  const [plateTheme, setPlateTheme] = useState<'bone' | 'black'>('bone');
   const qrSvgRef = useRef<HTMLDivElement>(null);
   const stickerPlateRef = useRef<HTMLDivElement>(null);
+
+  const isDark = plateTheme === 'black';
+  const plateBg = isDark ? '#151513' : '#F4F3EE';
+  const plateBorder = isDark ? '#2A2A26' : '#D8D5CC';
+  const plateText = isDark ? '#F5F4EE' : '#11110F';
+  const plateSubtext = isDark ? '#929087' : '#8C897F';
+  const plateDivider = isDark ? '#2A2A26' : '#D8D5CC';
+  const qrFg = isDark ? '#F5F4EE' : '#11110F';
+  const qrBg = isDark ? '#151513' : '#F4F3EE';
 
   // 3D Card Tilt State
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, scale: 1 });
@@ -182,13 +192,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
       logoImg.crossOrigin = 'anonymous';
 
       const renderPng = () => {
-        // 1. Solid sticker surface (#F4F3EE) filling entire canvas
-        ctx.fillStyle = '#F4F3EE';
+        // 1. Solid sticker surface filling entire canvas
+        ctx.fillStyle = isDark ? '#151513' : '#F4F3EE';
         ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
         // 2. Crisp outer boundary sticker border
         drawRoundedRect(ctx, 4, 4, LOGICAL_WIDTH - 8, LOGICAL_HEIGHT - 8, 20);
-        ctx.strokeStyle = '#D8D5CC';
+        ctx.strokeStyle = isDark ? '#2A2A26' : '#D8D5CC';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -198,7 +208,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           const logoWidth = Math.round(logoHeight * (998.35 / 167.90));
           ctx.drawImage(logoImg, 36, 26, logoWidth, logoHeight);
         } else {
-          ctx.fillStyle = '#11110F';
+          ctx.fillStyle = isDark ? '#F5F4EE' : '#11110F';
           ctx.font = '600 22px "Clash Display", -apple-system, sans-serif';
           ctx.textAlign = 'left';
           ctx.fillText('KAUNTACT', 36, 44);
@@ -209,12 +219,12 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         ctx.arc(LOGICAL_WIDTH - 42, 37, 7, 0, Math.PI * 2);
         ctx.fillStyle = '#D7FF3F';
         ctx.fill();
-        ctx.strokeStyle = '#11110F';
+        ctx.strokeStyle = isDark ? '#2A2A26' : '#11110F';
         ctx.lineWidth = 1.4;
         ctx.stroke();
 
         // 4. Headline: NEED TO CONTACT THE OWNER? SCAN HERE
-        ctx.fillStyle = '#11110F';
+        ctx.fillStyle = isDark ? '#F5F4EE' : '#11110F';
         ctx.font = '800 36px "Clash Display", -apple-system, sans-serif';
         ctx.textAlign = 'center';
         if ('letterSpacing' in ctx) {
@@ -241,7 +251,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         ctx.imageSmoothingEnabled = true;
 
         // 6. Textual URL under QR
-        ctx.fillStyle = '#6E6B62';
+        ctx.fillStyle = isDark ? '#929087' : '#6E6B62';
         ctx.font = '600 21px "General Sans", -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(displayUrl, LOGICAL_WIDTH / 2, 638);
@@ -250,25 +260,40 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         const ruleWidth = 150;
         const ruleX = (LOGICAL_WIDTH - ruleWidth) / 2;
         ctx.beginPath();
-        ctx.strokeStyle = '#D8D5CC';
+        ctx.strokeStyle = isDark ? '#2A2A26' : '#D8D5CC';
         ctx.lineWidth = 1.4;
         ctx.moveTo(ruleX, 664);
         ctx.lineTo(ruleX + ruleWidth, 664);
         ctx.stroke();
 
         // 8. Footer: visit ${domain} to get yours! (enlarged for print legibility)
-        ctx.fillStyle = '#6E6B62';
+        ctx.fillStyle = isDark ? '#929087' : '#6E6B62';
         ctx.font = '600 20px "General Sans", -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(footerText, LOGICAL_WIDTH / 2, 698);
 
-        // 9. Download the crystal-clear, ultra-HD sticker PNG
-        const link = document.createElement('a');
-        link.download = `Kauntact-Sticker-${shortToken}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // 9. Download the crystal-clear, ultra-HD sticker PNG using native blob URL
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            setIsGeneratingPng(false);
+            return;
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.style.display = 'none';
+          link.href = blobUrl;
+          link.download = `kauntact-sticker-${shortToken}-${plateTheme}.png`;
+          document.body.appendChild(link);
+          link.click();
 
-        setIsGeneratingPng(false);
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+            URL.revokeObjectURL(blobUrl);
+            setIsGeneratingPng(false);
+          }, 500);
+        }, 'image/png');
       };
 
       logoImg.src = '/kauntact.svg';
@@ -311,20 +336,23 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             style={{
               transform: `perspective(1000px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) scale3d(${tilt.scale}, ${tilt.scale}, ${tilt.scale})`,
               boxShadow: isHoveringCard
-                ? `${-tilt.rotateY * 1.8}px ${18 + tilt.rotateX * 1.4}px 38px -6px rgba(17, 17, 15, 0.25), 0 22px 42px -10px rgba(17, 17, 15, 0.16), 0 2px 6px rgba(17, 17, 15, 0.08)`
-                : '0 14px 32px -8px rgba(17, 17, 15, 0.16), 0 6px 16px -4px rgba(17, 17, 15, 0.09), 0 1px 3px rgba(17, 17, 15, 0.06)',
+                ? `${-tilt.rotateY * 1.8}px ${18 + tilt.rotateX * 1.4}px 38px -6px rgba(17, 17, 15, ${isDark ? '0.45' : '0.25'}), 0 22px 42px -10px rgba(17, 17, 15, 0.16), 0 2px 6px rgba(17, 17, 15, 0.08)`
+                : `0 14px 32px -8px rgba(17, 17, 15, ${isDark ? '0.35' : '0.16'}), 0 6px 16px -4px rgba(17, 17, 15, 0.09), 0 1px 3px rgba(17, 17, 15, 0.06)`,
               transition: isHoveringCard
                 ? 'transform 0.08s ease-out, box-shadow 0.08s ease-out'
                 : 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
               transformStyle: 'preserve-3d',
+              backgroundColor: plateBg,
+              borderColor: plateBorder,
+              color: plateText,
             }}
-            className="relative bg-[#F4F3EE] text-[#11110F] p-4 sm:p-5 rounded-xl border border-[#D8D5CC] flex flex-col items-center text-center w-full max-w-[260px] sm:max-w-[290px] cursor-grab active:cursor-grabbing overflow-hidden"
+            className="relative p-4 sm:p-5 rounded-xl border flex flex-col items-center text-center w-full max-w-[260px] sm:max-w-[290px] cursor-grab active:cursor-grabbing overflow-hidden transition-colors duration-200"
           >
             {/* Dynamic Glare Highlight Overlay */}
             <div
               className="pointer-events-none absolute inset-0 rounded-xl transition-opacity duration-300 z-10"
               style={{
-                background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255, 255, 255, ${glare.opacity}), transparent 65%)`,
+                background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255, 255, 255, ${isDark ? glare.opacity * 0.7 : glare.opacity}), transparent 65%)`,
                 opacity: isHoveringCard ? 1 : 0,
               }}
             />
@@ -336,13 +364,16 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             >
               {/* Top Bar: Wordmark Logo SVG + green circular ring indicator */}
               <div className="flex items-center justify-between w-full pb-1">
-                <PingInSvgLogo height={13} className="text-[#11110F]" />
+                <PingInSvgLogo height={13} className={isDark ? 'text-white' : 'text-[#11110F]'} />
                 <span className="w-2.5 h-2.5 rounded-full bg-[#D7FF3F] border border-[#11110F]" />
               </div>
 
               {/* Primary Headline */}
               <div className="my-1.5 text-center w-full">
-                <h3 className="font-display font-extrabold text-xs sm:text-sm text-[#11110F] uppercase tracking-[0.04em] [word-spacing:0.08em] leading-snug">
+                <h3
+                  style={{ color: plateText }}
+                  className="font-display font-extrabold text-xs sm:text-sm uppercase tracking-[0.04em] [word-spacing:0.08em] leading-snug"
+                >
                   NEED TO CONTACT<br />
                   THE OWNER?<br />
                   SCAN HERE
@@ -355,8 +386,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                   value={publicUrl}
                   size={175}
                   level="H"
-                  fgColor="#11110F"
-                  bgColor="#F4F3EE"
+                  fgColor={qrFg}
+                  bgColor={qrBg}
                   includeMargin={true}
                   className="w-full max-w-[165px] sm:max-w-[185px] h-auto"
                 />
@@ -364,17 +395,23 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
               {/* Textual URL under QR */}
               <div className="w-full text-center mt-0.5 mb-1">
-                <span className="text-[10px] sm:text-[11px] font-sans font-medium text-[#8C897F] tracking-wide block truncate">
+                <span
+                  style={{ color: plateSubtext }}
+                  className="text-[10px] sm:text-[11px] font-sans font-medium tracking-wide block truncate"
+                >
                   {displayUrl}
                 </span>
               </div>
 
               {/* Short Centered Horizontal Divider */}
-              <div className="w-16 h-[1.2px] bg-[#D8D5CC] my-1 mx-auto" />
+              <div style={{ backgroundColor: plateDivider }} className="w-16 h-[1.2px] my-1 mx-auto" />
 
               {/* Footer Text */}
               <div className="w-full text-center">
-                <span className="text-[10px] font-sans font-medium text-[#8C897F] tracking-wide block">
+                <span
+                  style={{ color: plateSubtext }}
+                  className="text-[10px] font-sans font-medium tracking-wide block"
+                >
                   {footerText}
                 </span>
               </div>
@@ -382,9 +419,35 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           </div>
         </div>
 
-        {/* Informative Micro-Summary Chip */}
+        {/* Informative Micro-Summary Chip & Theme Switcher */}
         <div className="flex items-center justify-between w-full text-[10px] font-sans text-muted tracking-wider uppercase px-1">
           <span>Physical 4:5 Sticker</span>
+          <div className="flex items-center gap-1 bg-bg border border-border p-0.5 rounded-xs">
+            <button
+              type="button"
+              onClick={() => setPlateTheme('bone')}
+              className={`px-2 py-0.5 rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                plateTheme === 'bone'
+                  ? 'bg-surface text-ink font-semibold shadow-xs border border-border'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#F4F3EE] border border-border" />
+              <span>Bone</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlateTheme('black')}
+              className={`px-2 py-0.5 rounded-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                plateTheme === 'black'
+                  ? 'bg-surface-dark text-white font-semibold shadow-xs border border-black'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#151513] border border-white/30" />
+              <span>Black</span>
+            </button>
+          </div>
         </div>
 
         {/* Mobile-Concise Action Grid: 2 columns instead of long vertical row stack */}

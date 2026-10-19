@@ -200,10 +200,8 @@ export const HomePage: React.FC = () => {
 
                 <RevealBlock delay={120}>
                   <p className="font-display font-medium text-xl sm:text-2xl text-ink border-t border-border pt-6 mt-2 leading-snug">
-                    <span className="inline-flex items-baseline flex-wrap gap-x-2.5">
-                      <PingInSvgLogo inline height="0.74em" className="ml-2.5 sm:ml-3" />
-                      <span>gives physical things a private way to reach you.</span>
-                    </span>
+                    <PingInSvgLogo inline height="0.74em" className="mr-2 sm:mr-2.5" />
+                    <span>gives physical things a private way to reach you.</span>
                   </p>
                 </RevealBlock>
               </div>

@@ -224,12 +224,12 @@ export const KeychainPage: React.FC = () => {
       const qrBoxX = (CANVAS_SIZE - qrBoxSize) / 2;
       const qrBoxY = 100;
 
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = isDark ? '#11110F' : '#FFFFFF';
       ctx.beginPath();
       ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 80);
       ctx.fill();
 
-      ctx.strokeStyle = borderColor;
+      ctx.strokeStyle = isDark ? '#2A2A26' : borderColor;
       ctx.lineWidth = 8;
       ctx.stroke();
 
@@ -307,16 +307,19 @@ export const KeychainPage: React.FC = () => {
           }
         }
 
-        // Method 2: Standard anchor download fallback with base64 PNG data URL
-        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        // Method 2: Standard anchor download fallback with native Blob URL
+        const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
-        a.href = dataUrl;
+        a.href = blobUrl;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
-          document.body.removeChild(a);
+          if (document.body.contains(a)) {
+            document.body.removeChild(a);
+          }
+          URL.revokeObjectURL(blobUrl);
         }, 1500);
         resolve(true);
       }, 'image/png');
@@ -730,13 +733,19 @@ export const KeychainPage: React.FC = () => {
 
                     {/* Large QR Code Container covering most of the square plate */}
                     <div className="flex-1 w-full flex items-center justify-center">
-                      <div className="p-3 bg-white rounded-2xl shadow-xs border border-current/10 flex items-center justify-center">
+                      <div
+                        className={`p-3 rounded-2xl shadow-xs border flex items-center justify-center transition-colors ${
+                          isDark
+                            ? 'bg-[#11110F] border-[#2A2A26]'
+                            : 'bg-white border-current/10'
+                        }`}
+                      >
                         <QRCodeSVG
                           value={qrValue || 'https://kauntact.com'}
                           size={220}
                           level="M"
-                          fgColor="#11110F"
-                          bgColor="#FFFFFF"
+                          fgColor={isDark ? '#F5F4EE' : '#11110F'}
+                          bgColor={isDark ? '#11110F' : '#FFFFFF'}
                         />
                       </div>
                     </div>
@@ -780,8 +789,8 @@ export const KeychainPage: React.FC = () => {
             value={qrValue || 'https://kauntact.com'}
             size={1300}
             level="M"
-            fgColor="#11110F"
-            bgColor="#FFFFFF"
+            fgColor={isDark ? '#F5F4EE' : '#11110F'}
+            bgColor={isDark ? '#11110F' : '#FFFFFF'}
           />
         </div>
 

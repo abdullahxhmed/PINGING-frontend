@@ -27,6 +27,7 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
 }) => {
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [qrTheme, setQrTheme] = useState<'black' | 'white'>('black');
 
   const publicUrl = getResourceContactUrl(resource);
 
@@ -167,16 +168,48 @@ export const ContactLinkPanel: React.FC<ContactLinkPanelProps> = ({
         <div className="bg-[#151513] text-[#f5f4ee] p-6 rounded-sm border border-[#151513] flex flex-col items-center text-center select-none">
           <div className="flex items-center justify-between w-full pb-3 mb-4 border-b border-[#2a2a26]">
             <PingInSvgLogo height={12} className="text-white" />
+            <div className="flex items-center gap-1 bg-[#1e1e1b] border border-[#2a2a26] p-0.5 rounded-xs text-[10px]">
+              <button
+                type="button"
+                onClick={() => setQrTheme('black')}
+                className={`px-2 py-0.5 rounded-xs transition-colors cursor-pointer ${
+                  qrTheme === 'black'
+                    ? 'bg-[#2a2a26] text-white font-medium shadow-xs'
+                    : 'text-[#929087] hover:text-white'
+                }`}
+              >
+                Black
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrTheme('white')}
+                className={`px-2 py-0.5 rounded-xs transition-colors cursor-pointer ${
+                  qrTheme === 'white'
+                    ? 'bg-[#2a2a26] text-white font-medium shadow-xs'
+                    : 'text-[#929087] hover:text-white'
+                }`}
+              >
+                White
+              </button>
+            </div>
           </div>
 
           {publicUrl ? (
             <>
-              {/* Centered White QR in Black Card */}
-              <div className="p-3 bg-white rounded-sm my-1">
+              {/* QR Plate in Selected Theme (Black / White) */}
+              <div
+                className={`p-3 rounded-sm my-1 transition-colors ${
+                  qrTheme === 'black'
+                    ? 'bg-[#11110f] border border-[#2a2a26]'
+                    : 'bg-white'
+                }`}
+              >
                 <QRCodeSVG
                   value={publicUrl}
                   size={150}
                   level="H"
+                  fgColor={qrTheme === 'black' ? '#F5F4EE' : '#11110F'}
+                  bgColor={qrTheme === 'black' ? '#11110F' : '#FFFFFF'}
                   includeMargin={true}
                 />
               </div>
