@@ -113,6 +113,8 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   const hiddenSvgRef = useRef<HTMLDivElement | null>(null);
   const digitalImageRef = useRef<HTMLImageElement | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [phaseText, setPhaseText] = useState<'DETECTED' | 'ALIGNING' | 'DIGITIZING' | 'RESOLVED'>('DETECTED');
+  const currentPhaseRef = useRef<string>('DETECTED');
 
   // Pre-load the exact vector digital QR corresponding to the decoded token
   useEffect(() => {
@@ -210,8 +212,8 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const target2 = { x: targetLeft + targetSize, y: targetTop + targetSize };
     const target3 = { x: targetLeft, y: targetTop + targetSize };
 
-    // 3. Animation Timing (~680ms)
-    const totalDuration = prefersReducedMotion ? 200 : 680;
+    // 3. Animation Timing: Deliberate 3.2s (3200ms) cinematic sequence for full appreciation
+    const totalDuration = prefersReducedMotion ? 250 : 3200;
     const startTime = performance.now();
     let animId: number;
 
@@ -252,12 +254,12 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       }
 
       // =======================================================================
-      // THE AUTHENTIC PHYSICAL-TO-DIGITAL TRANSFORMATION PIPELINE
+      // THE DELIBERATE 3.2s PHYSICAL-TO-DIGITAL TRANSFORMATION PIPELINE
       // =======================================================================
 
       // Phase Progress:
-      // Straightening: 0ms to 480ms
-      const straightenRaw = Math.min(Math.max((elapsed - 30) / 450, 0), 1);
+      // Straightening Phase: 450ms to 2100ms (1650ms unhurried un-skewing)
+      const straightenRaw = Math.min(Math.max((elapsed - 450) / 1650, 0), 1);
       const straightenP = easeOutApple(straightenRaw);
 
       // Current 4 moving corners
@@ -266,13 +268,28 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       const D2 = lerpPoint(start2, target2, straightenP);
       const D3 = lerpPoint(start3, target3, straightenP);
 
+      // Phase milestones for telemetry badge
+      let nextPhase: 'DETECTED' | 'ALIGNING' | 'DIGITIZING' | 'RESOLVED' = 'DETECTED';
+      if (elapsed >= 2550) {
+        nextPhase = 'RESOLVED';
+      } else if (elapsed >= 1800) {
+        nextPhase = 'DIGITIZING';
+      } else if (elapsed >= 450) {
+        nextPhase = 'ALIGNING';
+      }
+
+      if (currentPhaseRef.current !== nextPhase) {
+        currentPhaseRef.current = nextPhase;
+        setPhaseText(nextPhase);
+      }
+
       // 1. Draw base dark canvas background
       ctx.fillStyle = '#0F0E0D';
       ctx.fillRect(0, 0, size, size);
 
-      // 2. Draw frozen camera background (dimming down smoothly as sticker lifts)
-      const bgDim = Math.min(Math.max((elapsed - 40) / 360, 0), 1);
-      const bgAlpha = Math.max(0, 1 - bgDim * 0.88);
+      // 2. Draw frozen camera background (smoothly dimming after initial 450ms hold)
+      const bgDim = Math.min(Math.max((elapsed - 450) / 1150, 0), 1);
+      const bgAlpha = Math.max(0, 1 - bgDim * 0.90);
       if (bgAlpha > 0.01) {
         ctx.save();
         ctx.globalAlpha = bgAlpha;
@@ -280,10 +297,34 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 3. Draw physical lift drop shadow under the extracting sticker
+      // 3. Corner lock reticles (Phase 1: 0ms to 600ms)
+      if (elapsed < 620) {
+        const reticleAlpha = elapsed < 80 ? elapsed / 80 : elapsed > 480 ? 1 - (elapsed - 480) / 140 : 1;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, reticleAlpha);
+        ctx.strokeStyle = '#D7FF3F';
+        ctx.lineWidth = 2.5;
+
+        const drawReticleCorner = (p: QrPoint, dx: number, dy: number) => {
+          const arm = 18;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y + dy * arm);
+          ctx.lineTo(p.x, p.y);
+          ctx.lineTo(p.x + dx * arm, p.y);
+          ctx.stroke();
+        };
+
+        drawReticleCorner(start0, 1, 1);
+        drawReticleCorner(start1, -1, 1);
+        drawReticleCorner(start2, -1, -1);
+        drawReticleCorner(start3, 1, -1);
+        ctx.restore();
+      }
+
+      // 4. Draw physical lift drop shadow under the extracting sticker
       if (straightenP > 0.02) {
-        const shadowAlpha = straightenP * 0.32;
-        const shadowY = straightenP * 12;
+        const shadowAlpha = straightenP * 0.40;
+        const shadowY = straightenP * 16;
         ctx.save();
         ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
         ctx.beginPath();
@@ -296,7 +337,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 4. Draw warm cream card substrate backing
+      // 5. Draw warm cream card substrate backing
       ctx.save();
       ctx.fillStyle = '#F4F3EE';
       ctx.strokeStyle = '#D8D5CC';
@@ -311,8 +352,9 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      // 5. Draw the ACTUAL PHOTOGRAPHED STICKER rectifying in real perspective
-      const photoAlpha = Math.max(0, 1 - Math.min(Math.max((elapsed - 320) / 220, 0), 1));
+      // 6. Draw the ACTUAL PHOTOGRAPHED STICKER rectifying in real perspective
+      const crossfadeRaw = Math.min(Math.max((elapsed - 1800) / 800, 0), 1);
+      const photoAlpha = Math.max(0, 1 - crossfadeRaw);
       if (photoAlpha > 0.01) {
         ctx.save();
         ctx.globalAlpha = photoAlpha;
@@ -326,9 +368,8 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 6. Seamlessly crossfade into the pristine digital vector QR code
-      const digitalAlpha = Math.min(Math.max((elapsed - 320) / 220, 0), 1);
-      const digitalEase = easeOutApple(digitalAlpha);
+      // 7. Seamlessly crossfade into the pristine digital vector QR code (1800ms to 2600ms)
+      const digitalEase = easeOutApple(crossfadeRaw);
       if (digitalEase > 0.01 && digitalImageRef.current) {
         ctx.save();
         ctx.globalAlpha = digitalEase;
@@ -345,15 +386,21 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 7. Retrained lime focus confirmation (520ms to 680ms)
-      if (elapsed > 500 && elapsed <= 680) {
-        const fadeP = elapsed > 620 ? 1 - (elapsed - 620) / 60 : (elapsed - 500) / 120;
+      // 8. Restrained lime perimeter progressive trace (2550ms to 3100ms)
+      if (elapsed > 2550 && elapsed <= 3150) {
+        const traceP = Math.min((elapsed - 2550) / 450, 1);
+        const fadeP = elapsed > 3000 ? 1 - (elapsed - 3000) / 150 : 1;
+        const cardW = targetSize + 22;
+        const cardH = targetSize + 22;
+        const perimeter = 2 * (cardW + cardH);
+
         ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, fadeP));
+        ctx.globalAlpha = Math.max(0, fadeP);
         ctx.strokeStyle = '#D7FF3F';
         ctx.lineWidth = 1.5;
+        ctx.setLineDash([perimeter * traceP, perimeter]);
         ctx.beginPath();
-        ctx.roundRect(targetLeft - 10, targetTop - 10, targetSize + 20, targetSize + 20, 10);
+        ctx.roundRect(targetLeft - 11, targetTop - 11, cardW, cardH, 12);
         ctx.stroke();
         ctx.restore();
       }
@@ -395,13 +442,19 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       {/* Restrained bottom telemetry tag */}
       <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none">
         <span
-          className={`font-mono text-[11px] uppercase tracking-wider px-3 py-1 rounded-full transition-all duration-300 ${
-            isDone
+          className={`font-mono text-[11px] uppercase tracking-wider px-3.5 py-1 rounded-full transition-all duration-300 ${
+            phaseText === 'RESOLVED' || isDone
               ? 'bg-[#D7FF3F] text-black font-semibold shadow-xs'
-              : 'bg-black/70 text-white/80 border border-white/15'
+              : 'bg-black/75 text-white/80 border border-white/15'
           }`}
         >
-          {isDone ? `TAG #${capture.tagCode}` : 'CAPTURED'}
+          {phaseText === 'RESOLVED' || isDone
+            ? `TAG #${capture.tagCode}`
+            : phaseText === 'DIGITIZING'
+            ? 'DIGITIZING MATRIX'
+            : phaseText === 'ALIGNING'
+            ? 'ALIGNING PERSPECTIVE'
+            : 'STICKER DETECTED'}
         </span>
       </div>
     </div>
