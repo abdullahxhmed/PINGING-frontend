@@ -78,15 +78,20 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       y: offsetY + p.y * scale,
     });
 
-    const c0 = mapPoint(capture.cornerPoints[0] || { x: 0, y: 0 });
-    const c1 = mapPoint(capture.cornerPoints[1] || { x: vw, y: 0 });
-    const c2 = mapPoint(capture.cornerPoints[2] || { x: vw, y: vh });
-    const c3 = mapPoint(capture.cornerPoints[3] || { x: 0, y: vh });
+    const c0 = mapPoint(capture.cornerPoints?.[0] || { x: 0, y: 0 });
+    const c1 = mapPoint(capture.cornerPoints?.[1] || { x: vw, y: 0 });
+    const c2 = mapPoint(capture.cornerPoints?.[2] || { x: vw, y: vh });
+    const c3 = mapPoint(capture.cornerPoints?.[3] || { x: 0, y: vh });
 
     // Pre-sample brightness from captured canvas to reproduce QR modules
     const gridSize = 21; // Standard Version 1/2 QR grid
     const sampleCtx = capture.capturedCanvas.getContext('2d', { willReadFrequently: true });
     const moduleMap: boolean[][] = [];
+
+    const p0 = capture.cornerPoints?.[0] || { x: 0, y: 0 };
+    const p1 = capture.cornerPoints?.[1] || { x: vw, y: 0 };
+    const p2 = capture.cornerPoints?.[2] || { x: vw, y: vh };
+    const p3 = capture.cornerPoints?.[3] || { x: 0, y: vh };
 
     for (let r = 0; r < gridSize; r++) {
       moduleMap[r] = [];
@@ -104,10 +109,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         }
 
         // Sample video pixel in video coordinate space
-        const origTopX = capture.cornerPoints[0].x * (1 - u) + capture.cornerPoints[1].x * u;
-        const origTopY = capture.cornerPoints[0].y * (1 - u) + capture.cornerPoints[1].y * u;
-        const origBotX = capture.cornerPoints[3].x * (1 - u) + capture.cornerPoints[2].x * u;
-        const origBotY = capture.cornerPoints[3].y * (1 - u) + capture.cornerPoints[2].y * u;
+        const origTopX = p0.x * (1 - u) + p1.x * u;
+        const origTopY = p0.y * (1 - u) + p1.y * u;
+        const origBotX = p3.x * (1 - u) + p2.x * u;
+        const origBotY = p3.y * (1 - u) + p2.y * u;
         const origX = Math.round(origTopX * (1 - v) + origBotX * v);
         const origY = Math.round(origTopY * (1 - v) + origBotY * v);
 

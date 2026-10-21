@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Resource } from '../../types/api';
 import { extractResourceTag, getResourceContactUrl } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
@@ -186,21 +187,24 @@ export const ShareTagSheet: React.FC<ShareTagSheetProps> = ({
     }
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
-          {/* Backdrop with restrained dimming */}
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans pointer-events-none">
+          {/* Backdrop with clean high-performance opacity mask */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
-            className="fixed inset-0 bg-ink/50 backdrop-blur-[2px] cursor-pointer"
+            className="fixed inset-0 bg-black/60 pointer-events-auto cursor-pointer"
+            style={{ willChange: 'opacity' }}
           />
 
-          {/* Bottom Sheet Container */}
+          {/* Bottom Sheet Container: Strictly pinned to bottom-0 on mobile */}
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -208,11 +212,18 @@ export const ShareTagSheet: React.FC<ShareTagSheetProps> = ({
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            transition={{
+              type: 'spring',
+              damping: 32,
+              stiffness: 380,
+              mass: 0.75,
+            }}
             style={{
+              willChange: 'transform',
+              transform: 'translateZ(0)',
               paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 1.25rem))',
             }}
-            className="relative w-full sm:max-w-md bg-surface border-t sm:border border-border rounded-t-2xl sm:rounded-xl shadow-2xl px-5 pt-3 sm:pt-5 sm:px-6 z-10 max-h-[85vh] sm:max-h-[88vh] overflow-y-auto no-scrollbar"
+            className="pointer-events-auto fixed bottom-0 inset-x-0 mx-auto sm:static sm:inset-auto w-full sm:max-w-md bg-surface border-t sm:border border-border rounded-t-2xl sm:rounded-xl shadow-2xl px-5 pt-3 sm:pt-5 sm:px-6 z-10 max-h-[85dvh] sm:max-h-[88vh] overflow-y-auto no-scrollbar"
           >
             {/* Subtle Top Drag Handle (Mobile only) */}
             <div className="w-10 h-1 bg-border rounded-full mx-auto mb-3 sm:hidden shrink-0" />
@@ -309,7 +320,8 @@ export const ShareTagSheet: React.FC<ShareTagSheetProps> = ({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

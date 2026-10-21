@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import type { Resource, CallRecord } from '../../types/api';
@@ -88,28 +88,71 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
   onOpenShare,
 }) => {
   const tagId = resource?.id || (resource as any)?._id;
-  const tagNumber = extractResourceTag(resource);
-  const publicUrl = tagNumber ? buildTagQrUrl(tagNumber) : getResourceContactUrl(resource);
+  const [tagNumber, setTagNumber] = useState<string>(() => extractResourceTag(resource));
+  const [cardResource, setCardResource] = useState<Resource>(resource);
+
+  // Sync state if resource prop changes
+  useEffect(() => {
+    setCardResource(resource);
+    const resolved = extractResourceTag(resource);
+    if (resolved) setTagNumber(resolved);
+  }, [resource]);
+
+  // If tagNumber or vehicleDetails is missing from list summary, fetch full resource details
+  useEffect(() => {
+    if (!tagId) return;
+    const hasTag = Boolean(extractResourceTag(cardResource));
+    const hasVehicle = Boolean(cardResource.vehicleDetails);
+
+    if (!hasTag || !hasVehicle) {
+      let isMounted = true;
+      resourcesApi
+        .getById(tagId)
+        .then((res: any) => {
+          if (!isMounted) return;
+          const fullData = res?.resource || res?.data || res;
+          if (fullData) {
+            setCardResource((prev) => ({ ...prev, ...fullData }));
+            const resolvedTag = extractResourceTag(fullData);
+            if (resolvedTag) setTagNumber(resolvedTag);
+          }
+        })
+        .catch(() => {});
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [tagId, cardResource]);
+
+  const publicUrl = tagNumber ? buildTagQrUrl(tagNumber) : getResourceContactUrl(cardResource);
 
   // Fetch or resolve call records for this specific belonging
   const [calls, setCalls] = useState<CallRecord[]>(() => {
-    if (Array.isArray(resource.recentCalls)) return resource.recentCalls;
+    if (Array.isArray(cardResource.recentCalls) && cardResource.recentCalls.length > 0) return cardResource.recentCalls;
+    if (Array.isArray(cardResource.calls) && cardResource.calls.length > 0) return cardResource.calls;
     return [];
   });
 
   useEffect(() => {
     if (!tagId) return;
-    if (Array.isArray(resource.recentCalls) && resource.recentCalls.length > 0) {
-      setCalls(resource.recentCalls);
+    if (Array.isArray(cardResource.recentCalls) && cardResource.recentCalls.length > 0) {
+      setCalls(cardResource.recentCalls);
+      return;
+    }
+    if (Array.isArray(cardResource.calls) && cardResource.calls.length > 0) {
+      setCalls(cardResource.calls);
       return;
     }
 
     let isMounted = true;
     resourcesApi
       .getCalls(tagId, { limit: 3 })
-      .then((res) => {
-        if (isMounted && res.calls) {
-          setCalls(res.calls);
+      .then((res: any) => {
+        if (!isMounted) return;
+        const list = Array.isArray(res) ? res : (res?.calls || res?.data?.calls || res?.data || []);
+        if (Array.isArray(list)) {
+          setCalls(list);
         }
       })
       .catch(() => {});
@@ -117,10 +160,10 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [tagId, resource.recentCalls]);
+  }, [tagId, cardResource.recentCalls, cardResource.calls]);
 
   // Extract clean vehicle/belonging metadata
-  const rawDetails = resource.vehicleDetails;
+  const rawDetails = cardResource.vehicleDetails;
   const parsedDetails: any =
     typeof rawDetails === 'string'
       ? (() => {
@@ -137,7 +180,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
     parsedDetails?.registrationNumber ||
     parsedDetails?.regNum ||
     parsedDetails?.registrationLast4 ||
-    (resource as any)?.registrationNum ||
+    (cardResource as any)?.registrationNum ||
     '';
 
   const cleanDigits = String(rawPlate).replace(/\D/g, '');
@@ -148,13 +191,13 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
     parsedDetails?.vehicleColor ||
     parsedDetails?.colour ||
     parsedDetails?.color ||
-    (resource as any)?.vehicleColour ||
+    (cardResource as any)?.vehicleColour ||
     '';
   const colorDisplay = rawColor ? rawColor.charAt(0).toUpperCase() + rawColor.slice(1).toLowerCase() : '';
   const colorHex = colorDisplay ? getColorHex(colorDisplay) : '';
 
   const getBelongingIcon = () => {
-    switch (resource.type?.toUpperCase()) {
+    switch (cardResource.type?.toUpperCase()) {
       case 'PROPERTY':
         return Building2;
       case 'EQUIPMENT':
@@ -173,7 +216,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
       <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-3">
         <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
           <BelongingIcon className="h-3.5 w-3.5 text-ink/80" />
-          <span>{resource.type === 'PROPERTY' ? 'PROPERTY SPEC' : (resource.type || 'VEHICLE SPEC')}</span>
+          <span>{cardResource.type === 'PROPERTY' ? 'PROPERTY SPEC' : (cardResource.type || 'VEHICLE SPEC')}</span>
         </div>
         <span className="font-sans text-xs text-muted font-medium">
           {tagNumber ? `#${tagNumber}` : 'No tag'}
@@ -186,7 +229,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
         className="group flex items-center justify-between gap-3 pt-0.5 hover:opacity-85 transition-opacity cursor-pointer"
       >
         <h2 className="font-display font-medium text-3xl sm:text-4xl text-ink uppercase tracking-tight leading-none truncate">
-          {resource.name}
+          {cardResource.name}
         </h2>
         <ChevronRight className="h-6 w-6 text-muted group-hover:text-ink group-hover:translate-x-1 transition-all shrink-0" />
       </Link>
@@ -309,6 +352,13 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [selectedShareResource, setSelectedShareResource] = useState<Resource | null>(null);
 
+  // Gesture state for predictable, tactile horizontal card swipe
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const directionLockRef = useRef<'horizontal' | 'vertical' | null>(null);
+  const isPointerDownRef = useRef(false);
+
   // Sync activeIndex with external selectedIndex if changed from parent
   useEffect(() => {
     if (
@@ -325,27 +375,94 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
     onSelectIndex(idx);
   }, [onSelectIndex]);
 
-  // Handle swipe/drag gesture with resistive physics and threshold
-  const handleDragEnd = (
-    _event: any,
-    info: { offset: { x: number; y: number }; velocity: { x: number; y: number } }
-  ) => {
-    const swipeThreshold = 45;
-    const velocityThreshold = 280;
+  // Touch and pointer gesture handlers with intentional directional lock
+  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    if (resources.length <= 1) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
-    if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
-      // Swiped left -> advance to next card
-      if (activeIndex < resources.length - 1) {
-        const next = activeIndex + 1;
-        setActiveIndex(next);
-        onSelectIndex(next);
+    touchStartRef.current = { x: clientX, y: clientY, time: performance.now() };
+    directionLockRef.current = null;
+    isPointerDownRef.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!touchStartRef.current || !isPointerDownRef.current || resources.length <= 1) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+    const dx = clientX - touchStartRef.current.x;
+    const dy = clientY - touchStartRef.current.y;
+
+    // Filter out accidental micro-taps (< 7px deadzone)
+    if (directionLockRef.current === null) {
+      if (Math.abs(dx) < 7 && Math.abs(dy) < 7) {
+        return;
       }
-    } else if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
-      // Swiped right -> go to previous card
-      if (activeIndex > 0) {
-        const prev = activeIndex - 1;
-        setActiveIndex(prev);
-        onSelectIndex(prev);
+      if (Math.abs(dy) >= Math.abs(dx)) {
+        // Vertical scroll: leave browser native scroll uninterrupted
+        directionLockRef.current = 'vertical';
+        return;
+      } else {
+        // Horizontal swipe: claim the card swipe gesture
+        directionLockRef.current = 'horizontal';
+        setIsDragging(true);
+      }
+    }
+
+    if (directionLockRef.current === 'horizontal') {
+      // Apply rubber-band damping at carousel boundaries
+      const isLeftBoundary = activeIndex === 0 && dx > 0;
+      const isRightBoundary = activeIndex === resources.length - 1 && dx < 0;
+      const resistance = isLeftBoundary || isRightBoundary ? 0.22 : 1;
+      setDragOffset(dx * resistance);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isPointerDownRef.current) return;
+    isPointerDownRef.current = false;
+
+    if (!touchStartRef.current || resources.length <= 1) {
+      setIsDragging(false);
+      setDragOffset(0);
+      return;
+    }
+
+    const wasLockedHorizontal = directionLockRef.current === 'horizontal';
+    const clientX =
+      'changedTouches' in e
+        ? e.changedTouches[0].clientX
+        : (e as React.MouseEvent).clientX;
+
+    const dx = clientX - touchStartRef.current.x;
+    const elapsed = Math.max(1, performance.now() - touchStartRef.current.time);
+    const vx = dx / elapsed; // px per ms
+
+    touchStartRef.current = null;
+    directionLockRef.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+
+    if (wasLockedHorizontal) {
+      // Require an intentional swipe (>55px displacement or quick flick >28px at speed >0.45px/ms)
+      const isFlick = Math.abs(vx) > 0.45 && Math.abs(dx) > 28;
+      const isDisplaced = Math.abs(dx) > 55;
+
+      if ((isDisplaced || isFlick) && dx < 0) {
+        // Swipe left -> advance to next card
+        if (activeIndex < resources.length - 1) {
+          const next = activeIndex + 1;
+          setActiveIndex(next);
+          onSelectIndex(next);
+        }
+      } else if ((isDisplaced || isFlick) && dx > 0) {
+        // Swipe right -> return to previous card
+        if (activeIndex > 0) {
+          const prev = activeIndex - 1;
+          setActiveIndex(prev);
+          onSelectIndex(prev);
+        }
       }
     }
   };
@@ -392,21 +509,34 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
       )}
 
       {/* Springy Resistive Card Slider with Small Overshoot */}
-      <div className="w-full overflow-hidden relative cursor-grab active:cursor-grabbing">
+      <div
+        className="w-full overflow-hidden relative touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        onMouseDown={handleTouchStart}
+        onMouseMove={handleTouchMove}
+        onMouseUp={handleTouchEnd}
+        onMouseLeave={handleTouchEnd}
+      >
         <motion.div
           className="flex w-full"
-          drag={resources.length > 1 ? "x" : false}
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.24} // Realistic rubber-band resistance
-          onDragEnd={handleDragEnd}
-          animate={{ x: `-${activeIndex * 100}%` }}
-          transition={{
-            type: 'spring',
-            stiffness: 300,  // Crisp responsiveness
-            damping: 24,     // Underdamped (~0.75 damping ratio) for subtle ~2.8% overshoot
-            mass: 0.8,
+          animate={{
+            x: isDragging
+              ? `calc(-${activeIndex * 100}% + ${dragOffset}px)`
+              : `-${activeIndex * 100}%`,
           }}
-          style={{ touchAction: 'pan-y' }}
+          transition={
+            isDragging
+              ? { duration: 0 } // Direct zero-lag finger tracking
+              : {
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 24, // Subtle ~2.5% overshoot with prompt settle
+                  mass: 0.8,
+                }
+          }
         >
           {resources.map((resource, idx) => (
             <div

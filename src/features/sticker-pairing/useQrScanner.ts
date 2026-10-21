@@ -13,7 +13,12 @@ export function extractCleanTagId(input: string): string {
   } catch {
     // Keep raw if not a valid URL
   }
-  return raw.replace(/^(\/?(t|qr|c|contact)\/)+/i, '').replace(/^\/+/, '').trim().toUpperCase();
+  return raw
+    .replace(/^(\/?(t|qr|c|contact)\/)+/i, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .trim()
+    .toUpperCase();
 }
 
 interface UseQrScannerOptions {
@@ -24,26 +29,31 @@ interface UseQrScannerOptions {
 export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const scannerInstanceRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const capturedRef = useRef<boolean>(false);
+  const barcodeDetectorRef = useRef<any>(null);
 
   const [cameraState, setCameraState] = useState<CameraStatus>('starting');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Initialize native BarcodeDetector if available on device
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        barcodeDetectorRef.current = new (window as any).BarcodeDetector({
+          formats: ['qr_code'],
+        });
+      } catch (err) {
+        console.warn('Native BarcodeDetector not available, using jsQR engine:', err);
+        barcodeDetectorRef.current = null;
+      }
+    }
+  }, []);
 
   const stopStream = useCallback(() => {
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
-    }
-    if (scannerInstanceRef.current) {
-      try {
-        scannerInstanceRef.current.stop();
-        scannerInstanceRef.current.destroy();
-      } catch (err) {
-        console.warn('Error destroying qr-scanner:', err);
-      }
-      scannerInstanceRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
@@ -80,7 +90,6 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
       // 2. Normalize corner points
       let corners = cornerPoints || [];
       if (!corners || corners.length < 4) {
-        // Fallback: estimate corners near center if decoder didn't provide them
         const padX = width * 0.2;
         const padY = height * 0.2;
         corners = [
@@ -120,24 +129,23 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
     }
 
     try {
-      // Step A: Dynamically import qr-scanner inside the hook
-      let QrScanner: any = null;
+      // Step A: Acquire camera stream (with resolution fallback)
+      let stream: MediaStream;
       try {
-        const mod = await import('qr-scanner');
-        QrScanner = mod.default || mod;
-      } catch (importErr) {
-        console.warn('qr-scanner dynamic import failed, falling back to jsQR', importErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false,
+        });
       }
-
-      // Step B: Acquire camera stream
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
 
       streamRef.current = stream;
       setCameraState('active');
@@ -146,66 +154,90 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
       if (!video) return;
 
       video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.muted = true;
       await video.play().catch((playErr) => console.warn('Video play error:', playErr));
 
-      // Step C: Initialize QrScanner if available
-      if (QrScanner) {
-        const scanner = new QrScanner(
-          video,
-          (result: any) => {
-            if (capturedRef.current) return;
-            const data = typeof result === 'string' ? result : result?.data;
-            const corners = result?.cornerPoints;
-            if (data) {
-              handleSuccessfulDetection(data, corners);
-            }
-          },
-          {
-            preferredCamera: 'environment',
-            highlightScanRegion: false,
-            highlightCodeOutline: false,
-            returnDetailedScanResult: true,
-            maxScansPerSecond: 25,
-          }
-        );
+      // Step B: Dedicated canvas for frame decoding
+      const scanCanvas = document.createElement('canvas');
+      const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
 
-        scannerInstanceRef.current = scanner;
-        await scanner.start().catch((startErr: any) => {
-          console.warn('QrScanner start error, continuing with fallback:', startErr);
-        });
-      } else {
-        // Step D: Fallback to frame polling via jsQR
-        const pollFrame = () => {
-          if (capturedRef.current || !videoRef.current) return;
-          const v = videoRef.current;
-          if (v.readyState === v.HAVE_ENOUGH_DATA) {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = v.videoWidth;
-            tempCanvas.height = v.videoHeight;
-            const ctx = tempCanvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(v, 0, 0);
-              const imgData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-              const code = jsQR(imgData.data, imgData.width, imgData.height, {
-                inversionAttempts: 'dontInvert',
+      let lastScanTime = 0;
+      const scanIntervalMs = 50; // ~20 checks/sec for immediate detection without overheating
+
+      const scanTick = async () => {
+        if (capturedRef.current || !videoRef.current) return;
+        const v = videoRef.current;
+
+        const now = performance.now();
+        if (now - lastScanTime >= scanIntervalMs) {
+          lastScanTime = now;
+
+          if (v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && v.videoWidth > 0 && v.videoHeight > 0) {
+            const vw = v.videoWidth;
+            const vh = v.videoHeight;
+
+            // 1. Try Hardware BarcodeDetector first (Android Chrome / WebKit)
+            if (barcodeDetectorRef.current) {
+              try {
+                const barcodes = await barcodeDetectorRef.current.detect(v);
+                if (barcodes && barcodes.length > 0 && !capturedRef.current) {
+                  const first = barcodes[0];
+                  if (first.rawValue) {
+                    const corners: QrPoint[] = (first.cornerPoints || []).map((p: any) => ({
+                      x: p.x,
+                      y: p.y,
+                    }));
+                    handleSuccessfulDetection(first.rawValue, corners);
+                    return;
+                  }
+                }
+              } catch {
+                // Fall through to jsQR
+              }
+            }
+
+            // 2. High-speed jsQR fallback with attemptBoth (handles dark, light & high contrast tags)
+            if (!capturedRef.current && scanCtx) {
+              const maxDim = 640;
+              const scale = Math.min(1, maxDim / Math.max(vw, vh));
+              const scanW = Math.round(vw * scale);
+              const scanH = Math.round(vh * scale);
+
+              if (scanCanvas.width !== scanW || scanCanvas.height !== scanH) {
+                scanCanvas.width = scanW;
+                scanCanvas.height = scanH;
+              }
+
+              scanCtx.drawImage(v, 0, 0, scanW, scanH);
+              const imgData = scanCtx.getImageData(0, 0, scanW, scanH);
+              const code = jsQR(imgData.data, scanW, scanH, {
+                inversionAttempts: 'attemptBoth',
               });
-              if (code && code.data) {
+
+              if (code && code.data && !capturedRef.current) {
                 const loc = code.location;
+                const invScale = 1 / scale;
                 const corners: QrPoint[] = [
-                  { x: loc.topLeftCorner.x, y: loc.topLeftCorner.y },
-                  { x: loc.topRightCorner.x, y: loc.topRightCorner.y },
-                  { x: loc.bottomRightCorner.x, y: loc.bottomRightCorner.y },
-                  { x: loc.bottomLeftCorner.x, y: loc.bottomLeftCorner.y },
+                  { x: loc.topLeftCorner.x * invScale, y: loc.topLeftCorner.y * invScale },
+                  { x: loc.topRightCorner.x * invScale, y: loc.topRightCorner.y * invScale },
+                  { x: loc.bottomRightCorner.x * invScale, y: loc.bottomRightCorner.y * invScale },
+                  { x: loc.bottomLeftCorner.x * invScale, y: loc.bottomLeftCorner.y * invScale },
                 ];
                 handleSuccessfulDetection(code.data, corners);
                 return;
               }
             }
           }
-          animFrameRef.current = requestAnimationFrame(pollFrame);
-        };
-        animFrameRef.current = requestAnimationFrame(pollFrame);
-      }
+        }
+
+        if (!capturedRef.current) {
+          animFrameRef.current = requestAnimationFrame(scanTick);
+        }
+      };
+
+      animFrameRef.current = requestAnimationFrame(scanTick);
     } catch (err: any) {
       console.warn('Camera initialization error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
