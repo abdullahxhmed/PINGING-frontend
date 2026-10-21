@@ -33,6 +33,15 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
   const capturedRef = useRef<boolean>(false);
   const barcodeDetectorRef = useRef<any>(null);
 
+  // Camera stabilization state: allows mobile autofocus & auto-exposure to settle before freezing frame
+  const stabilizationRef = useRef<{
+    firstDetectTime: number;
+    lastTagCode: string;
+    decodedString: string;
+    stableHits: number;
+    corners: QrPoint[];
+  } | null>(null);
+
   const [cameraState, setCameraState] = useState<CameraStatus>('starting');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -51,6 +60,7 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
   }, []);
 
   const stopStream = useCallback(() => {
+    stabilizationRef.current = null;
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -116,9 +126,48 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
     [onCapture, stopStream]
   );
 
+  // Stabilize detection across ~220ms so camera auto-focus settles and hand tremor quiets down
+  const queueStabilizedCapture = useCallback(
+    (decodedString: string, cornerPoints?: QrPoint[]) => {
+      if (capturedRef.current) return;
+      const cleanTag = extractCleanTagId(decodedString);
+      if (!cleanTag || cleanTag.length < 3) return;
+
+      const now = performance.now();
+      const stab = stabilizationRef.current;
+
+      const STABILIZATION_DELAY_MS = 220; // ~220ms gives phone lens time to acquire crisp focus
+      const MIN_STABLE_HITS = 2; // At least 2 consistent decodes
+
+      if (!stab || stab.lastTagCode !== cleanTag) {
+        stabilizationRef.current = {
+          firstDetectTime: now,
+          lastTagCode: cleanTag,
+          decodedString,
+          stableHits: 1,
+          corners: cornerPoints || [],
+        };
+        return;
+      }
+
+      stab.stableHits++;
+      if (cornerPoints && cornerPoints.length === 4) {
+        stab.corners = cornerPoints;
+      }
+      stab.decodedString = decodedString;
+
+      if (now - stab.firstDetectTime >= STABILIZATION_DELAY_MS && stab.stableHits >= MIN_STABLE_HITS) {
+        stabilizationRef.current = null;
+        handleSuccessfulDetection(stab.decodedString, stab.corners);
+      }
+    },
+    [handleSuccessfulDetection]
+  );
+
   const startCamera = useCallback(async () => {
     stopStream();
     capturedRef.current = false;
+    stabilizationRef.current = null;
     setCameraState('starting');
     setErrorMessage('');
 
@@ -177,6 +226,7 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
           if (v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && v.videoWidth > 0 && v.videoHeight > 0) {
             const vw = v.videoWidth;
             const vh = v.videoHeight;
+            let detectedThisTick = false;
 
             // 1. Try Hardware BarcodeDetector first (Android Chrome / WebKit)
             if (barcodeDetectorRef.current) {
@@ -189,7 +239,8 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
                       x: p.x,
                       y: p.y,
                     }));
-                    handleSuccessfulDetection(first.rawValue, corners);
+                    detectedThisTick = true;
+                    queueStabilizedCapture(first.rawValue, corners);
                     return;
                   }
                 }
@@ -225,9 +276,15 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
                   { x: loc.bottomRightCorner.x * invScale, y: loc.bottomRightCorner.y * invScale },
                   { x: loc.bottomLeftCorner.x * invScale, y: loc.bottomLeftCorner.y * invScale },
                 ];
-                handleSuccessfulDetection(code.data, corners);
+                detectedThisTick = true;
+                queueStabilizedCapture(code.data, corners);
                 return;
               }
+            }
+
+            // If tag was lost for > 400ms during stabilization, reset to avoid stale freeze
+            if (!detectedThisTick && stabilizationRef.current && now - stabilizationRef.current.firstDetectTime > 400) {
+              stabilizationRef.current = null;
             }
           }
         }
