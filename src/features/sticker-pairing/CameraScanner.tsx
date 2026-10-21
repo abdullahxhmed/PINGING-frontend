@@ -18,7 +18,6 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({
   cameraState,
   errorMessage,
   isStabilizing = false,
-  stabilizeProgress = 0,
   onRetry,
   onSwitchToManual,
 }) => {

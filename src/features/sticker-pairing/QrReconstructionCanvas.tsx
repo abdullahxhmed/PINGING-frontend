@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { buildTagQrUrl } from '../../lib/qr';
 import type { QrScanCapture, QrPoint } from './types';
@@ -255,7 +255,6 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hiddenSvgRef = useRef<HTMLDivElement | null>(null);
   const digitalImageRef = useRef<HTMLImageElement | null>(null);
-  const [isDone, setIsDone] = useState(false);
 
   const canonicalQrUrl = buildTagQrUrl(capture.tagCode || capture.rawData);
 
@@ -397,7 +396,6 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         }
 
         if (progress >= 1) {
-          setIsDone(true);
           onAnimationComplete();
           return;
         }
@@ -600,7 +598,6 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
 
       // 10. Completed hold period -> move to the next section!
       if (progress >= 1) {
-        setIsDone(true);
         onAnimationComplete();
         return;
       }

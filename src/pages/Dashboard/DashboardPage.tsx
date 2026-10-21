@@ -163,7 +163,9 @@ export const DashboardPage: React.FC = () => {
           <p className="body-sm text-danger/80 mt-1 max-w-md mx-auto mb-6">{error}</p>
           <Button
             variant="secondary"
-            onClick={fetchResources}
+            onClick={() => {
+              fetchResources();
+            }}
             className="!h-10 text-xs tracking-wider uppercase font-semibold"
           >
             TRY AGAIN

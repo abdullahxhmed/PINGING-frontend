@@ -6,7 +6,7 @@ import { useQrScanner } from './useQrScanner';
 import { CameraScanner } from './CameraScanner';
 import { QrReconstructionCanvas } from './QrReconstructionCanvas';
 import { ManualTagInput } from './ManualTagInput';
-import { ArrowLeft, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
 import './pairing.css';
 
 export const StickerPairing: React.FC<StickerPairingProps> = ({

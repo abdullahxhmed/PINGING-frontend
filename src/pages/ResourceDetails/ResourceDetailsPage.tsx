@@ -24,49 +24,13 @@ import {
 } from './ResourceHeader';
 import {
   ResourceOverviewTab,
-  type OverviewMetrics,
   type ActivityItem,
 } from './ResourceOverviewTab';
 import { ResourceActivityTab } from './ResourceActivityTab';
-import { ResourceAnalyticsTab } from './ResourceAnalyticsTab';
 import { ResourceSettingsTab } from './ResourceSettingsTab';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 
-// Baseline illustrative events as requested in the specification
-const ILLUSTRATIVE_ACTIVITIES: ActivityItem[] = [
-  {
-    id: 'mock-1',
-    type: 'call',
-    title: 'Call connected',
-    subtitle: 'Private relay call',
-    time: 'Today · 10:42 AM',
-    status: 'CONNECTED',
-  },
-  {
-    id: 'mock-2',
-    type: 'scan',
-    title: 'QR code scanned',
-    subtitle: 'Public contact page opened',
-    time: 'Today · 10:40 AM',
-    status: 'SCANNED',
-  },
-  {
-    id: 'mock-3',
-    type: 'notification',
-    title: 'Contact notification sent',
-    subtitle: 'Push notification',
-    time: 'Today · 10:40 AM',
-    status: 'DELIVERED',
-  },
-  {
-    id: 'mock-4',
-    type: 'click',
-    title: 'Contact link opened',
-    subtitle: 'Public contact page',
-    time: 'Yesterday · 6:15 PM',
-    status: 'OPENED',
-  },
-];
+
 
 function formatEventTime(dateStr?: string): string {
   if (!dateStr) return 'Recently';
@@ -210,54 +174,30 @@ export const ResourceDetailsPage: React.FC = () => {
     }
   };
 
-  // Convert real calls to ActivityItems if they exist, else provide illustrative entries
-  const { activities, isMockActivities } = useMemo(() => {
-    if (calls && calls.length > 0) {
-      const mapped: ActivityItem[] = calls.map((c) => {
-        const isMsg = c.type === 'MESSAGE';
-        const isConn = c.status === 'CONNECTED' || c.status === 'COMPLETED';
-        return {
-          id: c.id || c.sessionId,
-          type: isMsg ? 'request' : 'call',
-          title: isMsg
-            ? 'Contact request via private relay'
-            : isConn
-            ? 'Call connected'
-            : 'Private relay call attempted',
-          subtitle: c.callerLastTwo
-            ? `Private relay (••• ${c.callerLastTwo}) · ${c.duration || `${c.durationSec || 0}s`}`
-            : isConn
-            ? `Connected · ${c.duration || 'Private relay'}`
-            : `Status: ${c.status}`,
-          time: formatEventTime(c.createdAt || c.incomingAt),
-          status: c.status,
-        };
-      });
-      return { activities: mapped, isMockActivities: false };
-    }
-
-    return { activities: ILLUSTRATIVE_ACTIVITIES, isMockActivities: true };
-  }, [calls]);
-
-  // Derive metrics
-  const metrics: OverviewMetrics = useMemo(() => {
-    if (!isMockActivities && calls.length > 0) {
-      const connectedCount = calls.filter(
-        (c) => c.status === 'CONNECTED' || c.status === 'COMPLETED'
-      ).length;
+  // Convert real calls to ActivityItems if they exist
+  const activities: ActivityItem[] = useMemo(() => {
+    if (!calls || calls.length === 0) return [];
+    return calls.map((c) => {
+      const isMsg = c.type === 'MESSAGE';
+      const isConn = c.status === 'CONNECTED' || c.status === 'COMPLETED';
       return {
-        scansCount: calls.length * 3, // Estimated interaction ratio
-        requestsCount: calls.length,
-        connectedCallsCount: connectedCount,
+        id: c.id || c.sessionId,
+        type: isMsg ? 'request' : 'call',
+        title: isMsg
+          ? 'Contact request via private relay'
+          : isConn
+          ? 'Call connected'
+          : 'Private relay call attempted',
+        subtitle: c.callerLastTwo
+          ? `Private relay (••• ${c.callerLastTwo}) · ${c.duration || `${c.durationSec || 0}s`}`
+          : isConn
+          ? `Connected · ${c.duration || 'Private relay'}`
+          : `Status: ${c.status}`,
+        time: formatEventTime(c.createdAt || c.incomingAt),
+        status: c.status,
       };
-    }
-
-    return {
-      scansCount: 128,
-      requestsCount: 12,
-      connectedCallsCount: 8,
-    };
-  }, [calls, isMockActivities]);
+    });
+  }, [calls]);
 
   if (isLoading) {
     return (
@@ -316,24 +256,17 @@ export const ResourceDetailsPage: React.FC = () => {
               <ResourceOverviewTab
                 resource={resource}
                 activeTag={activeTag}
-                metrics={metrics}
-                recentActivity={activities.slice(0, 3)}
+                publicUrl={publicUrl}
+                recentActivity={activities.slice(0, 5)}
                 onNavigateToActivity={() => setActiveTab('activity')}
                 onOpenShareSheet={() => setIsShareOpen(true)}
+                onOpenPairModal={() => setIsPairModalOpen(true)}
               />
             )}
 
             {activeTab === 'activity' && (
               <ResourceActivityTab
                 events={activities}
-              />
-            )}
-
-            {activeTab === 'analytics' && (
-              <ResourceAnalyticsTab
-                scansCount={metrics.scansCount}
-                requestsCount={metrics.requestsCount}
-                connectedCallsCount={metrics.connectedCallsCount}
               />
             )}
 

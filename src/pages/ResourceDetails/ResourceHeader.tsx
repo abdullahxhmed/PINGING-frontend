@@ -11,7 +11,7 @@ import {
   Layers,
 } from 'lucide-react';
 
-export type ResourceTabType = 'overview' | 'activity' | 'analytics' | 'settings';
+export type ResourceTabType = 'overview' | 'activity' | 'settings';
 
 interface ResourceHeaderProps {
   resource: Resource;
@@ -109,7 +109,6 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
   const tabs: { key: ResourceTabType; label: string; badge?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'activity', label: 'Activity', badge: activityCount },
-    { key: 'analytics', label: 'Analytics' },
     { key: 'settings', label: 'Settings' },
   ];
 

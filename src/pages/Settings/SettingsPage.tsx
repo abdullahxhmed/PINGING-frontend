@@ -30,7 +30,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateUser, refreshUser: refreshAuthUser } = useAuth();
+  const { updateUser } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
