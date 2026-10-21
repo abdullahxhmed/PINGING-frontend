@@ -19,8 +19,70 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => authStorage.getCurrentUser());
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = authStorage.getCurrentUser();
+    if (stored) return stored;
+    // If a valid access token exists in storage, synthesize an active user session
+    if (authStorage.getAccessToken()) {
+      return {
+        id: 'authenticated',
+        name: 'User',
+        mobileNumber: '',
+        active: true,
+        role: 'USER',
+      };
+    }
+    return null;
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  /**
+   * Robust parser for login / signup responses.
+   * Handles all common backend formats:
+   * - { accessToken, refreshToken, user }
+   * - { token, user }
+   * - { data: { accessToken, user } }
+   * - { accessToken } (no user payload)
+   */
+  const processAuthResponse = (res: any, fallbackMobile?: string): User => {
+    const accessToken =
+      res?.accessToken ||
+      res?.token ||
+      res?.data?.accessToken ||
+      res?.data?.token ||
+      res?.data?.jwt ||
+      res?.jwt;
+
+    const refreshToken =
+      res?.refreshToken ||
+      res?.data?.refreshToken;
+
+    const rawUser =
+      res?.user ||
+      res?.data?.user ||
+      (res?.id || res?._id ? res : null) ||
+      (res?.data?.id || res?.data?._id ? res.data : null);
+
+    const userObj: User = {
+      id: rawUser?.id || rawUser?._id || 'user_authenticated',
+      name: rawUser?.name || 'User',
+      mobileNumber: rawUser?.mobileNumber || rawUser?.mobile || fallbackMobile || '',
+      active: rawUser?.active ?? true,
+      role: rawUser?.role || 'USER',
+    };
+
+    if (accessToken) {
+      authStorage.setAccessToken(accessToken);
+    }
+    if (refreshToken) {
+      authStorage.setRefreshToken(refreshToken);
+    }
+    authStorage.setCurrentUser(userObj);
+    setUser(userObj);
+
+    return userObj;
+  };
 
   const refreshUser = async () => {
     if (!authStorage.getAccessToken()) return;
@@ -43,7 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
     } catch (err) {
-      console.warn('Failed to refresh user profile:', err);
+      console.warn('Optional user profile refresh failed:', err);
     }
   };
 
@@ -67,9 +129,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const res = await authApi.loginWithPassword(mobileNumber, password);
-      authStorage.setAccessToken(res.accessToken);
-      authStorage.setCurrentUser(res.user);
-      setUser(res.user);
+      processAuthResponse(res, mobileNumber);
     } finally {
       setIsLoading(false);
     }
@@ -79,9 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const res = await authApi.verifyLoginOtp(mobileNumber, otp);
-      authStorage.setAccessToken(res.accessToken);
-      authStorage.setCurrentUser(res.user);
-      setUser(res.user);
+      processAuthResponse(res, mobileNumber);
     } finally {
       setIsLoading(false);
     }
@@ -98,9 +156,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const res = await authApi.verifySignupOtp(name, mobileNumber, otp, password);
-      authStorage.setAccessToken(res.accessToken);
-      authStorage.setCurrentUser(res.user);
-      setUser(res.user);
+      const user = processAuthResponse(res, mobileNumber);
+      if (name && (!user.name || user.name === 'User')) {
+        const withName = { ...user, name };
+        authStorage.setCurrentUser(withName);
+        setUser(withName);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: Boolean(user && authStorage.getAccessToken()),
+    isAuthenticated: Boolean(authStorage.getAccessToken()),
     isAdmin,
     isLoading,
     refreshUser,

@@ -126,14 +126,16 @@ export async function request<T = any>(
     headers,
   });
 
-  // Intercept 401 Unauthorized or 500 token expiration on authenticated requests
+  // Intercept 401 Unauthorized on authenticated requests (never 500 server errors or auth profile checks)
   const isAuthFailure =
-    (response.status === 401 || (response.status === 500 && Boolean(token))) &&
+    response.status === 401 &&
+    Boolean(token) &&
     !isRetry &&
     !endpoint.includes('/auth/login') &&
     !endpoint.includes('/auth/signup') &&
     !endpoint.includes('/auth/verify') &&
-    !endpoint.includes('/auth/refresh');
+    !endpoint.includes('/auth/refresh') &&
+    !endpoint.includes('/auth/me');
 
   if (isAuthFailure) {
     try {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
+import { authStorage } from '../../lib/auth';
 import { authApi } from '../../lib/api';
 import {
   Button,
@@ -173,11 +174,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   const { toast } = useToast();
   const { loginWithPassword, loginWithOtp, signup, isAuthenticated } = useAuth();
 
+  const rawFrom = (location.state as any)?.from?.pathname;
+  const from = rawFrom && rawFrom !== '/login' && rawFrom !== '/signup' ? rawFrom : '/dashboard';
+
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+    if (isAuthenticated || authStorage.isAuthenticated()) {
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, from, navigate]);
 
   // Determine mode from prop or URL
   const isSignupRoute = location.pathname.startsWith('/signup') || initialMode === 'signup';
@@ -205,8 +209,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
     setHasError(false);
     setErrorMessage(null);
   }, [step, mode, loginMethod]);
-
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
 
   /**
    * Starts the 60-second cooldown timer exactly 2 seconds AFTER receiving 200 OK.

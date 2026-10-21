@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { authStorage } from '../../lib/auth';
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
@@ -21,7 +22,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  // Check both React state and persistent storage to prevent premature redirects
+  const isAuthorized = isAuthenticated || authStorage.isAuthenticated();
+
+  if (!isAuthorized) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
