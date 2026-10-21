@@ -104,6 +104,155 @@ function drawWarpedQuad(
   }
 }
 
+/**
+ * 1D separable box blur on Float32Array grayscale raster for high-performance O(N) local stats.
+ */
+function boxBlurGrayscale(src: Float32Array, w: number, h: number, r: number): Float32Array {
+  const temp = new Float32Array(w * h);
+  const dst = new Float32Array(w * h);
+  const windowSize = 2 * r + 1;
+
+  // Horizontal pass
+  for (let y = 0; y < h; y++) {
+    const rowOffset = y * w;
+    let sum = 0;
+    const firstVal = src[rowOffset];
+    const lastVal = src[rowOffset + w - 1];
+
+    for (let x = -r; x <= r; x++) {
+      const px = Math.min(Math.max(x, 0), w - 1);
+      sum += src[rowOffset + px];
+    }
+
+    for (let x = 0; x < w; x++) {
+      temp[rowOffset + x] = sum / windowSize;
+      const xRemove = x - r;
+      const xAdd = x + r + 1;
+      const valRemove = xRemove >= 0 ? src[rowOffset + xRemove] : firstVal;
+      const valAdd = xAdd < w ? src[rowOffset + xAdd] : lastVal;
+      sum += valAdd - valRemove;
+    }
+  }
+
+  // Vertical pass
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    const firstVal = temp[x];
+    const lastVal = temp[(h - 1) * w + x];
+
+    for (let y = -r; y <= r; y++) {
+      const py = Math.min(Math.max(y, 0), h - 1);
+      sum += temp[py * w + x];
+    }
+
+    for (let y = 0; y < h; y++) {
+      dst[y * w + x] = sum / windowSize;
+      const yRemove = y - r;
+      const yAdd = y + r + 1;
+      const valRemove = yRemove >= 0 ? temp[yRemove * w + x] : firstVal;
+      const valAdd = yAdd < h ? temp[yAdd * w + x] : lastVal;
+      sum += valAdd - valRemove;
+    }
+  }
+
+  return dst;
+}
+
+/**
+ * Creates an offscreen square texture of the captured QR warped into canonical perspective.
+ */
+function createRectifiedTexture(
+  sourceCanvas: HTMLCanvasElement,
+  s0: QrPoint,
+  s1: QrPoint,
+  s2: QrPoint,
+  s3: QrPoint,
+  size = 512
+): HTMLCanvasElement {
+  const rectCanvas = document.createElement('canvas');
+  rectCanvas.width = size;
+  rectCanvas.height = size;
+  const ctx = rectCanvas.getContext('2d');
+  if (ctx) {
+    drawWarpedQuad(
+      ctx,
+      sourceCanvas,
+      s0,
+      s1,
+      s2,
+      s3,
+      { x: 0, y: 0 },
+      { x: size, y: 0 },
+      { x: size, y: size },
+      { x: 0, y: size },
+      12
+    );
+  }
+  return rectCanvas;
+}
+
+/**
+ * Deterministic local contrast normalization & illumination correction pipeline:
+ * N(x, y) = (I(x, y) - mu(x, y)) / (sigma(x, y) + epsilon)
+ * Uses a smooth sigmoidal curve to cleanly separate dark and light modules without clipping.
+ */
+function createContrastNormalizedTexture(
+  rectifiedCanvas: HTMLCanvasElement,
+  size = 512
+): HTMLCanvasElement {
+  const normCanvas = document.createElement('canvas');
+  normCanvas.width = size;
+  normCanvas.height = size;
+  const ctx = normCanvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return rectifiedCanvas;
+
+  ctx.drawImage(rectifiedCanvas, 0, 0, size, size);
+  const imgData = ctx.getImageData(0, 0, size, size);
+  const data = imgData.data;
+  const numPixels = size * size;
+
+  const gray = new Float32Array(numPixels);
+  for (let i = 0, p = 0; i < numPixels; i++, p += 4) {
+    gray[i] = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+  }
+
+  // Radius 16 covers approximately one QR module width in a 512px raster
+  const r = 16;
+  const mu = boxBlurGrayscale(gray, size, size, r);
+
+  const graySq = new Float32Array(numPixels);
+  for (let i = 0; i < numPixels; i++) {
+    graySq[i] = gray[i] * gray[i];
+  }
+  const muSq = boxBlurGrayscale(graySq, size, size, r);
+
+  // Target palette: Ink #11110F (17, 17, 15), Substrate #F4F3EE (244, 243, 238)
+  const epsilon = 8.0;
+
+  for (let i = 0, p = 0; i < numPixels; i++, p += 4) {
+    const variance = Math.max(0, muSq[i] - mu[i] * mu[i]);
+    const sigma = Math.sqrt(variance);
+
+    // Local normalized deviation
+    const normDiff = (gray[i] - mu[i]) / (Math.max(sigma, 12) + epsilon);
+    // Global luminance reference (keeps quiet zone white and solid dark modules black)
+    const globalBias = (gray[i] - 128) / 128;
+    const blend = Math.min(sigma / 22, 1);
+    const signal = blend * (normDiff * 2.2) + (1 - blend) * (globalBias * 2.6);
+
+    // Smooth sigmoidal response avoids harsh boundary clipping
+    const weight = 0.5 + 0.5 * Math.tanh(signal);
+
+    data[p] = Math.round(17 + (244 - 17) * weight);
+    data[p + 1] = Math.round(17 + (243 - 17) * weight);
+    data[p + 2] = Math.round(15 + (238 - 15) * weight);
+    data[p + 3] = 255;
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return normCanvas;
+}
+
 export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   capture,
   onAnimationComplete,
@@ -113,7 +262,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   const hiddenSvgRef = useRef<HTMLDivElement | null>(null);
   const digitalImageRef = useRef<HTMLImageElement | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [phaseText, setPhaseText] = useState<'DETECTED' | 'ALIGNING' | 'DIGITIZING' | 'RESOLVED'>('DETECTED');
+  const [phaseText, setPhaseText] = useState<'DETECTED' | 'RECTIFYING' | 'NORMALIZING' | 'REGISTERING' | 'RESOLVED'>('DETECTED');
   const currentPhaseRef = useRef<string>('DETECTED');
 
   // Pre-load the exact vector digital QR corresponding to the decoded token
@@ -212,6 +361,27 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const target2 = { x: targetLeft + targetSize, y: targetTop + targetSize };
     const target3 = { x: targetLeft, y: targetTop + targetSize };
 
+    // 02 & 03: Build Rectified & Contrast-Normalized Textures Deterministically
+    const BUFFER_SIZE = 512;
+    const rectifiedCanvas = createRectifiedTexture(
+      capture.capturedCanvas,
+      s0,
+      s1,
+      s2,
+      s3,
+      BUFFER_SIZE
+    );
+    const normalizedCanvas = createContrastNormalizedTexture(
+      rectifiedCanvas,
+      BUFFER_SIZE
+    );
+
+    // Quad bounds for 512x512 textures
+    const quad0: QrPoint = { x: 0, y: 0 };
+    const quad1: QrPoint = { x: BUFFER_SIZE, y: 0 };
+    const quad2: QrPoint = { x: BUFFER_SIZE, y: BUFFER_SIZE };
+    const quad3: QrPoint = { x: 0, y: BUFFER_SIZE };
+
     // 3. Animation Timing: Deliberate 3.2s (3200ms) cinematic sequence for full appreciation
     const totalDuration = prefersReducedMotion ? 250 : 3200;
     const startTime = performance.now();
@@ -254,28 +424,29 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       }
 
       // =======================================================================
-      // THE DELIBERATE 3.2s PHYSICAL-TO-DIGITAL TRANSFORMATION PIPELINE
+      // DETERMINISTIC CAMERA-IMAGE-TO-DIGITAL-QR MORPH PIPELINE (3.2s)
       // =======================================================================
 
-      // Phase Progress:
-      // Straightening Phase: 450ms to 2100ms (1650ms unhurried un-skewing)
-      const straightenRaw = Math.min(Math.max((elapsed - 450) / 1650, 0), 1);
+      // Straightening & Perspective Rectification Phase: 450ms to 2000ms
+      const straightenRaw = Math.min(Math.max((elapsed - 450) / 1550, 0), 1);
       const straightenP = easeOutApple(straightenRaw);
 
-      // Current 4 moving corners
+      // Current 4 moving corners registered from camera position to centered square
       const D0 = lerpPoint(start0, target0, straightenP);
       const D1 = lerpPoint(start1, target1, straightenP);
       const D2 = lerpPoint(start2, target2, straightenP);
       const D3 = lerpPoint(start3, target3, straightenP);
 
       // Phase milestones for telemetry badge
-      let nextPhase: 'DETECTED' | 'ALIGNING' | 'DIGITIZING' | 'RESOLVED' = 'DETECTED';
-      if (elapsed >= 2550) {
+      let nextPhase: 'DETECTED' | 'RECTIFYING' | 'NORMALIZING' | 'REGISTERING' | 'RESOLVED' = 'DETECTED';
+      if (elapsed >= 2700) {
         nextPhase = 'RESOLVED';
-      } else if (elapsed >= 1800) {
-        nextPhase = 'DIGITIZING';
+      } else if (elapsed >= 2050) {
+        nextPhase = 'REGISTERING';
+      } else if (elapsed >= 1200) {
+        nextPhase = 'NORMALIZING';
       } else if (elapsed >= 450) {
-        nextPhase = 'ALIGNING';
+        nextPhase = 'RECTIFYING';
       }
 
       if (currentPhaseRef.current !== nextPhase) {
@@ -352,43 +523,55 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      // 6. Draw the ACTUAL PHOTOGRAPHED STICKER rectifying in real perspective
-      const crossfadeRaw = Math.min(Math.max((elapsed - 1800) / 800, 0), 1);
-      const photoAlpha = Math.max(0, 1 - crossfadeRaw);
-      if (photoAlpha > 0.01) {
+      // 6. Draw Rectified Physical Photo (0ms to 2100ms)
+      if (elapsed < 2100) {
         ctx.save();
-        ctx.globalAlpha = photoAlpha;
+        ctx.globalAlpha = 1;
         drawWarpedQuad(
           ctx,
-          capture.capturedCanvas,
-          s0, s1, s2, s3,
+          rectifiedCanvas,
+          quad0, quad1, quad2, quad3,
           D0, D1, D2, D3,
           8
         );
         ctx.restore();
       }
 
-      // 7. Seamlessly crossfade into the pristine digital vector QR code (1800ms to 2600ms)
-      const digitalEase = easeOutApple(crossfadeRaw);
-      if (digitalEase > 0.01 && digitalImageRef.current) {
+      // 7. Morph in Local Contrast-Normalized Texture (1100ms to 2750ms)
+      // Deterministically eliminates lighting variations, glare and shadows without clipping
+      if (elapsed >= 1100 && elapsed < 2750) {
+        const normAlpha = easeOutApple(Math.min(Math.max((elapsed - 1100) / 950, 0), 1));
         ctx.save();
-        ctx.globalAlpha = digitalEase;
+        ctx.globalAlpha = normAlpha;
+        drawWarpedQuad(
+          ctx,
+          normalizedCanvas,
+          quad0, quad1, quad2, quad3,
+          D0, D1, D2, D3,
+          8
+        );
+        ctx.restore();
+      }
+
+      // 8. Register and transition into Canonical Vector Digital QR (1950ms to 3200ms)
+      // Both images share exact 512x512 bounds, converging with zero module blur
+      if (elapsed >= 1950 && digitalImageRef.current) {
+        const canonAlpha = easeOutApple(Math.min(Math.max((elapsed - 1950) / 750, 0), 1));
+        ctx.save();
+        ctx.globalAlpha = canonAlpha;
         drawWarpedQuad(
           ctx,
           digitalImageRef.current,
-          { x: 0, y: 0 },
-          { x: 512, y: 0 },
-          { x: 512, y: 512 },
-          { x: 0, y: 512 },
+          quad0, quad1, quad2, quad3,
           D0, D1, D2, D3,
           8
         );
         ctx.restore();
       }
 
-      // 8. Restrained lime perimeter progressive trace (2550ms to 3100ms)
-      if (elapsed > 2550 && elapsed <= 3150) {
-        const traceP = Math.min((elapsed - 2550) / 450, 1);
+      // 9. Restrained lime perimeter progressive trace (2650ms to 3150ms)
+      if (elapsed > 2650 && elapsed <= 3150) {
+        const traceP = Math.min((elapsed - 2650) / 400, 1);
         const fadeP = elapsed > 3000 ? 1 - (elapsed - 3000) / 150 : 1;
         const cardW = targetSize + 22;
         const cardH = targetSize + 22;
@@ -450,10 +633,12 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         >
           {phaseText === 'RESOLVED' || isDone
             ? `TAG #${capture.tagCode}`
-            : phaseText === 'DIGITIZING'
-            ? 'DIGITIZING MATRIX'
-            : phaseText === 'ALIGNING'
-            ? 'ALIGNING PERSPECTIVE'
+            : phaseText === 'REGISTERING'
+            ? 'REGISTERING CANONICAL QR'
+            : phaseText === 'NORMALIZING'
+            ? 'NORMALIZING CONTRAST'
+            : phaseText === 'RECTIFYING'
+            ? 'RECTIFYING PERSPECTIVE'
             : 'STICKER DETECTED'}
         </span>
       </div>
