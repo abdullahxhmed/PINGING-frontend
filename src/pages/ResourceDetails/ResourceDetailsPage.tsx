@@ -1,59 +1,172 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Resource } from '../../types/api';
+import { motion } from 'motion/react';
+import type { Resource, CallRecord } from '../../types/api';
 import {
   resourcesApi,
   extractResourceTag,
-  getPublicDomain,
+  getResourceContactUrl,
   buildTagQrUrl,
+  resourceCache,
 } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
 import { Surface, Button, Modal, useToast, DelayedSpinner } from '../../components/ui';
-import { EditResourceModal, QrCodeModal, ContactLinkPanel } from '../../components/resources';
 import {
-  ArrowLeft,
-  Calendar,
-  Trash2,
-  Edit2,
-  Car,
-  Building2,
-  Wrench,
-  Layers,
-} from 'lucide-react';
+  EditResourceModal,
+  PairQrModal,
+  UnpairQrModal,
+  GenerateDigitalQrModal,
+  ShareTagSheet,
+} from '../../components/resources';
+import {
+  ResourceHeader,
+  type ResourceTabType,
+} from './ResourceHeader';
+import {
+  ResourceOverviewTab,
+  type OverviewMetrics,
+  type ActivityItem,
+} from './ResourceOverviewTab';
+import { ResourceActivityTab } from './ResourceActivityTab';
+import { ResourceAnalyticsTab } from './ResourceAnalyticsTab';
+import { ResourceSettingsTab } from './ResourceSettingsTab';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+
+// Baseline illustrative events as requested in the specification
+const ILLUSTRATIVE_ACTIVITIES: ActivityItem[] = [
+  {
+    id: 'mock-1',
+    type: 'call',
+    title: 'Call connected',
+    subtitle: 'Private relay call',
+    time: 'Today · 10:42 AM',
+    status: 'CONNECTED',
+  },
+  {
+    id: 'mock-2',
+    type: 'scan',
+    title: 'QR code scanned',
+    subtitle: 'Public contact page opened',
+    time: 'Today · 10:40 AM',
+    status: 'SCANNED',
+  },
+  {
+    id: 'mock-3',
+    type: 'notification',
+    title: 'Contact notification sent',
+    subtitle: 'Push notification',
+    time: 'Today · 10:40 AM',
+    status: 'DELIVERED',
+  },
+  {
+    id: 'mock-4',
+    type: 'click',
+    title: 'Contact link opened',
+    subtitle: 'Public contact page',
+    time: 'Yesterday · 6:15 PM',
+    status: 'OPENED',
+  },
+];
+
+function formatEventTime(dateStr?: string): string {
+  if (!dateStr) return 'Recently';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Today · ${timeStr}`;
+    if (isYesterday) return `Yesterday · ${timeStr}`;
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${timeStr}`;
+  } catch {
+    return dateStr;
+  }
+}
 
 export const ResourceDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [resource, setResource] = useState<Resource | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const isReload = useMemo(() => resourceCache.isPageReload(), []);
+
+  // Initialize immediately from localStorage cache
+  const [resource, setResource] = useState<Resource | null>(() => (id ? resourceCache.getResource(id) : null));
+  const [calls, setCalls] = useState<CallRecord[]>(() => (id ? resourceCache.getCalls(id) || [] : []));
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (!id) return false;
+    if (isReload) return true;
+    return !resourceCache.getResource(id);
+  });
   const [error, setError] = useState<string | null>(null);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<ResourceTabType>('overview');
+
+  // Modals
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [activeModalTag, setActiveModalTag] = useState<string>('');
+  const [isPairModalOpen, setIsPairModalOpen] = useState(false);
+  const [isUnpairModalOpen, setIsUnpairModalOpen] = useState(false);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const fetchResource = useCallback(async () => {
+  const fetchResource = useCallback(async (showLoadingSpinner = true) => {
     if (!id) return;
-    setIsLoading(true);
+    if (showLoadingSpinner) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data: any = await resourcesApi.getById(id);
       const resData = data?.resource || data?.data || data;
       setResource(resData);
+      resourceCache.setResource(id, resData);
+
+      // Attempt to load recorded calls if backend supports it
+      try {
+        const callsRes = await resourcesApi.getCalls(id);
+        const callsList = (callsRes as any)?.calls || (callsRes as any)?.data || [];
+        if (Array.isArray(callsList)) {
+          setCalls(callsList);
+          resourceCache.setCalls(id, callsList);
+        }
+      } catch (err) {
+        // Quietly fallback to empty calls list if call history endpoint is not yet mounted
+        setCalls([]);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to load resource details');
+      if (!resourceCache.getResource(id)) {
+        setError(err.message || 'Failed to load resource details');
+      }
     } finally {
       setIsLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    fetchResource();
-  }, [fetchResource]);
+    if (!id) return;
+
+    const cached = resourceCache.getResource(id);
+    // If we have cached data and this is NOT a browser reload, skip refetch on back/forth
+    if (cached && !isReload) {
+      setResource(cached);
+      const cachedCalls = resourceCache.getCalls(id);
+      if (cachedCalls) setCalls(cachedCalls);
+      setIsLoading(false);
+      return;
+    }
+
+    // Otherwise (browser reload or no cache), fetch fresh from network
+    fetchResource(!cached);
+  }, [id, fetchResource, isReload]);
 
   const handleConfirmDelete = async () => {
     if (!resource) return;
@@ -63,6 +176,7 @@ export const ResourceDetailsPage: React.FC = () => {
     setIsDeleting(true);
     try {
       await resourcesApi.delete(targetId);
+      resourceCache.removeResource(targetId);
       toast.success(`"${resource.name}" deleted successfully`);
       setIsDeleteModalOpen(false);
       navigate('/dashboard');
@@ -72,6 +186,78 @@ export const ResourceDetailsPage: React.FC = () => {
       setIsDeleting(false);
     }
   };
+
+  const directTag = resource ? extractResourceTag(resource) : '';
+  const activeTag = directTag;
+
+  const publicUrl = useMemo(() => {
+    if (!resource) return '';
+    if (activeTag) {
+      return buildTagQrUrl(activeTag);
+    }
+    return getResourceContactUrl(resource);
+  }, [resource, activeTag]);
+
+  const handleCopyUrl = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      toast.success('Public contact link copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  // Convert real calls to ActivityItems if they exist, else provide illustrative entries
+  const { activities, isMockActivities } = useMemo(() => {
+    if (calls && calls.length > 0) {
+      const mapped: ActivityItem[] = calls.map((c) => {
+        const isMsg = c.type === 'MESSAGE';
+        const isConn = c.status === 'CONNECTED' || c.status === 'COMPLETED';
+        return {
+          id: c.id || c.sessionId,
+          type: isMsg ? 'request' : 'call',
+          title: isMsg
+            ? 'Contact request via private relay'
+            : isConn
+            ? 'Call connected'
+            : 'Private relay call attempted',
+          subtitle: c.callerLastTwo
+            ? `Private relay (••• ${c.callerLastTwo}) · ${c.duration || `${c.durationSec || 0}s`}`
+            : isConn
+            ? `Connected · ${c.duration || 'Private relay'}`
+            : `Status: ${c.status}`,
+          time: formatEventTime(c.createdAt || c.incomingAt),
+          status: c.status,
+        };
+      });
+      return { activities: mapped, isMockActivities: false };
+    }
+
+    return { activities: ILLUSTRATIVE_ACTIVITIES, isMockActivities: true };
+  }, [calls]);
+
+  // Derive metrics
+  const metrics: OverviewMetrics = useMemo(() => {
+    if (!isMockActivities && calls.length > 0) {
+      const connectedCount = calls.filter(
+        (c) => c.status === 'CONNECTED' || c.status === 'COMPLETED'
+      ).length;
+      return {
+        scansCount: calls.length * 3, // Estimated interaction ratio
+        requestsCount: calls.length,
+        connectedCallsCount: connectedCount,
+      };
+    }
+
+    return {
+      scansCount: 128,
+      requestsCount: 12,
+      connectedCallsCount: 8,
+    };
+  }, [calls, isMockActivities]);
 
   if (isLoading) {
     return (
@@ -104,192 +290,164 @@ export const ResourceDetailsPage: React.FC = () => {
     );
   }
 
-  const directTag = extractResourceTag(resource);
-  const activeTag = activeModalTag || directTag;
-
   return (
     <Layout>
-      <div className="animate-fade-in">
-        {/* Back button */}
-        <div className="mb-6">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1.5 body-sm font-semibold text-muted hover:text-ink transition-colors"
+      <div className="max-w-3xl mx-auto space-y-4 pb-12">
+        {/* 1. Header with Breadcrumbs, Badges, Tag Reference, Primary Actions & Segmented Tabs */}
+        <ResourceHeader
+          resource={resource}
+          activeTag={activeTag}
+          publicUrl={publicUrl}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onOpenShareSheet={() => setIsShareOpen(true)}
+          activityCount={activities.length}
+        />
+
+        {/* 2. Active Tab Content View */}
+        <div className="pt-1">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to My Resources
-          </Link>
+            {activeTab === 'overview' && (
+              <ResourceOverviewTab
+                resource={resource}
+                activeTag={activeTag}
+                metrics={metrics}
+                recentActivity={activities.slice(0, 3)}
+                onNavigateToActivity={() => setActiveTab('activity')}
+                onOpenShareSheet={() => setIsShareOpen(true)}
+              />
+            )}
+
+            {activeTab === 'activity' && (
+              <ResourceActivityTab
+                events={activities}
+              />
+            )}
+
+            {activeTab === 'analytics' && (
+              <ResourceAnalyticsTab
+                scansCount={metrics.scansCount}
+                requestsCount={metrics.requestsCount}
+                connectedCallsCount={metrics.connectedCallsCount}
+              />
+            )}
+
+            {activeTab === 'settings' && (
+              <ResourceSettingsTab
+                resource={resource}
+                activeTag={activeTag}
+                publicUrl={publicUrl}
+                copied={copied}
+                onOpenEditModal={() => setIsEditing(true)}
+                onOpenPairModal={() => setIsPairModalOpen(true)}
+                onOpenUnpairModal={() => setIsUnpairModalOpen(true)}
+                onOpenGenerateModal={() => setIsGenerateModalOpen(true)}
+                onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+                onCopyUrl={handleCopyUrl}
+              />
+            )}
+          </motion.div>
         </div>
 
-      {/* Header bar */}
-      {/* Resource Title Header */}
-      {(() => {
-        const rawDetails = resource.vehicleDetails;
-        const parsedDetails: any =
-          typeof rawDetails === 'string'
-            ? (() => {
-                try {
-                  return JSON.parse(rawDetails);
-                } catch {
-                  return {};
-                }
-              })()
-            : rawDetails || {};
+        {/* Modals & Slide-overs */}
 
-        const registration =
-          parsedDetails?.registrationNum ||
-          parsedDetails?.registrationNumber ||
-          parsedDetails?.regNum ||
-          parsedDetails?.registrationLast4 ||
-          (resource as any)?.registrationNum ||
-          (resource as any)?.registrationLast4;
+        {/* Share Tag Sheet */}
+        <ShareTagSheet
+          isOpen={isShareOpen}
+          onClose={() => setIsShareOpen(false)}
+          resource={resource}
+        />
 
-        const color =
-          parsedDetails?.vehicleColour ||
-          parsedDetails?.vehicleColor ||
-          parsedDetails?.colour ||
-          parsedDetails?.color ||
-          (resource as any)?.vehicleColour ||
-          (resource as any)?.color;
+        {/* Edit Resource Modal */}
+        <EditResourceModal
+          isOpen={isEditing}
+          onClose={() => setIsEditing(false)}
+          resource={resource}
+          onUpdated={(updated) => {
+            setResource(updated);
+            if (id) resourceCache.setResource(id, updated);
+          }}
+          onDelete={() => {
+            if (id) resourceCache.removeResource(id);
+            navigate('/dashboard');
+          }}
+        />
 
-        return (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border">
-            <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="heading-lg text-ink">
-                  {resource.name}
-                </h1>
-                {resource.type && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs font-semibold uppercase tracking-wider">
-                    {resource.type === 'VEHICLE' && <Car className="h-3.5 w-3.5" />}
-                    {resource.type === 'PROPERTY' && <Building2 className="h-3.5 w-3.5" />}
-                    {resource.type === 'EQUIPMENT' && <Wrench className="h-3.5 w-3.5" />}
-                    {resource.type === 'OTHER' && <Layers className="h-3.5 w-3.5" />}
-                    <span>{resource.type}</span>
-                  </span>
-                )}
-                {registration && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs">
-                    <span className="text-muted">Plate:</span>
-                    <span className="font-mono font-medium">•••• {registration}</span>
-                  </span>
-                )}
-                {color && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-surface border border-border text-ink text-xs">
-                    <span className="text-muted">Colour:</span>
-                    <span className="font-medium">{color}</span>
-                  </span>
-                )}
-              </div>
-              {(() => {
-                const rawDate =
-                  resource.createdAt ||
-                  (resource as any).created_at ||
-                  (resource as any).CreatedAt;
-                if (!rawDate) return null;
-                const date = new Date(rawDate);
-                if (isNaN(date.getTime())) return null;
-                return (
-                  <div className="flex items-center gap-2 body-sm text-muted mt-2">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      Added on{' '}
-                      {date.toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
+        {/* Pair Physical Tag Modal */}
+        <PairQrModal
+          isOpen={isPairModalOpen}
+          onClose={() => setIsPairModalOpen(false)}
+          initialResourceId={resource.id}
+          onSuccess={() => {
+            fetchResource(false);
+            setIsPairModalOpen(false);
+          }}
+        />
 
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="secondary"
-                onClick={() => setIsEditing(true)}
-                leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+        {/* Unpair Tag Modal */}
+        <UnpairQrModal
+          isOpen={isUnpairModalOpen}
+          onClose={() => setIsUnpairModalOpen(false)}
+          resourceId={resource.id}
+          resourceName={resource.name}
+          tagNumber={activeTag}
+          onUnpaired={() => {
+            fetchResource(false);
+            setIsUnpairModalOpen(false);
+          }}
+        />
+
+        {/* Generate Digital QR Modal */}
+        <GenerateDigitalQrModal
+          isOpen={isGenerateModalOpen}
+          onClose={() => setIsGenerateModalOpen(false)}
+          resourceId={resource.id}
+          resourceName={resource.name}
+          onGenerated={() => {
+            fetchResource(false);
+            setIsGenerateModalOpen(false);
+          }}
+        />
+
+        {/* Delete Resource Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Delete resource"
+        >
+          <div className="space-y-5">
+            <p className="text-sm text-ink leading-relaxed">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-ink">&ldquo;{resource.name}&rdquo;</span>?
+              This action is permanent and will immediately detach the physical tag and deactivate all public contact gateways.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold rounded-xs border border-border bg-surface hover:bg-bg text-muted hover:text-ink transition-colors cursor-pointer"
               >
-                Edit
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => setIsDeleteModalOpen(true)}
-                isLoading={isDeleting}
-                leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold rounded-xs bg-danger text-white hover:opacity-90 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                Delete
-              </Button>
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{isDeleting ? 'Deleting...' : 'Delete resource'}</span>
+              </button>
             </div>
           </div>
-        );
-      })()}
-
-      {/* Contact Link Panel */}
-      <div className="mt-6">
-        <ContactLinkPanel
-          resource={resource}
-          onRefresh={fetchResource}
-          onOpenQrModal={(_customUrl, customTag) => {
-            setActiveModalTag(customTag || '');
-            setShowQrModal(true);
-          }}
-        />
-      </div>
-
-      {/* Edit Modal */}
-      <EditResourceModal
-        isOpen={isEditing}
-        onClose={() => setIsEditing(false)}
-        resource={resource}
-        onUpdated={(updated) => setResource(updated)}
-        onDelete={() => navigate('/dashboard')}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="DELETE RESOURCE"
-        description={`Are you sure you want to delete "${resource.name}"? This action will deactivate all associated contact links.`}
-      >
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setIsDeleteModalOpen(false)}
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            onClick={handleConfirmDelete}
-            isLoading={isDeleting}
-            leftIcon={<Trash2 className="h-4 w-4" />}
-          >
-            Delete Resource
-          </Button>
-        </div>
-      </Modal>
-
-      {/* QR Modal - Only available when a QR tag is assigned */}
-      {Boolean(activeTag) && (
-        <QrCodeModal
-          isOpen={showQrModal}
-          onClose={() => {
-            setShowQrModal(false);
-            setActiveModalTag('');
-          }}
-          tagNumber={activeTag}
-          token={activeTag}
-          resourceName={resource.name}
-          customUrl={activeTag ? buildTagQrUrl(activeTag) : undefined}
-          customDisplayUrl={activeTag ? `${getPublicDomain()}/t/${activeTag}` : undefined}
-        />
-      )}
+        </Modal>
       </div>
     </Layout>
   );

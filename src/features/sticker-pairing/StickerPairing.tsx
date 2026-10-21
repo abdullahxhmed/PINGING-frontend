@@ -72,7 +72,15 @@ export const StickerPairing: React.FC<StickerPairingProps> = ({
   );
 
   // Hook for camera & decoder
-  const { videoRef, cameraState, errorMessage, startCamera, stopStream } = useQrScanner({
+  const {
+    videoRef,
+    cameraState,
+    errorMessage,
+    isStabilizing,
+    stabilizeProgress,
+    startCamera,
+    stopStream,
+  } = useQrScanner({
     onCapture: handleCameraCapture,
     enabled: viewMode === 'camera',
   });
@@ -178,6 +186,8 @@ export const StickerPairing: React.FC<StickerPairingProps> = ({
           videoRef={videoRef}
           cameraState={cameraState}
           errorMessage={errorMessage}
+          isStabilizing={isStabilizing}
+          stabilizeProgress={stabilizeProgress}
           onRetry={startCamera}
           onSwitchToManual={() => {
             stopStream();
@@ -194,16 +204,14 @@ export const StickerPairing: React.FC<StickerPairingProps> = ({
             onAnimationComplete={handleAnimationComplete}
           />
 
-          {/* Validation Status Indicator */}
-          <div className="text-center pt-1 flex items-center justify-center gap-2 text-xs text-muted">
-            {isVerifying ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-ink" />
-                <span>Checking tag identity with Kauntact network…</span>
-              </>
-            ) : (
-              <span className="text-success font-medium">Tag verified. Preparing belonging options…</span>
-            )}
+          {/* Bold Tag Number Display below QR (eases in smoothly) */}
+          <div className="text-center pt-1 space-y-0.5 animate-tag-ease-in">
+            <span className="font-mono text-2xl font-bold tracking-wider text-ink block">
+              #{activeCapture.tagCode}
+            </span>
+            <span className="text-xs text-muted block">
+              {isVerifying ? 'Verifying tag…' : 'Tag identified'}
+            </span>
           </div>
         </div>
       )}

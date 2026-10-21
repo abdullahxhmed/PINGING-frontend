@@ -61,3 +61,18 @@
   background-color: #0b0b0a;
   touch-action: none;
 }
+
+@keyframes tagEaseIn {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-tag-ease-in {
+  animation: tagEaseIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

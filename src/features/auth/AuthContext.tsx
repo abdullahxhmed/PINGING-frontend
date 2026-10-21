@@ -9,6 +9,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
+  updateUser: (partial: Partial<User>) => void;
   login: (mobileNumber: string, otpOrPassword: string, isPassword?: boolean) => Promise<void>;
   loginWithPassword: (mobileNumber: string, password: string) => Promise<void>;
   loginWithOtp: (mobileNumber: string, otp: string) => Promise<void>;
@@ -178,6 +179,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updateUser = (partial: Partial<User>) => {
+    setUser((prev) => {
+      const base = prev || {
+        id: 'authenticated',
+        name: 'User',
+        mobileNumber: '',
+        active: true,
+        role: 'USER',
+      };
+      const updated: User = { ...base, ...partial };
+      authStorage.setCurrentUser(updated);
+      return updated;
+    });
+  };
+
   const isAdmin = Boolean(
     user?.role === 'ADMIN' ||
     (typeof window !== 'undefined' && Boolean(localStorage.getItem('pingin_admin_key')))
@@ -189,6 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAdmin,
     isLoading,
     refreshUser,
+    updateUser,
     login,
     loginWithPassword,
     loginWithOtp,

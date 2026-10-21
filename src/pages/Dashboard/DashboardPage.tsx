@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Resource } from '../../types/api';
-import { resourcesApi } from '../../lib/api';
+import { resourcesApi, resourceCache } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ResourceRow, CreateResourceModal, EditResourceModal, PairQrModal, TagSetupFlow, MobileTagDetailView } from '../../components/resources';
 import { Button, DelayedSpinner } from '../../components/ui';
 import { Plus, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const isReload = useMemo(() => resourceCache.isPageReload(), []);
+  const cachedList = useMemo(() => resourceCache.getResourcesList(), []);
+
+  const [resources, setResources] = useState<Resource[]>(() => cachedList || []);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (isReload) return true;
+    return !cachedList;
+  });
   const [error, setError] = useState<string | null>(null);
 
   // Modals & Flow State
@@ -19,45 +25,82 @@ export const DashboardPage: React.FC = () => {
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [selectedMobileIndex, setSelectedMobileIndex] = useState(0);
 
-  const fetchResources = useCallback(async () => {
-    setIsLoading(true);
+  const fetchResources = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data = await resourcesApi.list();
-      setResources(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setResources(list);
+      resourceCache.setResourcesList(list);
     } catch (err: any) {
-      setError(err.message || 'Failed to load resources');
+      if (!resourceCache.getResourcesList()) {
+        setError(err.message || 'Failed to load resources');
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchResources();
-  }, [fetchResources]);
+    // If cached data is present and this is an in-app back/forth navigation, skip refetch
+    if (cachedList && !isReload) {
+      setIsLoading(false);
+      return;
+    }
+    fetchResources(!cachedList);
+  }, [fetchResources, cachedList, isReload]);
 
   const handleCreated = (newResource: Resource) => {
-    setResources((prev) => [newResource, ...prev]);
+    setResources((prev) => {
+      const next = [newResource, ...prev];
+      resourceCache.setResourcesList(next);
+      return next;
+    });
     setSelectedMobileIndex(0);
     setIsAddingTag(false);
   };
 
   const handleUpdated = (updated: Resource) => {
     const updatedId = updated.id || (updated as any)._id;
-    setResources((prev) =>
-      prev.map((r) => ((r.id || (r as any)._id) === updatedId ? { ...r, ...updated } : r))
-    );
+    setResources((prev) => {
+      const next = prev.map((r) => ((r.id || (r as any)._id) === updatedId ? { ...r, ...updated } : r));
+      resourceCache.setResourcesList(next);
+      return next;
+    });
+    if (updatedId) {
+      resourceCache.setResource(updatedId, updated);
+    }
   };
 
   const handleDelete = (id: string) => {
     setResources((prev) => {
       const next = prev.filter((r) => (r.id || (r as any)._id) !== id);
+      resourceCache.setResourcesList(next);
       setSelectedMobileIndex((curr) => Math.min(curr, Math.max(0, next.length - 1)));
       return next;
     });
+    resourceCache.removeResource(id);
   };
 
 
+
+  // Stable header title and subtitle: never flash "GET STARTED." while loading tags
+  const headerTitle = isAddingTag
+    ? 'ADD TAG.'
+    : !isLoading && resources.length === 0
+    ? 'GET STARTED.'
+    : 'YOUR TAGS.';
+
+  const headerSubtitle = isAddingTag
+    ? 'Pair a physical sticker or create a digital tag'
+    : isLoading
+    ? 'Checking active tags...'
+    : resources.length === 0
+    ? 'Pair your first physical sticker or digital tag'
+    : `You have ${resources.length} active tag${resources.length === 1 ? '' : 's'}`;
 
   return (
     <Layout>
@@ -70,15 +113,13 @@ export const DashboardPage: React.FC = () => {
           className="space-y-3"
         >
           <h1 className="font-display font-medium text-3xl sm:text-5xl lg:text-6xl tracking-[-0.03em] text-ink uppercase leading-none">
-            {isAddingTag ? 'ADD TAG.' : (resources.length > 0 ? 'YOUR TAGS.' : 'GET STARTED.')}
+            {headerTitle}
           </h1>
 
           {/* Subtitle and Add Tag in one line */}
           <div className="flex items-center justify-between gap-3">
             <p className="font-sans text-xs sm:text-sm text-muted tracking-normal">
-              {isAddingTag
-                ? 'Pair a physical sticker or create a digital tag'
-                : `You have ${resources.length} active tag${resources.length === 1 ? '' : 's'}`}
+              {headerSubtitle}
             </p>
 
             {isAddingTag ? (
@@ -128,70 +169,99 @@ export const DashboardPage: React.FC = () => {
             TRY AGAIN
           </Button>
         </div>
-      ) : isAddingTag ? (
-        /* Reused Setup Flow when user clicks ADD TAG */
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="py-6 sm:py-12"
-        >
-          <TagSetupFlow
-            existingResources={resources}
-            hasExistingTags={resources.length > 0}
-            onComplete={(newRes) => {
-              handleCreated(newRes);
-              fetchResources();
-            }}
-            onCancel={() => setIsAddingTag(false)}
-          />
-        </motion.div>
-      ) : resources.length === 0 ? (
-        /* Empty State & Initial Onboarding - Clean, quiet, interactive immediately */
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1, ease: 'easeOut' }}
-          className="py-10 sm:py-16"
-        >
-          <TagSetupFlow
-            existingResources={resources}
-            hasExistingTags={false}
-            onComplete={(newRes) => {
-              handleCreated(newRes);
-              fetchResources();
-            }}
-          />
-        </motion.div>
       ) : (
-        /* Returning user tags list */
-        <div className="animate-fade-in">
-          {/* Mobile Single-Tag Focused Experience (< md) */}
-          <div className="md:hidden">
-            <MobileTagDetailView
-              resources={resources}
-              selectedIndex={selectedMobileIndex}
-              onSelectIndex={setSelectedMobileIndex}
-              onEdit={(r) => setEditingResource(r)}
-              onDelete={handleDelete}
-              onAddTag={() => setIsAddingTag(true)}
-            />
-          </div>
-
-          {/* Desktop Multi-Tag Table View (md+) */}
-          <div className="hidden md:block max-w-4xl mx-auto divide-y-0">
-            {resources.map((resource, idx) => (
-              <ResourceRow
-                key={resource.id}
-                index={idx}
-                resource={resource}
-                onEdit={(r) => setEditingResource(r)}
-                onDelete={handleDelete}
-                onRefresh={fetchResources}
+        <AnimatePresence mode="wait">
+          {isAddingTag ? (
+            /* Reused Setup Flow when user clicks ADD TAG with smooth roll down / up */
+            <motion.div
+              key="add-tag-flow"
+              initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              animate={{
+                opacity: 1,
+                height: 'auto',
+                transition: {
+                  height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                  opacity: { duration: 0.35, delay: 0.08 },
+                },
+              }}
+              exit={{
+                opacity: 0,
+                height: 0,
+                overflow: 'hidden',
+                transition: {
+                  height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                  opacity: { duration: 0.2 },
+                },
+              }}
+              style={{ overflow: 'hidden' }}
+              className="py-6 sm:py-12"
+            >
+              <TagSetupFlow
+                existingResources={resources}
+                hasExistingTags={resources.length > 0}
+                onComplete={(newRes) => {
+                  handleCreated(newRes);
+                  fetchResources(false);
+                }}
+                onCancel={() => setIsAddingTag(false)}
               />
-            ))}
-          </div>
-        </div>
+            </motion.div>
+          ) : resources.length === 0 ? (
+            /* Empty State & Initial Onboarding - Clean, quiet, interactive immediately */
+            <motion.div
+              key="empty-setup-flow"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, delay: 0.1, ease: 'easeOut' }}
+              className="py-10 sm:py-16"
+            >
+              <TagSetupFlow
+                existingResources={resources}
+                hasExistingTags={false}
+                onComplete={(newRes) => {
+                  handleCreated(newRes);
+                  fetchResources(false);
+                }}
+              />
+            </motion.div>
+          ) : (
+            /* Returning user tags list with smooth exit and entry */
+            <motion.div
+              key="user-tags-list"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {/* Mobile Single-Tag Focused Experience (< md) */}
+              <div className="md:hidden">
+                <MobileTagDetailView
+                  resources={resources}
+                  selectedIndex={selectedMobileIndex}
+                  onSelectIndex={setSelectedMobileIndex}
+                  onEdit={(r) => setEditingResource(r)}
+                  onDelete={handleDelete}
+                  onAddTag={() => setIsAddingTag(true)}
+                />
+              </div>
+
+              {/* Desktop Multi-Tag Table View (md+) */}
+              <div className="hidden md:block max-w-4xl mx-auto divide-y-0">
+                {resources.map((resource, idx) => (
+                  <ResourceRow
+                    key={resource.id}
+                    index={idx}
+                    resource={resource}
+                    onEdit={(r) => setEditingResource(r)}
+                    onDelete={handleDelete}
+                    onRefresh={fetchResources}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
 
       {/* Modals */}

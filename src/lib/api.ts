@@ -252,11 +252,13 @@ export const authApi = {
 
   getMe: async () => {
     try {
-      return await api.get<UserProfile>('/api/auth/me');
+      const res: any = await api.get<UserProfile | { user: UserProfile }>('/api/auth/me');
+      return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
     } catch (err: any) {
       if (err.statusCode === 404) {
         try {
-          return await api.get<UserProfile>('/auth/me');
+          const res: any = await api.get<UserProfile | { user: UserProfile }>('/auth/me');
+          return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
         } catch {
           // fallback
         }
@@ -267,6 +269,32 @@ export const authApi = {
 
   logout: () =>
     api.post<{ message: string }>('/api/auth/logout'),
+
+  updateProfile: async (payload: { name: string }) => {
+    try {
+      return await api.patch<{ message: string; user?: UserProfile }>('/api/users/me', payload);
+    } catch (err: any) {
+      if (err.statusCode === 404) {
+        return await api.patch<{ message: string; user?: UserProfile }>('/api/auth/me', payload);
+      }
+      throw err;
+    }
+  },
+
+  changePassword: async (payload: {
+    currentPassword?: string;
+    newPassword: string;
+    confirmPassword?: string;
+  }) => {
+    try {
+      return await api.post<{ message: string }>('/api/users/change-password', payload);
+    } catch (err: any) {
+      if (err.statusCode === 404) {
+        return await api.post<{ message: string }>('/api/auth/change-password', payload);
+      }
+      throw err;
+    }
+  },
 };
 
 export const resourcesApi = {
@@ -635,5 +663,6 @@ export function extractConflictTagNumber(errorMessage: string): string | null {
 
 export { adminApi, adminStorage } from './adminApi';
 export { buildTagQrUrl, hasResourceQrTag, getResourceTagQrUrl } from './qr';
+export { resourceCache } from './resourceCache';
 
 

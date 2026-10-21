@@ -734,38 +734,63 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
                     />
                   </div>
 
-                  {/* Vehicle conditional fields */}
-                  {belongingType === 'VEHICLE' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
-                          Plate (last 4 digits)
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={4}
-                          placeholder="e.g. 8488"
-                          value={vehiclePlate}
-                          onChange={(e) => setVehiclePlate(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs font-mono text-xs uppercase text-ink outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
-                          Colour (optional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Pearl White"
-                          value={vehicleColor}
-                          onChange={(e) => setVehicleColor(e.target.value)}
-                          className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs text-xs text-ink outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
+                  {/* Vehicle conditional fields with slow smooth roll down/up */}
+                  <AnimatePresence initial={false}>
+                    {belongingType === 'VEHICLE' && (
+                      <motion.div
+                        key="setup-vehicle-details"
+                        initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                        animate={{
+                          opacity: 1,
+                          height: 'auto',
+                          transition: {
+                            height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                            opacity: { duration: 0.35, delay: 0.08 },
+                          },
+                        }}
+                        exit={{
+                          opacity: 0,
+                          height: 0,
+                          overflow: 'hidden',
+                          transition: {
+                            height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                            opacity: { duration: 0.2 },
+                          },
+                        }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                              Plate (last 4 digits)
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={4}
+                              placeholder="e.g. 8488"
+                              value={vehiclePlate}
+                              onChange={(e) => setVehiclePlate(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                              className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs font-mono text-xs uppercase text-ink outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                              Colour (optional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Pearl White"
+                              value={vehicleColor}
+                              onChange={(e) => setVehicleColor(e.target.value)}
+                              className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs text-xs text-ink outline-none"
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 /* Choose Existing Belonging List */
@@ -951,37 +976,63 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
                 />
               </div>
 
-              {belongingType === 'VEHICLE' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
-                      Plate (last 4 digits)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={4}
-                      placeholder="e.g. 8488"
-                      value={vehiclePlate}
-                      onChange={(e) => setVehiclePlate(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs font-mono text-xs uppercase text-ink outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
-                      Colour (optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Silver"
-                      value={vehicleColor}
-                      onChange={(e) => setVehicleColor(e.target.value)}
-                      className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs text-xs text-ink outline-none"
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Vehicle conditional fields in digital mode with slow smooth roll down/up */}
+              <AnimatePresence initial={false}>
+                {belongingType === 'VEHICLE' && (
+                  <motion.div
+                    key="digital-vehicle-details"
+                    initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                    animate={{
+                      opacity: 1,
+                      height: 'auto',
+                      transition: {
+                        height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.35, delay: 0.08 },
+                      },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      height: 0,
+                      overflow: 'hidden',
+                      transition: {
+                        height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.2 },
+                      },
+                    }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                          Plate (last 4 digits)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={4}
+                          placeholder="e.g. 8488"
+                          value={vehiclePlate}
+                          onChange={(e) => setVehiclePlate(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs font-mono text-xs uppercase text-ink outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                          Colour (optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Silver"
+                          value={vehicleColor}
+                          onChange={(e) => setVehicleColor(e.target.value)}
+                          className="w-full h-10 px-3 bg-surface border border-border focus:border-ink rounded-xs text-xs text-ink outline-none"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {submitError && (
                 <div className="p-2.5 bg-danger/10 border border-danger/20 rounded-xs text-xs text-danger flex items-center gap-2">

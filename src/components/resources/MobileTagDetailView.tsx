@@ -228,10 +228,10 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
         to={`/resources/${tagId}`}
         className="group flex items-center justify-between gap-3 pt-0.5 hover:opacity-85 transition-opacity cursor-pointer"
       >
-        <h2 className="font-display font-medium text-3xl sm:text-4xl text-ink uppercase tracking-tight leading-none truncate">
+        <h2 className="font-display font-medium text-xl sm:text-2xl text-ink uppercase tracking-tight leading-snug truncate">
           {cardResource.name}
         </h2>
-        <ChevronRight className="h-6 w-6 text-muted group-hover:text-ink group-hover:translate-x-1 transition-all shrink-0" />
+        <ChevronRight className="h-5 w-5 text-muted group-hover:text-ink group-hover:translate-x-1 transition-all shrink-0" />
       </Link>
 
       {/* Plate & Color */}
@@ -493,7 +493,7 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
                 <motion.span
                   animate={{
                     width: isActive ? 24 : 6,
-                    backgroundColor: isActive ? '#11110F' : 'rgba(216, 213, 204, 0.85)',
+                    backgroundColor: isActive ? '#11110F' : 'rgba(17, 17, 15, 0.4)',
                   }}
                   transition={{
                     type: 'spring',

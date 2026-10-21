@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -163,7 +164,7 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
             <label className="block text-xs font-medium text-muted mb-1.5">
               Category
             </label>
-            <div className="w-full p-1 bg-surface border border-border rounded-sm grid grid-cols-4 gap-1">
+            <div className="w-full p-1 bg-surface border border-border rounded-sm grid grid-cols-2 sm:grid-cols-4 gap-1">
               {RESOURCE_TYPES.map((option) => {
                 const isSelected = type === option.type;
                 return (
@@ -174,7 +175,7 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
                       setType(option.type);
                       if (error) setError(null);
                     }}
-                    className={`py-1.5 px-1 text-xs sm:text-sm font-medium rounded-xs text-center transition-all duration-200 cursor-pointer ${
+                    className={`py-2 px-2 text-xs sm:text-sm font-medium rounded-xs text-center truncate min-w-0 transition-all duration-200 cursor-pointer ${
                       isSelected
                         ? 'bg-ink text-surface shadow-xs font-semibold'
                         : 'text-muted hover:text-ink hover:bg-bg/60'
@@ -198,49 +199,65 @@ export const EditResourceModal: React.FC<EditResourceModalProps> = ({
             autoFocus
           />
 
-          {/* Vehicle Details with smooth sliding expansion */}
-          <div
-            className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              type === 'VEHICLE'
-                ? 'max-h-64 opacity-100 translate-y-0 pt-2 pointer-events-auto'
-                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
-            }`}
-            style={{
-              transitionProperty: 'max-height, opacity, transform, padding',
-            }}
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-border/80 pb-1.5">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-muted font-medium">
-                  VEHICLE DETAILS
-                </span>
-                <span className="text-xs text-muted">Optional</span>
-              </div>
+          {/* Vehicle Details with slow roll down / up */}
+          <AnimatePresence initial={false}>
+            {type === 'VEHICLE' && (
+              <motion.div
+                key="edit-vehicle-details"
+                initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                animate={{
+                  opacity: 1,
+                  height: 'auto',
+                  transition: {
+                    height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.35, delay: 0.08 },
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  height: 0,
+                  overflow: 'hidden',
+                  transition: {
+                    height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.2 },
+                  },
+                }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-1.5">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-muted font-medium">
+                      VEHICLE DETAILS
+                    </span>
+                    <span className="text-xs text-muted">Optional</span>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                <Input
-                  label="Registration — last 4 digits"
-                  labelClassName="h-5 flex items-end"
-                  placeholder="4412"
-                  maxLength={4}
-                  value={registrationLast4}
-                  onChange={(e) =>
-                    setRegistrationLast4(e.target.value.replace(/\D/g, '').slice(0, 4))
-                  }
-                  helperText="Only the last 4 digits are needed."
-                />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                    <Input
+                      label="Registration — last 4 digits"
+                      labelClassName="h-5 flex items-end"
+                      placeholder="4412"
+                      maxLength={4}
+                      value={registrationLast4}
+                      onChange={(e) =>
+                        setRegistrationLast4(e.target.value.replace(/\D/g, '').slice(0, 4))
+                      }
+                      helperText="Only the last 4 digits are needed."
+                    />
 
-                <Input
-                  label="Colour"
-                  labelClassName="h-5 flex items-end"
-                  placeholder="e.g. White, Matte black"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  helperText="Helps identify your vehicle"
-                />
-              </div>
-            </div>
-          </div>
+                    <Input
+                      label="Colour"
+                      labelClassName="h-5 flex items-end"
+                      placeholder="e.g. White, Matte black"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      helperText="Helps identify your vehicle"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="flex items-center justify-between pt-4">
             {onDelete ? (

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { Navbar } from './Navbar';
 import { Container } from './Container';
 
@@ -15,7 +16,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Navbar />
       <main className="flex-1 py-6 sm:py-8">
         <Container>
-          {children}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.24,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            className="w-full will-change-[opacity,transform]"
+          >
+            {children}
+          </motion.div>
         </Container>
       </main>
       <footer className="mt-auto border-t border-border bg-surface py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">

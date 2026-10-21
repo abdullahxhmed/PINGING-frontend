@@ -7,6 +7,8 @@ interface CameraScannerProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   cameraState: CameraStatus;
   errorMessage: string;
+  isStabilizing?: boolean;
+  stabilizeProgress?: number;
   onRetry: () => void;
   onSwitchToManual: () => void;
 }
@@ -15,6 +17,8 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({
   videoRef,
   cameraState,
   errorMessage,
+  isStabilizing = false,
+  stabilizeProgress = 0,
   onRetry,
   onSwitchToManual,
 }) => {
@@ -22,7 +26,7 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({
     <div className="space-y-3">
       {/* Viewfinder Card */}
       <div className="scanner-viewport relative aspect-square w-full rounded-xl overflow-hidden border border-border shadow-md flex items-center justify-center">
-        {/* Live Camera Video Feed */}
+        {/* Live Camera Video Feed (Raw 1.0x unscaled image from camera) */}
         <video
           ref={videoRef}
           playsInline
@@ -76,32 +80,100 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({
 
         {/* Reticle & Scanline when camera is active */}
         {cameraState === 'active' && (
-          <div className="absolute inset-6 pointer-events-none">
-            {/* 4 Crisp Lime Corner Brackets */}
-            <div className="absolute top-0 left-0 w-5 h-5 border-t-[2px] border-l-[2px] border-[#D7FF3F]" />
-            <div className="absolute top-0 right-0 w-5 h-5 border-t-[2px] border-r-[2px] border-[#D7FF3F]" />
-            <div className="absolute bottom-0 left-0 w-5 h-5 border-b-[2px] border-l-[2px] border-[#D7FF3F]" />
-            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-[2px] border-r-[2px] border-[#D7FF3F]" />
+          <div className="absolute inset-8 pointer-events-none">
+            {/* Top-Left Corner (expands to 50% along top and left to form closed square) */}
+            <div
+              className="absolute top-0 left-0 border-t-[3.5px] border-l-[3.5px] border-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]"
+              style={{
+                width: isStabilizing ? '50%' : '26px',
+                height: isStabilizing ? '50%' : '26px',
+                transition: isStabilizing
+                  ? 'width 2000ms cubic-bezier(0.16, 1, 0.3, 1), height 2000ms cubic-bezier(0.16, 1, 0.3, 1)'
+                  : 'width 250ms ease, height 250ms ease',
+              }}
+            />
 
-            {/* Subtle Periodic Sweep Scanline */}
-            <div className="w-full h-[1.5px] bg-[#D7FF3F]/80 scanner-scanline" />
+            {/* Top-Right Corner */}
+            <div
+              className="absolute top-0 right-0 border-t-[3.5px] border-r-[3.5px] border-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]"
+              style={{
+                width: isStabilizing ? '50%' : '26px',
+                height: isStabilizing ? '50%' : '26px',
+                transition: isStabilizing
+                  ? 'width 2000ms cubic-bezier(0.16, 1, 0.3, 1), height 2000ms cubic-bezier(0.16, 1, 0.3, 1)'
+                  : 'width 250ms ease, height 250ms ease',
+              }}
+            />
+
+            {/* Bottom-Left Corner */}
+            <div
+              className="absolute bottom-0 left-0 border-b-[3.5px] border-l-[3.5px] border-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]"
+              style={{
+                width: isStabilizing ? '50%' : '26px',
+                height: isStabilizing ? '50%' : '26px',
+                transition: isStabilizing
+                  ? 'width 2000ms cubic-bezier(0.16, 1, 0.3, 1), height 2000ms cubic-bezier(0.16, 1, 0.3, 1)'
+                  : 'width 250ms ease, height 250ms ease',
+              }}
+            />
+
+            {/* Bottom-Right Corner */}
+            <div
+              className="absolute bottom-0 right-0 border-b-[3.5px] border-r-[3.5px] border-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]"
+              style={{
+                width: isStabilizing ? '50%' : '26px',
+                height: isStabilizing ? '50%' : '26px',
+                transition: isStabilizing
+                  ? 'width 2000ms cubic-bezier(0.16, 1, 0.3, 1), height 2000ms cubic-bezier(0.16, 1, 0.3, 1)'
+                  : 'width 250ms ease, height 250ms ease',
+              }}
+            />
+
+            {/* Subtle Periodic Sweep Scanline (hidden when holding steady) */}
+            {!isStabilizing && (
+              <div className="w-full h-[1.5px] bg-white/70 shadow-[0_0_8px_rgba(255,255,255,0.7)] scanner-scanline" />
+            )}
           </div>
         )}
       </div>
 
-      {/* Sub-viewfinder helper text */}
-      <div className="text-center pt-0.5">
-        <span className="text-xs text-muted">
-          {cameraState === 'active'
-            ? 'Align the sticker’s QR code inside the frame.'
-            : cameraState === 'starting'
-            ? 'Requesting camera access...'
-            : 'Camera not connected.'}
-        </span>
+      {/* Sub-viewfinder helper text with smooth crossfade under the camera box */}
+      <div className="relative text-center min-h-[26px] flex items-center justify-center overflow-hidden">
+        {/* Hold steady text (fades in when stabilizing, fades out when not) */}
+        <div
+          className={`transition-opacity duration-300 ease-in-out flex items-center justify-center ${
+            isStabilizing ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'
+          }`}
+        >
+          <span className="text-sm text-ink font-normal tracking-wide">
+            Hold steady…
+          </span>
+        </div>
+
+        {/* Default instruction text (fades out when stabilizing, fades in when not) */}
+        <div
+          className={`transition-opacity duration-300 ease-in-out flex items-center justify-center ${
+            isStabilizing ? 'opacity-0 pointer-events-none absolute' : 'opacity-100'
+          }`}
+        >
+          <span className="text-xs text-muted">
+            {cameraState === 'active'
+              ? 'Align the sticker’s QR code inside the frame.'
+              : cameraState === 'starting'
+              ? 'Requesting camera access...'
+              : 'Camera not connected.'}
+          </span>
+        </div>
       </div>
 
-      {/* Manual switch button */}
-      <div className="text-center pt-2 border-t border-border">
+      {/* Manual switch button (eases out smoothly when tag is detected) */}
+      <div
+        className={`text-center pt-2 border-t border-border transition-all duration-400 ease-out ${
+          isStabilizing
+            ? 'opacity-0 -translate-y-2 pointer-events-none'
+            : 'opacity-100 translate-y-0'
+        }`}
+      >
         <button
           type="button"
           onClick={onSwitchToManual}

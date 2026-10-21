@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
               to="/settings"
               className="label text-[11px] sm:text-xs tracking-[0.12em] sm:tracking-[0.14em] font-semibold text-ink uppercase hover:text-muted transition-colors leading-none inline-flex items-center"
             >
-              {user.name}
+              {user.name || 'ACCOUNT'}
             </Link>
           )}
 

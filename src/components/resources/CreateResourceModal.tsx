@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -246,7 +247,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
           <label className="block text-xs font-medium text-muted mb-1.5 uppercase tracking-wider">
             Category
           </label>
-          <div className="w-full p-1 bg-surface border border-border rounded-sm grid grid-cols-4 gap-1">
+          <div className="w-full p-1 bg-surface border border-border rounded-sm grid grid-cols-2 sm:grid-cols-4 gap-1">
             {RESOURCE_TYPES.map((option) => {
               const isSelected = type === option.type;
               return (
@@ -257,7 +258,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                     setType(option.type);
                     if (error) setError(null);
                   }}
-                  className={`py-1.5 px-1 text-xs sm:text-sm font-medium rounded-xs text-center transition-all duration-200 cursor-pointer ${
+                  className={`py-2 px-2 text-xs sm:text-sm font-medium rounded-xs text-center truncate min-w-0 transition-all duration-200 cursor-pointer ${
                     isSelected
                       ? 'bg-ink text-surface shadow-xs font-semibold'
                       : 'text-muted hover:text-ink hover:bg-bg/60'
@@ -283,43 +284,62 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
           autoFocus
         />
 
-        {/* Vehicle-Specific Details */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            type === 'VEHICLE'
-              ? 'max-h-64 opacity-100 translate-y-0 pt-1 pointer-events-auto'
-              : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
-          }`}
-        >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-border/80 pb-1.5">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-muted font-medium">
-                VEHICLE DETAILS
-              </span>
-              <span className="text-xs text-muted">Optional</span>
-            </div>
+        {/* Vehicle-Specific Details with smooth slow roll down / up */}
+        <AnimatePresence initial={false}>
+          {type === 'VEHICLE' && (
+            <motion.div
+              key="create-vehicle-details"
+              initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              animate={{
+                opacity: 1,
+                height: 'auto',
+                transition: {
+                  height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                  opacity: { duration: 0.35, delay: 0.08 },
+                },
+              }}
+              exit={{
+                opacity: 0,
+                height: 0,
+                overflow: 'hidden',
+                transition: {
+                  height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                  opacity: { duration: 0.2 },
+                },
+              }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-border/80 pb-1.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-muted font-medium">
+                    VEHICLE DETAILS
+                  </span>
+                  <span className="text-xs text-muted">Optional</span>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-              <Input
-                label="Registration — plate or last 4 digits"
-                labelClassName="h-5 flex items-end"
-                placeholder="e.g. KA01AB1234 or 1234"
-                value={registrationLast4}
-                onChange={(e) => setRegistrationLast4(e.target.value.toUpperCase())}
-                helperText="Plate number or last 4 digits"
-              />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  <Input
+                    label="Registration — plate or last 4 digits"
+                    labelClassName="h-5 flex items-end"
+                    placeholder="e.g. KA01AB1234 or 1234"
+                    value={registrationLast4}
+                    onChange={(e) => setRegistrationLast4(e.target.value.toUpperCase())}
+                    helperText="Plate number or last 4 digits"
+                  />
 
-              <Input
-                label="Colour"
-                labelClassName="h-5 flex items-end"
-                placeholder="e.g. White, Matte black"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                helperText="Helps visitors identify your vehicle"
-              />
-            </div>
-          </div>
-        </div>
+                  <Input
+                    label="Colour"
+                    labelClassName="h-5 flex items-end"
+                    placeholder="e.g. White, Matte black"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    helperText="Helps visitors identify your vehicle"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* QR Tag Setup Choice */}
         <div className="pt-2 border-t border-border space-y-3">

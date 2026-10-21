@@ -256,8 +256,6 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   const hiddenSvgRef = useRef<HTMLDivElement | null>(null);
   const digitalImageRef = useRef<HTMLImageElement | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [phaseText, setPhaseText] = useState<'DETECTED' | 'RECTIFYING' | 'NORMALIZING' | 'REGISTERING' | 'RESOLVED'>('DETECTED');
-  const currentPhaseRef = useRef<string>('DETECTED');
 
   const canonicalQrUrl = buildTagQrUrl(capture.tagCode || capture.rawData);
 
@@ -307,17 +305,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
 
     ctx.scale(dpr, dpr);
 
-    // Compute coordinate mapping from video space to square viewport
+    // Compute base coordinate mapping from video space to square viewport (raw 1.0x camera scale)
     const vw = capture.videoWidth || 640;
     const vh = capture.videoHeight || 480;
-    const scale = Math.max(size / vw, size / vh);
-    const offsetX = (size - vw * scale) / 2;
-    const offsetY = (size - vh * scale) / 2;
-
-    const toScreen = (p: QrPoint): QrPoint => ({
-      x: offsetX + p.x * scale,
-      y: offsetY + p.y * scale,
-    });
+    const baseScale = Math.max(size / vw, size / vh);
 
     // 1. Physical QR corner points from camera detection
     const raw0 = capture.cornerPoints?.[0] || { x: vw * 0.25, y: vh * 0.25 };
@@ -325,12 +316,12 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const raw2 = capture.cornerPoints?.[2] || { x: vw * 0.75, y: vh * 0.75 };
     const raw3 = capture.cornerPoints?.[3] || { x: vw * 0.25, y: vh * 0.75 };
 
-    // Expand outward slightly (~16%) to encompass the physical sticker substrate/quiet zone
+    // Expand outward slightly (~15%) to encompass the physical sticker substrate/quiet zone
     const center = {
       x: (raw0.x + raw1.x + raw2.x + raw3.x) / 4,
       y: (raw0.y + raw1.y + raw2.y + raw3.y) / 4,
     };
-    const expand = 1.16;
+    const expand = 1.15;
     const expandPoint = (p: QrPoint): QrPoint => ({
       x: Math.max(0, Math.min(vw, center.x + (p.x - center.x) * expand)),
       y: Math.max(0, Math.min(vh, center.y + (p.y - center.y) * expand)),
@@ -341,16 +332,13 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const s2 = expandPoint(raw2);
     const s3 = expandPoint(raw3);
 
-    // Initial position on screen where user photographed the sticker
-    const start0 = toScreen(s0);
-    const start1 = toScreen(s1);
-    const start2 = toScreen(s2);
-    const start3 = toScreen(s3);
-
-    // 2. Target digital card layout (for reduced motion fallback)
-    const targetSize = Math.round(size * 0.65);
-    const targetLeft = Math.round((size - targetSize) / 2);
-    const targetTop = Math.round((size - targetSize) / 2);
+    // 2. Target digital card layout (centered, straight, enlarged right in front of the screen)
+    const targetSize = Math.round(size * 0.72);
+    const targetMargin = Math.round((size - targetSize) / 2);
+    const target0: QrPoint = { x: targetMargin, y: targetMargin };
+    const target1: QrPoint = { x: targetMargin + targetSize, y: targetMargin };
+    const target2: QrPoint = { x: targetMargin + targetSize, y: targetMargin + targetSize };
+    const target3: QrPoint = { x: targetMargin, y: targetMargin + targetSize };
 
     // 02 & 03: Build Rectified & Contrast-Normalized Textures Deterministically
     const BUFFER_SIZE = 512;
@@ -373,8 +361,11 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const quad2: QrPoint = { x: BUFFER_SIZE, y: BUFFER_SIZE };
     const quad3: QrPoint = { x: 0, y: BUFFER_SIZE };
 
-    // 3. Animation Timing: Deliberate 3.2s (3200ms) cinematic sequence for full appreciation
-    const totalDuration = prefersReducedMotion ? 250 : 3200;
+    // 3. Animation Timing:
+    // 0ms - 500ms: Zoom slightly into the frozen frame
+    // 500ms - 2500ms (2 seconds): Convert to digital & bring QR code towards the screen
+    // 2500ms - 3600ms (1.1s hold): Hold the digital QR code on screen, then move to next section
+    const totalDuration = prefersReducedMotion ? 250 : 3600;
     const startTime = performance.now();
     let animId: number;
 
@@ -385,7 +376,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.clearRect(0, 0, size, size);
 
       if (prefersReducedMotion) {
-        // Direct, quiet crossfade for reduced motion preference
+        // Direct crossfade for reduced motion preference
         const fade = progress;
         ctx.fillStyle = '#0F0E0D';
         ctx.fillRect(0, 0, size, size);
@@ -395,13 +386,13 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.strokeStyle = '#D8D5CC';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(targetLeft - 12, targetTop - 12, targetSize + 24, targetSize + 24, 12);
+        ctx.roundRect(targetMargin - 12, targetMargin - 12, targetSize + 24, targetSize + 24, 12);
         ctx.fill();
         ctx.stroke();
 
         if (digitalImageRef.current) {
           ctx.globalAlpha = fade;
-          ctx.drawImage(digitalImageRef.current, targetLeft, targetTop, targetSize, targetSize);
+          ctx.drawImage(digitalImageRef.current, targetMargin, targetMargin, targetSize, targetSize);
           ctx.globalAlpha = 1;
         }
 
@@ -415,71 +406,69 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       }
 
       // =======================================================================
-      // IN-PLACE CAMERA-IMAGE-TO-DIGITAL-QR EMERGENCE PIPELINE (3.2s)
-      // The digital QR emerges directly where the original was in the photo
+      // STEP 1: Zoom slightly into the frozen frame (0ms to 500ms)
       // =======================================================================
+      const freezeZoomP = easeOutApple(Math.min(elapsed / 500, 1));
+      const freezeZoom = 1.0 + 0.12 * freezeZoomP; // 12% slight zoom into frozen frame
 
-      // 3D physical emergence / relief (lifts 4px towards user with tactile depth)
-      const liftRaw = Math.min(Math.max((elapsed - 400) / 1100, 0), 1);
-      const liftP = easeOutApple(liftRaw);
+      const currentScale = baseScale * freezeZoom;
+      const currentOffsetX = (size - vw * currentScale) / 2;
+      const currentOffsetY = (size - vh * currentScale) / 2;
 
-      // Compute physical sticker center in screen space
-      const stickerCenter = {
-        x: (start0.x + start1.x + start2.x + start3.x) / 4,
-        y: (start0.y + start1.y + start2.y + start3.y) / 4,
-      };
-
-      // Subtle 2.5% relief scaling from center & -4px vertical lift as it decouples from surface
-      const reliefScale = 1 + 0.025 * liftP;
-      const reliefY = -4 * liftP;
-
-      const elevate = (p: QrPoint): QrPoint => ({
-        x: stickerCenter.x + (p.x - stickerCenter.x) * reliefScale,
-        y: stickerCenter.y + (p.y - stickerCenter.y) * reliefScale + reliefY,
+      const toScreen = (p: QrPoint): QrPoint => ({
+        x: currentOffsetX + p.x * currentScale,
+        y: currentOffsetY + p.y * currentScale,
       });
 
-      // The 4 corners stay exactly where the physical sticker was captured in perspective
-      const D0 = elevate(start0);
-      const D1 = elevate(start1);
-      const D2 = elevate(start2);
-      const D3 = elevate(start3);
+      const start0 = toScreen(s0);
+      const start1 = toScreen(s1);
+      const start2 = toScreen(s2);
+      const start3 = toScreen(s3);
 
-      // Phase milestones for telemetry badge
-      let nextPhase: 'DETECTED' | 'RECTIFYING' | 'NORMALIZING' | 'REGISTERING' | 'RESOLVED' = 'DETECTED';
-      if (elapsed >= 2700) {
-        nextPhase = 'RESOLVED';
-      } else if (elapsed >= 2050) {
-        nextPhase = 'REGISTERING';
-      } else if (elapsed >= 1200) {
-        nextPhase = 'NORMALIZING';
-      } else if (elapsed >= 450) {
-        nextPhase = 'RECTIFYING';
-      }
+      // =======================================================================
+      // STEP 2: Convert to digital & bring QR code towards the screen (500ms - 2500ms, 2s)
+      // =======================================================================
+      const bringRaw = Math.min(Math.max((elapsed - 500) / 2000, 0), 1);
+      const bringEase = easeOutApple(bringRaw);
 
-      if (currentPhaseRef.current !== nextPhase) {
-        currentPhaseRef.current = nextPhase;
-        setPhaseText(nextPhase);
-      }
+      // Corners fly forward from physical perspective into centered digital card
+      const D0 = {
+        x: lerp(start0.x, target0.x, bringEase),
+        y: lerp(start0.y, target0.y, bringEase),
+      };
+      const D1 = {
+        x: lerp(start1.x, target1.x, bringEase),
+        y: lerp(start1.y, target1.y, bringEase),
+      };
+      const D2 = {
+        x: lerp(start2.x, target2.x, bringEase),
+        y: lerp(start2.y, target2.y, bringEase),
+      };
+      const D3 = {
+        x: lerp(start3.x, target3.x, bringEase),
+        y: lerp(start3.y, target3.y, bringEase),
+      };
 
       // 1. Draw base canvas background
       ctx.fillStyle = '#0F0E0D';
       ctx.fillRect(0, 0, size, size);
 
-      // 2. Draw frozen camera snapshot - keep the real-world scene visible (94% opacity with subtle ambient dim)
-      const bgDim = Math.min(Math.max((elapsed - 400) / 1200, 0), 1);
-      const bgAlpha = Math.max(0.70, 1 - bgDim * 0.22);
+      // 2. Draw frozen camera snapshot (zoomed slightly, dims gently as card lifts toward screen)
+      const bgAlpha = Math.max(0.18, 1 - bringEase * 0.82);
       ctx.save();
       ctx.globalAlpha = bgAlpha;
-      ctx.drawImage(capture.capturedCanvas, offsetX, offsetY, vw * scale, vh * scale);
+      ctx.drawImage(capture.capturedCanvas, currentOffsetX, currentOffsetY, vw * currentScale, vh * currentScale);
       ctx.restore();
 
-      // 3. Corner lock reticles (Phase 1: 0ms to 620ms) - aligned with actual sticker edge angles
-      if (elapsed < 620) {
-        const reticleAlpha = elapsed < 80 ? elapsed / 80 : elapsed > 480 ? 1 - (elapsed - 480) / 140 : 1;
+      // 3. Initial reticles on raw corners (Phase 1: 0ms to 550ms)
+      if (elapsed < 550) {
+        const reticleAlpha = elapsed < 60 ? elapsed / 60 : elapsed > 440 ? 1 - (elapsed - 440) / 110 : 1;
         ctx.save();
         ctx.globalAlpha = Math.max(0, reticleAlpha);
-        ctx.strokeStyle = '#D7FF3F';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3.0;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 6;
 
         const drawReticleCorner = (p: QrPoint, towardA: QrPoint, towardB: QrPoint) => {
           const arm = 18;
@@ -504,12 +493,12 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 4. Draw physical emergence drop shadow underneath the lifting sticker
-      if (liftP > 0.02) {
+      // 4. Draw emergence drop shadow expanding underneath the flying card
+      if (bringEase > 0.02) {
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = 18 * liftP;
-        ctx.shadowOffsetY = 8 * liftP;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+        ctx.shadowBlur = 30 * bringEase;
+        ctx.shadowOffsetY = 16 * bringEase;
         ctx.fillStyle = '#F4F3EE';
         ctx.beginPath();
         ctx.moveTo(D0.x, D0.y);
@@ -521,7 +510,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 5. Draw warm cream card substrate backing in exact sticker perspective
+      // 5. Draw warm cream card substrate backing
       ctx.save();
       ctx.fillStyle = '#F4F3EE';
       ctx.strokeStyle = '#D8D5CC';
@@ -536,8 +525,8 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      // 6. Draw Rectified Physical Photo in place (0ms to 2100ms)
-      if (elapsed < 2100) {
+      // 6. Draw Rectified Physical Photo in place (0ms to 1500ms)
+      if (elapsed < 1500) {
         ctx.save();
         ctx.globalAlpha = 1;
         drawWarpedQuad(
@@ -550,10 +539,9 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 7. Morph in Local Contrast-Normalized Texture in place (1100ms to 2750ms)
-      // Eliminates shadows, glare, and room lighting gradients directly on the sticker surface
-      if (elapsed >= 1100 && elapsed < 2750) {
-        const normAlpha = easeOutApple(Math.min(Math.max((elapsed - 1100) / 950, 0), 1));
+      // 7. Morph in Contrast-Normalized Texture (900ms to 2100ms)
+      if (elapsed >= 900 && elapsed < 2100) {
+        const normAlpha = easeOutApple(Math.min(Math.max((elapsed - 900) / 800, 0), 1));
         ctx.save();
         ctx.globalAlpha = normAlpha;
         drawWarpedQuad(
@@ -566,10 +554,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 8. Register and transition into Canonical Vector Digital QR (1900ms to 3200ms)
-      // Modules emerge out of the paper substrate in the exact perspective of the physical sticker
-      if (elapsed >= 1900 && digitalImageRef.current) {
-        const canonAlpha = easeOutApple(Math.min(Math.max((elapsed - 1900) / 750, 0), 1));
+      // 8. Register and transition into Canonical Vector Digital QR (1400ms to 3600ms)
+      // Completely locks in by 2500ms as card reaches front of the screen
+      if (elapsed >= 1400 && digitalImageRef.current) {
+        const canonAlpha = easeOutApple(Math.min(Math.max((elapsed - 1400) / 950, 0), 1));
         ctx.save();
         ctx.globalAlpha = canonAlpha;
         drawWarpedQuad(
@@ -582,10 +570,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
-      // 9. Restrained lime perimeter progressive trace around the physical sticker boundary (2600ms to 3150ms)
-      if (elapsed > 2600 && elapsed <= 3150) {
-        const traceP = Math.min((elapsed - 2600) / 420, 1);
-        const fadeP = elapsed > 3000 ? 1 - (elapsed - 3000) / 150 : 1;
+      // 9. STEP 3: Hold on screen with lime progressive confirmation trace (2500ms to 3400ms)
+      if (elapsed >= 2500 && elapsed <= 3400) {
+        const traceP = Math.min((elapsed - 2500) / 500, 1);
+        const fadeP = elapsed > 3200 ? 1 - (elapsed - 3200) / 200 : 1;
 
         const L01 = Math.hypot(D1.x - D0.x, D1.y - D0.y);
         const L12 = Math.hypot(D2.x - D1.x, D2.y - D1.y);
@@ -595,8 +583,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
 
         ctx.save();
         ctx.globalAlpha = Math.max(0, fadeP);
-        ctx.strokeStyle = '#D7FF3F';
-        ctx.lineWidth = 2.0;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+        ctx.shadowBlur = 8;
         ctx.setLineDash([perimeter * traceP, perimeter]);
         ctx.beginPath();
         ctx.moveTo(D0.x, D0.y);
@@ -608,6 +598,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.restore();
       }
 
+      // 10. Completed hold period -> move to the next section!
       if (progress >= 1) {
         setIsDone(true);
         onAnimationComplete();
@@ -642,27 +633,6 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       </div>
 
       <canvas ref={canvasRef} className="block w-full h-full" />
-
-      {/* Restrained bottom telemetry tag */}
-      <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none">
-        <span
-          className={`font-mono text-[11px] uppercase tracking-wider px-3.5 py-1 rounded-full transition-all duration-300 ${
-            phaseText === 'RESOLVED' || isDone
-              ? 'bg-[#D7FF3F] text-black font-semibold shadow-xs'
-              : 'bg-black/75 text-white/80 border border-white/15'
-          }`}
-        >
-          {phaseText === 'RESOLVED' || isDone
-            ? `TAG #${capture.tagCode}`
-            : phaseText === 'REGISTERING'
-            ? 'REGISTERING CANONICAL QR'
-            : phaseText === 'NORMALIZING'
-            ? 'NORMALIZING CONTRAST'
-            : phaseText === 'RECTIFYING'
-            ? 'RECTIFYING PERSPECTIVE'
-            : 'STICKER DETECTED'}
-        </span>
-      </div>
     </div>
   );
 };

@@ -35,6 +35,18 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
 
   const [cameraState, setCameraState] = useState<CameraStatus>('starting');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isStabilizing, setIsStabilizing] = useState<boolean>(false);
+  const [stabilizeProgress, setStabilizeProgress] = useState<number>(0);
+
+  // Camera stabilization state: allows mobile autofocus & auto-exposure to settle for 1s before freezing frame
+  const stabilizationRef = useRef<{
+    startTime: number;
+    lastSeenTime: number;
+    tagCode: string;
+    rawData: string;
+    corners: QrPoint[];
+    hits: number;
+  } | null>(null);
 
   // Initialize native BarcodeDetector if available on device
   useEffect(() => {
@@ -51,6 +63,9 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
   }, []);
 
   const stopStream = useCallback(() => {
+    stabilizationRef.current = null;
+    setIsStabilizing(false);
+    setStabilizeProgress(0);
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -75,6 +90,8 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
       if (!video) return;
 
       capturedRef.current = true;
+      setIsStabilizing(false);
+      setStabilizeProgress(1);
 
       // 1. Capture exact current video frame to an offscreen canvas
       const width = video.videoWidth || 640;
@@ -183,22 +200,56 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
       const scanCanvas = document.createElement('canvas');
       const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
 
-      const cameraReadyTimestamp = performance.now();
-      const WARMUP_DELAY_MS = 1000; // 1 second initial stabilization delay for autofocus & exposure settling
       let lastScanTime = 0;
-      const scanIntervalMs = 50; // ~20 checks/sec for immediate detection without overheating
+      const scanIntervalMs = 50; // ~20 checks/sec for responsive tracking without overheating
+
+      // 2-second stabilization: waits 2000ms with QR in view while user holds steady, then freezes frame
+      const queueStabilizedCapture = (decodedString: string, cornerPoints?: QrPoint[]) => {
+        if (capturedRef.current) return;
+        const cleanTag = extractCleanTagId(decodedString);
+        if (!cleanTag || cleanTag.length < 3) return;
+
+        const now = performance.now();
+        const STABILIZATION_DELAY_MS = 2000; // 2 seconds waiting to stabilize camera before freezing frame
+        const currentStab = stabilizationRef.current;
+
+        if (!currentStab || currentStab.tagCode !== cleanTag) {
+          stabilizationRef.current = {
+            startTime: now,
+            lastSeenTime: now,
+            tagCode: cleanTag,
+            rawData: decodedString,
+            corners: cornerPoints || [],
+            hits: 1,
+          };
+          setIsStabilizing(true);
+          setStabilizeProgress(0.05);
+          return;
+        }
+
+        // Updating stable detection
+        currentStab.lastSeenTime = now;
+        currentStab.hits += 1;
+        currentStab.rawData = decodedString;
+        if (cornerPoints && cornerPoints.length === 4) {
+          currentStab.corners = cornerPoints;
+        }
+
+        const elapsed = now - currentStab.startTime;
+        const progress = Math.min(1, Math.max(0.08, elapsed / STABILIZATION_DELAY_MS));
+        setStabilizeProgress(progress);
+
+        if (elapsed >= STABILIZATION_DELAY_MS && currentStab.hits >= 3) {
+          const finalStab = currentStab;
+          stabilizationRef.current = null;
+          handleSuccessfulDetection(finalStab.rawData, finalStab.corners);
+        }
+      };
 
       const scanTick = async () => {
         if (capturedRef.current || !videoRef.current) return;
         const v = videoRef.current;
-
         const now = performance.now();
-
-        // Allow camera 1 second to stabilize lens focus and auto-exposure before decoding begins
-        if (now - cameraReadyTimestamp < WARMUP_DELAY_MS) {
-          animFrameRef.current = requestAnimationFrame(scanTick);
-          return;
-        }
 
         if (now - lastScanTime >= scanIntervalMs) {
           lastScanTime = now;
@@ -206,9 +257,10 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
           if (v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && v.videoWidth > 0 && v.videoHeight > 0) {
             const vw = v.videoWidth;
             const vh = v.videoHeight;
+            let detectedThisTick = false;
 
-            // 1. Try Hardware BarcodeDetector first (Android Chrome / WebKit)
-            if (barcodeDetectorRef.current) {
+            // 1. Hardware BarcodeDetector first (Android Chrome / WebKit)
+            if (barcodeDetectorRef.current && !capturedRef.current) {
               try {
                 const barcodes = await barcodeDetectorRef.current.detect(v);
                 if (barcodes && barcodes.length > 0 && !capturedRef.current) {
@@ -218,8 +270,8 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
                       x: p.x,
                       y: p.y,
                     }));
-                    handleSuccessfulDetection(first.rawValue, corners);
-                    return;
+                    detectedThisTick = true;
+                    queueStabilizedCapture(first.rawValue, corners);
                   }
                 }
               } catch {
@@ -227,8 +279,8 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
               }
             }
 
-            // 2. High-speed jsQR fallback with attemptBoth (handles dark, light & high contrast tags)
-            if (!capturedRef.current && scanCtx) {
+            // 2. High-speed jsQR fallback
+            if (!capturedRef.current && !detectedThisTick && scanCtx) {
               const maxDim = 640;
               const scale = Math.min(1, maxDim / Math.max(vw, vh));
               const scanW = Math.round(vw * scale);
@@ -254,9 +306,16 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
                   { x: loc.bottomRightCorner.x * invScale, y: loc.bottomRightCorner.y * invScale },
                   { x: loc.bottomLeftCorner.x * invScale, y: loc.bottomLeftCorner.y * invScale },
                 ];
-                handleSuccessfulDetection(code.data, corners);
-                return;
+                detectedThisTick = true;
+                queueStabilizedCapture(code.data, corners);
               }
+            }
+
+            // Reset stabilization tracking if QR code is lost for >350ms
+            if (!detectedThisTick && stabilizationRef.current && now - stabilizationRef.current.lastSeenTime > 350) {
+              stabilizationRef.current = null;
+              setIsStabilizing(false);
+              setStabilizeProgress(0);
             }
           }
         }
@@ -294,6 +353,8 @@ export function useQrScanner({ onCapture, enabled }: UseQrScannerOptions) {
     videoRef,
     cameraState,
     errorMessage,
+    isStabilizing,
+    stabilizeProgress,
     startCamera,
     stopStream,
   };
