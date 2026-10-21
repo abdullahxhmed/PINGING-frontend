@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, useMotionValue, animate } from 'motion/react';
 import type { Resource, CallRecord } from '../../types/api';
 import { extractResourceTag, getResourceContactUrl, resourcesApi } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
@@ -341,6 +341,13 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
   );
 };
 
+// Fluid rubber-band resistance at boundaries (iOS-grade elastic stretch)
+const rubberBand = (distance: number, dimension: number, constant = 0.55): number => {
+  const absDist = Math.abs(distance);
+  const resisted = (absDist * dimension * constant) / (dimension + constant * absDist);
+  return distance < 0 ? -resisted : resisted;
+};
+
 export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
   resources,
   selectedIndex,
@@ -352,12 +359,51 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [selectedShareResource, setSelectedShareResource] = useState<Resource | null>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const activeAnimRef = useRef<any>(null);
+
   // Gesture state for predictable, tactile horizontal card swipe
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const directionLockRef = useRef<'horizontal' | 'vertical' | null>(null);
   const isPointerDownRef = useRef(false);
+  const hasSwipedRef = useRef(false);
+
+  const getContainerWidth = useCallback(() => {
+    return containerRef.current?.offsetWidth || window.innerWidth || 360;
+  }, []);
+
+  const animateTo = useCallback(
+    (
+      targetIndex: number,
+      velocity = 0,
+      mode: 'advance' | 'snapback' | 'boundary' = 'advance'
+    ) => {
+      const width = getContainerWidth();
+      const targetX = -targetIndex * width;
+
+      if (activeAnimRef.current) {
+        activeAnimRef.current.stop();
+      }
+
+      // Playful spring physics tailored to the gesture outcome:
+      // - snapback / boundary: lively, bouncy, elastic recoil
+      // - advance: deliberate, confident glide with a subtle cushion settle
+      const springConfig =
+        mode === 'boundary'
+          ? { stiffness: 320, damping: 14, mass: 0.45 }
+          : mode === 'snapback'
+          ? { stiffness: 300, damping: 15, mass: 0.45 }
+          : { stiffness: 240, damping: 18, mass: 0.5 };
+
+      activeAnimRef.current = animate(x, targetX, {
+        type: 'spring',
+        ...springConfig,
+        velocity,
+      });
+    },
+    [getContainerWidth, x]
+  );
 
   // Sync activeIndex with external selectedIndex if changed from parent
   useEffect(() => {
@@ -367,23 +413,41 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
       selectedIndex < resources.length
     ) {
       setActiveIndex(selectedIndex);
+      animateTo(selectedIndex, 0);
     }
-  }, [selectedIndex, activeIndex, resources.length]);
+  }, [selectedIndex, activeIndex, resources.length, animateTo]);
+
+  // Handle window resize or orientation change
+  useEffect(() => {
+    const handleResize = () => {
+      const width = getContainerWidth();
+      x.set(-activeIndex * width);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activeIndex, getContainerWidth, x]);
 
   const handleDotClick = useCallback((idx: number) => {
     setActiveIndex(idx);
     onSelectIndex(idx);
-  }, [onSelectIndex]);
+    animateTo(idx, 0);
+  }, [onSelectIndex, animateTo]);
 
-  // Touch and pointer gesture handlers with intentional directional lock
+  // Touch and pointer gesture handlers with zero-lag compositor direct tracking
   const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
     if (resources.length <= 1) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
+    if (activeAnimRef.current) {
+      activeAnimRef.current.stop();
+    }
+
     touchStartRef.current = { x: clientX, y: clientY, time: performance.now() };
     directionLockRef.current = null;
     isPointerDownRef.current = true;
+    hasSwipedRef.current = false;
   };
 
   const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
@@ -394,9 +458,9 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
     const dx = clientX - touchStartRef.current.x;
     const dy = clientY - touchStartRef.current.y;
 
-    // Filter out accidental micro-taps (< 7px deadzone)
+    // Filter out accidental micro-taps (< 6px deadzone)
     if (directionLockRef.current === null) {
-      if (Math.abs(dx) < 7 && Math.abs(dy) < 7) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
         return;
       }
       if (Math.abs(dy) >= Math.abs(dx)) {
@@ -404,18 +468,25 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
         directionLockRef.current = 'vertical';
         return;
       } else {
-        // Horizontal swipe: claim the card swipe gesture
+        // Horizontal swipe: claim card swipe gesture
         directionLockRef.current = 'horizontal';
-        setIsDragging(true);
+        hasSwipedRef.current = true;
       }
     }
 
     if (directionLockRef.current === 'horizontal') {
-      // Apply rubber-band damping at carousel boundaries
-      const isLeftBoundary = activeIndex === 0 && dx > 0;
-      const isRightBoundary = activeIndex === resources.length - 1 && dx < 0;
-      const resistance = isLeftBoundary || isRightBoundary ? 0.22 : 1;
-      setDragOffset(dx * resistance);
+      const width = getContainerWidth();
+      const baseOffset = -activeIndex * width;
+
+      let effectiveDx = dx;
+      // Fluid rubber-band elasticity at boundaries
+      if (activeIndex === 0 && dx > 0) {
+        effectiveDx = rubberBand(dx, width, 0.55);
+      } else if (activeIndex === resources.length - 1 && dx < 0) {
+        effectiveDx = rubberBand(dx, width, 0.55);
+      }
+
+      x.set(baseOffset + effectiveDx);
     }
   };
 
@@ -424,8 +495,6 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
     isPointerDownRef.current = false;
 
     if (!touchStartRef.current || resources.length <= 1) {
-      setIsDragging(false);
-      setDragOffset(0);
       return;
     }
 
@@ -437,33 +506,60 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
 
     const dx = clientX - touchStartRef.current.x;
     const elapsed = Math.max(1, performance.now() - touchStartRef.current.time);
-    const vx = dx / elapsed; // px per ms
+    const vx = (dx / elapsed) * 1000; // px per second
 
     touchStartRef.current = null;
     directionLockRef.current = null;
-    setIsDragging(false);
-    setDragOffset(0);
 
     if (wasLockedHorizontal) {
-      // Require an intentional swipe (>55px displacement or quick flick >28px at speed >0.45px/ms)
-      const isFlick = Math.abs(vx) > 0.45 && Math.abs(dx) > 28;
-      const isDisplaced = Math.abs(dx) > 55;
+      const width = getContainerWidth();
+      // Deliberate and playful threshold:
+      // - Requires deliberate drag of ~20% card width (~68-75px), or
+      // - Decisive flick (>380px/s with >28px drag displacement)
+      const isFlick = Math.abs(vx) > 380 && Math.abs(dx) > 28;
+      const isDisplaced = Math.abs(dx) > Math.min(75, width * 0.20);
+
+      let targetIndex = activeIndex;
 
       if ((isDisplaced || isFlick) && dx < 0) {
-        // Swipe left -> advance to next card
         if (activeIndex < resources.length - 1) {
-          const next = activeIndex + 1;
-          setActiveIndex(next);
-          onSelectIndex(next);
+          targetIndex = activeIndex + 1;
         }
       } else if ((isDisplaced || isFlick) && dx > 0) {
-        // Swipe right -> return to previous card
         if (activeIndex > 0) {
-          const prev = activeIndex - 1;
-          setActiveIndex(prev);
-          onSelectIndex(prev);
+          targetIndex = activeIndex - 1;
         }
       }
+
+      const isBoundary =
+        (activeIndex === 0 && dx > 0) ||
+        (activeIndex === resources.length - 1 && dx < 0);
+
+      const didChange = targetIndex !== activeIndex;
+
+      if (didChange) {
+        setActiveIndex(targetIndex);
+        onSelectIndex(targetIndex);
+      }
+
+      const mode = isBoundary
+        ? 'boundary'
+        : didChange
+        ? 'advance'
+        : 'snapback';
+
+      animateTo(targetIndex, vx, mode);
+
+      setTimeout(() => {
+        hasSwipedRef.current = false;
+      }, 80);
+    }
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasSwipedRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
     }
   };
 
@@ -497,8 +593,8 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
                   }}
                   transition={{
                     type: 'spring',
-                    stiffness: 380,
-                    damping: 26,
+                    stiffness: 340,
+                    damping: 18,
                   }}
                   className="h-1.5 rounded-full block"
                 />
@@ -508,9 +604,10 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
         </div>
       )}
 
-      {/* Springy Resistive Card Slider with Small Overshoot */}
+      {/* Springy Resistive Card Slider with Immediate Hardware Acceleration */}
       <div
-        className="w-full overflow-hidden relative touch-pan-y"
+        ref={containerRef}
+        className="w-full overflow-hidden relative touch-pan-y select-none"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -519,24 +616,11 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
         onMouseMove={handleTouchMove}
         onMouseUp={handleTouchEnd}
         onMouseLeave={handleTouchEnd}
+        onClickCapture={handleClickCapture}
       >
         <motion.div
+          style={{ x }}
           className="flex w-full"
-          animate={{
-            x: isDragging
-              ? `calc(-${activeIndex * 100}% + ${dragOffset}px)`
-              : `-${activeIndex * 100}%`,
-          }}
-          transition={
-            isDragging
-              ? { duration: 0 } // Direct zero-lag finger tracking
-              : {
-                  type: 'spring',
-                  stiffness: 300,
-                  damping: 24, // Subtle ~2.5% overshoot with prompt settle
-                  mass: 0.8,
-                }
-          }
         >
           {resources.map((resource, idx) => (
             <div

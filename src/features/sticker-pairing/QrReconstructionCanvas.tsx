@@ -309,44 +309,33 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
     const vh = capture.videoHeight || 480;
     const baseScale = Math.max(size / vw, size / vh);
 
-    // 1. Physical QR corner points from camera detection
+    // 1. Exact physical QR corner points from camera detection
     const raw0 = capture.cornerPoints?.[0] || { x: vw * 0.25, y: vh * 0.25 };
     const raw1 = capture.cornerPoints?.[1] || { x: vw * 0.75, y: vh * 0.25 };
     const raw2 = capture.cornerPoints?.[2] || { x: vw * 0.75, y: vh * 0.75 };
     const raw3 = capture.cornerPoints?.[3] || { x: vw * 0.25, y: vh * 0.75 };
 
-    // Expand outward slightly (~15%) to encompass the physical sticker substrate/quiet zone
-    const center = {
-      x: (raw0.x + raw1.x + raw2.x + raw3.x) / 4,
-      y: (raw0.y + raw1.y + raw2.y + raw3.y) / 4,
-    };
-    const expand = 1.15;
-    const expandPoint = (p: QrPoint): QrPoint => ({
-      x: Math.max(0, Math.min(vw, center.x + (p.x - center.x) * expand)),
-      y: Math.max(0, Math.min(vh, center.y + (p.y - center.y) * expand)),
-    });
-
-    const s0 = expandPoint(raw0);
-    const s1 = expandPoint(raw1);
-    const s2 = expandPoint(raw2);
-    const s3 = expandPoint(raw3);
+    const q0 = raw0;
+    const q1 = raw1;
+    const q2 = raw2;
+    const q3 = raw3;
 
     // 2. Target digital card layout (centered, straight, enlarged right in front of the screen)
-    const targetSize = Math.round(size * 0.72);
+    const targetSize = Math.round(size * 0.68);
     const targetMargin = Math.round((size - targetSize) / 2);
     const target0: QrPoint = { x: targetMargin, y: targetMargin };
     const target1: QrPoint = { x: targetMargin + targetSize, y: targetMargin };
     const target2: QrPoint = { x: targetMargin + targetSize, y: targetMargin + targetSize };
     const target3: QrPoint = { x: targetMargin, y: targetMargin + targetSize };
 
-    // 02 & 03: Build Rectified & Contrast-Normalized Textures Deterministically
+    // 02 & 03: Build Rectified & Contrast-Normalized Textures using exact QR corners
     const BUFFER_SIZE = 512;
     const rectifiedCanvas = createRectifiedTexture(
       capture.capturedCanvas,
-      s0,
-      s1,
-      s2,
-      s3,
+      q0,
+      q1,
+      q2,
+      q3,
       BUFFER_SIZE
     );
     const normalizedCanvas = createContrastNormalizedTexture(
@@ -385,7 +374,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.strokeStyle = '#D8D5CC';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(targetMargin - 12, targetMargin - 12, targetSize + 24, targetSize + 24, 12);
+        ctx.roundRect(targetMargin - 16, targetMargin - 16, targetSize + 32, targetSize + 32, 12);
         ctx.fill();
         ctx.stroke();
 
@@ -418,10 +407,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         y: currentOffsetY + p.y * currentScale,
       });
 
-      const start0 = toScreen(s0);
-      const start1 = toScreen(s1);
-      const start2 = toScreen(s2);
-      const start3 = toScreen(s3);
+      const start0 = toScreen(q0);
+      const start1 = toScreen(q1);
+      const start2 = toScreen(q2);
+      const start3 = toScreen(q3);
 
       // =======================================================================
       // STEP 2: Convert to digital & bring QR code towards the screen (500ms - 2500ms, 2s)
@@ -429,7 +418,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       const bringRaw = Math.min(Math.max((elapsed - 500) / 2000, 0), 1);
       const bringEase = easeOutApple(bringRaw);
 
-      // Corners fly forward from physical perspective into centered digital card
+      // QR corners fly forward from physical camera perspective into centered digital card
       const D0 = {
         x: lerp(start0.x, target0.x, bringEase),
         y: lerp(start0.y, target0.y, bringEase),
@@ -447,6 +436,26 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         y: lerp(start3.y, target3.y, bringEase),
       };
 
+      // Substrate card border expands smoothly around the active QR code as it lifts forward
+      const centerD = {
+        x: (D0.x + D1.x + D2.x + D3.x) / 4,
+        y: (D0.y + D1.y + D2.y + D3.y) / 4,
+      };
+      const substrateMargin = lerp(8, 16, bringEase);
+      const expandCorner = (p: QrPoint): QrPoint => {
+        const vx = p.x - centerD.x;
+        const vy = p.y - centerD.y;
+        const dist = Math.hypot(vx, vy) || 1;
+        return {
+          x: p.x + (vx / dist) * substrateMargin * 1.414,
+          y: p.y + (vy / dist) * substrateMargin * 1.414,
+        };
+      };
+      const B0 = expandCorner(D0);
+      const B1 = expandCorner(D1);
+      const B2 = expandCorner(D2);
+      const B3 = expandCorner(D3);
+
       // 1. Draw base canvas background
       ctx.fillStyle = '#0F0E0D';
       ctx.fillRect(0, 0, size, size);
@@ -458,7 +467,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.drawImage(capture.capturedCanvas, currentOffsetX, currentOffsetY, vw * currentScale, vh * currentScale);
       ctx.restore();
 
-      // 3. Initial reticles on raw corners (Phase 1: 0ms to 550ms)
+      // 3. Initial reticles on exact raw QR corners (Phase 1: 0ms to 550ms)
       if (elapsed < 550) {
         const reticleAlpha = elapsed < 60 ? elapsed / 60 : elapsed > 440 ? 1 - (elapsed - 440) / 110 : 1;
         ctx.save();
@@ -495,14 +504,14 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       if (bringEase > 0.02) {
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-        ctx.shadowBlur = 30 * bringEase;
-        ctx.shadowOffsetY = 16 * bringEase;
+        ctx.shadowBlur = 28 * bringEase;
+        ctx.shadowOffsetY = 14 * bringEase;
         ctx.fillStyle = '#F4F3EE';
         ctx.beginPath();
-        ctx.moveTo(D0.x, D0.y);
-        ctx.lineTo(D1.x, D1.y);
-        ctx.lineTo(D2.x, D2.y);
-        ctx.lineTo(D3.x, D3.y);
+        ctx.moveTo(B0.x, B0.y);
+        ctx.lineTo(B1.x, B1.y);
+        ctx.lineTo(B2.x, B2.y);
+        ctx.lineTo(B3.x, B3.y);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
@@ -514,10 +523,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.strokeStyle = '#D8D5CC';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(D0.x - 2, D0.y - 2);
-      ctx.lineTo(D1.x + 2, D1.y - 2);
-      ctx.lineTo(D2.x + 2, D2.y + 2);
-      ctx.lineTo(D3.x - 2, D3.y + 2);
+      ctx.moveTo(B0.x, B0.y);
+      ctx.lineTo(B1.x, B1.y);
+      ctx.lineTo(B2.x, B2.y);
+      ctx.lineTo(B3.x, B3.y);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -587,10 +596,10 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
         ctx.shadowBlur = 8;
         ctx.setLineDash([perimeter * traceP, perimeter]);
         ctx.beginPath();
-        ctx.moveTo(D0.x, D0.y);
-        ctx.lineTo(D1.x, D1.y);
-        ctx.lineTo(D2.x, D2.y);
-        ctx.lineTo(D3.x, D3.y);
+        ctx.moveTo(B0.x, B0.y);
+        ctx.lineTo(B1.x, B1.y);
+        ctx.lineTo(B2.x, B2.y);
+        ctx.lineTo(B3.x, B3.y);
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
@@ -617,7 +626,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ref={containerRef}
       className="relative aspect-square w-full rounded-xl overflow-hidden bg-[#0F0E0D] flex items-center justify-center border border-border shadow-md"
     >
-      {/* Hidden pre-render of the mathematical digital QR for canonical URL (strictly level H) */}
+      {/* Hidden pre-render of the mathematical digital QR for canonical URL (strictly level H, zero margin for exact corner overlay) */}
       <div ref={hiddenSvgRef} className="hidden" aria-hidden="true">
         <QRCodeSVG
           value={canonicalQrUrl}
@@ -625,7 +634,7 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
           level="H"
           bgColor="#F4F3EE"
           fgColor="#11110F"
-          includeMargin={true}
+          includeMargin={false}
         />
       </div>
 

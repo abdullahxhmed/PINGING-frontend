@@ -118,7 +118,7 @@ export const DashboardPage: React.FC = () => {
 
           {/* Subtitle and Add Tag in one line */}
           <div className="flex items-center justify-between gap-3">
-            <p className="font-sans text-xs sm:text-sm text-muted tracking-normal">
+            <p className="font-sans text-sm sm:text-base text-muted tracking-normal">
               {headerSubtitle}
             </p>
 
