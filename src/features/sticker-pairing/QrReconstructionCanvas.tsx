@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { QrScanCapture, QrPoint } from './types';
 
 interface QrReconstructionCanvasProps {
@@ -6,32 +7,101 @@ interface QrReconstructionCanvasProps {
   onAnimationComplete: () => void;
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
+// Apple-standard cubic-bezier(0.16, 1, 0.3, 1) easeOut
+function easeOutApple(t: number): number {
+  return 1 - Math.pow(1 - t, 4);
 }
 
-function isFinderPattern(col: number, row: number, gridSize: number): boolean {
-  // Top-left
-  if (col < 7 && row < 7) {
-    if (col === 0 || col === 6 || row === 0 || row === 6) return true;
-    if (col >= 2 && col <= 4 && row >= 2 && row <= 4) return true;
-    return false;
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpPoint(pA: QrPoint, pB: QrPoint, t: number): QrPoint {
+  return {
+    x: lerp(pA.x, pB.x, t),
+    y: lerp(pA.y, pB.y, t),
+  };
+}
+
+function getBilinear(p0: QrPoint, p1: QrPoint, p2: QrPoint, p3: QrPoint, u: number, v: number): QrPoint {
+  const topX = lerp(p0.x, p1.x, u);
+  const topY = lerp(p0.y, p1.y, u);
+  const botX = lerp(p3.x, p2.x, u);
+  const botY = lerp(p3.y, p2.y, u);
+  return {
+    x: lerp(topX, botX, v),
+    y: lerp(topY, botY, v),
+  };
+}
+
+/**
+ * Maps and renders a single triangular fragment of an image onto canvas
+ * using exact 3-point affine transformation matrix.
+ */
+function renderTriangle(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  x0: number, y0: number,
+  x1: number, y1: number,
+  x2: number, y2: number,
+  u0: number, v0: number,
+  u1: number, v1: number,
+  u2: number, v2: number
+) {
+  const cp = (u0 - u2) * (v1 - v2) - (u1 - u2) * (v0 - v2);
+  if (Math.abs(cp) < 1e-5) return;
+
+  const a = ((x0 - x2) * (v1 - v2) - (x1 - x2) * (v0 - v2)) / cp;
+  const b = ((y0 - y2) * (v1 - v2) - (y1 - y2) * (v0 - v2)) / cp;
+  const c = ((x1 - x2) * (u0 - u2) - (x0 - x2) * (u1 - u2)) / cp;
+  const d = ((y1 - y2) * (u0 - u2) - (y0 - y2) * (u1 - u2)) / cp;
+  const e = x0 - a * u0 - c * v0;
+  const f = y0 - b * u0 - d * v0;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.transform(a, b, c, d, e, f);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+}
+
+/**
+ * Renders an image quadrilateral onto an arbitrary target quadrilateral
+ * using an N x N affine triangle mesh (perspective approximation without WebGL).
+ */
+function drawWarpedQuad(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  s0: QrPoint, s1: QrPoint, s2: QrPoint, s3: QrPoint,
+  d0: QrPoint, d1: QrPoint, d2: QrPoint, d3: QrPoint,
+  divisions = 8
+) {
+  for (let r = 0; r < divisions; r++) {
+    const vA = r / divisions;
+    const vB = (r + 1) / divisions;
+    for (let c = 0; c < divisions; c++) {
+      const uA = c / divisions;
+      const uB = (c + 1) / divisions;
+
+      const sTL = getBilinear(s0, s1, s2, s3, uA, vA);
+      const sTR = getBilinear(s0, s1, s2, s3, uB, vA);
+      const sBR = getBilinear(s0, s1, s2, s3, uB, vB);
+      const sBL = getBilinear(s0, s1, s2, s3, uA, vB);
+
+      const dTL = getBilinear(d0, d1, d2, d3, uA, vA);
+      const dTR = getBilinear(d0, d1, d2, d3, uB, vA);
+      const dBR = getBilinear(d0, d1, d2, d3, uB, vB);
+      const dBL = getBilinear(d0, d1, d2, d3, uA, vB);
+
+      renderTriangle(ctx, img, dTL.x, dTL.y, dTR.x, dTR.y, dBL.x, dBL.y, sTL.x, sTL.y, sTR.x, sTR.y, sBL.x, sBL.y);
+      renderTriangle(ctx, img, dTR.x, dTR.y, dBR.x, dBR.y, dBL.x, dBL.y, sTR.x, sTR.y, sBR.x, sBR.y, sBL.x, sBL.y);
+    }
   }
-  // Top-right
-  if (col >= gridSize - 7 && row < 7) {
-    const c = col - (gridSize - 7);
-    if (c === 0 || c === 6 || row === 0 || row === 6) return true;
-    if (c >= 2 && c <= 4 && row >= 2 && row <= 4) return true;
-    return false;
-  }
-  // Bottom-left
-  if (col < 7 && row >= gridSize - 7) {
-    const r = row - (gridSize - 7);
-    if (col === 0 || col === 6 || r === 0 || r === 6) return true;
-    if (col >= 2 && col <= 4 && r >= 2 && r <= 4) return true;
-    return false;
-  }
-  return false;
 }
 
 export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
@@ -40,7 +110,31 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hiddenSvgRef = useRef<HTMLDivElement | null>(null);
+  const digitalImageRef = useRef<HTMLImageElement | null>(null);
   const [isDone, setIsDone] = useState(false);
+
+  // Pre-load the exact vector digital QR corresponding to the decoded token
+  useEffect(() => {
+    const container = hiddenSvgRef.current;
+    if (!container) return;
+
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+
+    const xml = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      digitalImageRef.current = img;
+    };
+    img.src = url;
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [capture.rawData]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,74 +160,58 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
 
     ctx.scale(dpr, dpr);
 
-    // Compute coordinate mapping from video to square container
+    // Compute coordinate mapping from video space to square viewport
     const vw = capture.videoWidth || 640;
     const vh = capture.videoHeight || 480;
     const scale = Math.max(size / vw, size / vh);
     const offsetX = (size - vw * scale) / 2;
     const offsetY = (size - vh * scale) / 2;
 
-    const mapPoint = (p: QrPoint): QrPoint => ({
+    const toScreen = (p: QrPoint): QrPoint => ({
       x: offsetX + p.x * scale,
       y: offsetY + p.y * scale,
     });
 
-    const c0 = mapPoint(capture.cornerPoints?.[0] || { x: 0, y: 0 });
-    const c1 = mapPoint(capture.cornerPoints?.[1] || { x: vw, y: 0 });
-    const c2 = mapPoint(capture.cornerPoints?.[2] || { x: vw, y: vh });
-    const c3 = mapPoint(capture.cornerPoints?.[3] || { x: 0, y: vh });
+    // 1. Physical QR corner points from camera detection
+    const raw0 = capture.cornerPoints?.[0] || { x: vw * 0.25, y: vh * 0.25 };
+    const raw1 = capture.cornerPoints?.[1] || { x: vw * 0.75, y: vh * 0.25 };
+    const raw2 = capture.cornerPoints?.[2] || { x: vw * 0.75, y: vh * 0.75 };
+    const raw3 = capture.cornerPoints?.[3] || { x: vw * 0.25, y: vh * 0.75 };
 
-    // Pre-sample brightness from captured canvas to reproduce QR modules
-    const gridSize = 21; // Standard Version 1/2 QR grid
-    const sampleCtx = capture.capturedCanvas.getContext('2d', { willReadFrequently: true });
-    const moduleMap: boolean[][] = [];
+    // Expand outward slightly (~16%) to encompass the physical sticker substrate/quiet zone
+    const center = {
+      x: (raw0.x + raw1.x + raw2.x + raw3.x) / 4,
+      y: (raw0.y + raw1.y + raw2.y + raw3.y) / 4,
+    };
+    const expand = 1.16;
+    const expandPoint = (p: QrPoint): QrPoint => ({
+      x: Math.max(0, Math.min(vw, center.x + (p.x - center.x) * expand)),
+      y: Math.max(0, Math.min(vh, center.y + (p.y - center.y) * expand)),
+    });
 
-    const p0 = capture.cornerPoints?.[0] || { x: 0, y: 0 };
-    const p1 = capture.cornerPoints?.[1] || { x: vw, y: 0 };
-    const p2 = capture.cornerPoints?.[2] || { x: vw, y: vh };
-    const p3 = capture.cornerPoints?.[3] || { x: 0, y: vh };
+    const s0 = expandPoint(raw0);
+    const s1 = expandPoint(raw1);
+    const s2 = expandPoint(raw2);
+    const s3 = expandPoint(raw3);
 
-    for (let r = 0; r < gridSize; r++) {
-      moduleMap[r] = [];
-      const v = r / (gridSize - 1);
-      for (let c = 0; c < gridSize; c++) {
-        const u = c / (gridSize - 1);
-        if (isFinderPattern(c, r, gridSize)) {
-          moduleMap[r][c] = true;
-          continue;
-        }
-        if (r === 6 || c === 6) {
-          // Timing bar
-          moduleMap[r][c] = (r + c) % 2 === 0;
-          continue;
-        }
+    // Initial position on screen where user photographed the sticker
+    const start0 = toScreen(s0);
+    const start1 = toScreen(s1);
+    const start2 = toScreen(s2);
+    const start3 = toScreen(s3);
 
-        // Sample video pixel in video coordinate space
-        const origTopX = p0.x * (1 - u) + p1.x * u;
-        const origTopY = p0.y * (1 - u) + p1.y * u;
-        const origBotX = p3.x * (1 - u) + p2.x * u;
-        const origBotY = p3.y * (1 - u) + p2.y * u;
-        const origX = Math.round(origTopX * (1 - v) + origBotX * v);
-        const origY = Math.round(origTopY * (1 - v) + origBotY * v);
+    // 2. Target digital card layout (centered square with generous breathing room)
+    const targetSize = Math.round(size * 0.65);
+    const targetLeft = Math.round((size - targetSize) / 2);
+    const targetTop = Math.round((size - targetSize) / 2);
 
-        if (sampleCtx && origX >= 0 && origX < vw && origY >= 0 && origY < vh) {
-          const pixel = sampleCtx.getImageData(origX, origY, 1, 1).data;
-          const lum = pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114;
-          moduleMap[r][c] = lum < 145;
-        } else {
-          // Deterministic hash based on tag code
-          moduleMap[r][c] = ((capture.tagCode.charCodeAt((r + c) % capture.tagCode.length) + r * 3 + c) % 3) !== 0;
-        }
-      }
-    }
+    const target0 = { x: targetLeft, y: targetTop };
+    const target1 = { x: targetLeft + targetSize, y: targetTop };
+    const target2 = { x: targetLeft + targetSize, y: targetTop + targetSize };
+    const target3 = { x: targetLeft, y: targetTop + targetSize };
 
-    // Digital target layout
-    const targetQrSize = size * 0.64;
-    const targetLeft = (size - targetQrSize) / 2;
-    const targetTop = (size - targetQrSize) / 2;
-    const modSize = targetQrSize / gridSize;
-
-    const totalDuration = prefersReducedMotion ? 250 : 960;
+    // 3. Animation Timing (~680ms)
+    const totalDuration = prefersReducedMotion ? 200 : 680;
     const startTime = performance.now();
     let animId: number;
 
@@ -144,30 +222,24 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       ctx.clearRect(0, 0, size, size);
 
       if (prefersReducedMotion) {
-        // Simple elegant crossfade for users requesting reduced motion
-        const fade = elapsed / totalDuration;
-        ctx.fillStyle = '#F4F3EE';
+        // Direct, quiet crossfade for reduced motion preference
+        const fade = progress;
+        ctx.fillStyle = '#0F0E0D';
         ctx.fillRect(0, 0, size, size);
 
         // Draw card backing
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = '#F4F3EE';
         ctx.strokeStyle = '#D8D5CC';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(targetLeft - 16, targetTop - 16, targetQrSize + 32, targetQrSize + 32, 12);
+        ctx.roundRect(targetLeft - 12, targetTop - 12, targetSize + 24, targetSize + 24, 12);
         ctx.fill();
         ctx.stroke();
 
-        // Draw digital QR
-        ctx.fillStyle = `rgba(17, 17, 15, ${fade})`;
-        for (let r = 0; r < gridSize; r++) {
-          for (let c = 0; c < gridSize; c++) {
-            if (moduleMap[r][c]) {
-              ctx.beginPath();
-              ctx.roundRect(targetLeft + c * modSize, targetTop + r * modSize, modSize - 0.5, modSize - 0.5, 1);
-              ctx.fill();
-            }
-          }
+        if (digitalImageRef.current) {
+          ctx.globalAlpha = fade;
+          ctx.drawImage(digitalImageRef.current, targetLeft, targetTop, targetSize, targetSize);
+          ctx.globalAlpha = 1;
         }
 
         if (progress >= 1) {
@@ -180,122 +252,110 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
       }
 
       // =======================================================================
-      // 60FPS SIGNATURE RECONSTRUCTION EFFECT
+      // THE AUTHENTIC PHYSICAL-TO-DIGITAL TRANSFORMATION PIPELINE
       // =======================================================================
 
-      // 1. Draw frozen video background with progressive dimming
-      const bgOpacity = Math.max(0, 1 - progress * 1.5);
-      if (bgOpacity > 0.01) {
+      // Phase Progress:
+      // Straightening: 0ms to 480ms
+      const straightenRaw = Math.min(Math.max((elapsed - 30) / 450, 0), 1);
+      const straightenP = easeOutApple(straightenRaw);
+
+      // Current 4 moving corners
+      const D0 = lerpPoint(start0, target0, straightenP);
+      const D1 = lerpPoint(start1, target1, straightenP);
+      const D2 = lerpPoint(start2, target2, straightenP);
+      const D3 = lerpPoint(start3, target3, straightenP);
+
+      // 1. Draw base dark canvas background
+      ctx.fillStyle = '#0F0E0D';
+      ctx.fillRect(0, 0, size, size);
+
+      // 2. Draw frozen camera background (dimming down smoothly as sticker lifts)
+      const bgDim = Math.min(Math.max((elapsed - 40) / 360, 0), 1);
+      const bgAlpha = Math.max(0, 1 - bgDim * 0.88);
+      if (bgAlpha > 0.01) {
         ctx.save();
-        ctx.globalAlpha = bgOpacity;
+        ctx.globalAlpha = bgAlpha;
         ctx.drawImage(capture.capturedCanvas, offsetX, offsetY, vw * scale, vh * scale);
         ctx.restore();
       }
 
-      // 2. Fading in warm cream Kauntact card backing
-      const cardAlpha = Math.min(1, Math.max(0, (progress - 0.25) / 0.5));
-      if (cardAlpha > 0.01) {
+      // 3. Draw physical lift drop shadow under the extracting sticker
+      if (straightenP > 0.02) {
+        const shadowAlpha = straightenP * 0.32;
+        const shadowY = straightenP * 12;
         ctx.save();
-        ctx.globalAlpha = cardAlpha;
-        ctx.fillStyle = '#0F0E0D'; // Dark backdrop base
-        ctx.fillRect(0, 0, size, size);
-
-        // Elegant cream paper substrate
-        ctx.fillStyle = '#F4F3EE';
-        ctx.strokeStyle = '#D8D5CC';
-        ctx.lineWidth = 1;
+        ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
         ctx.beginPath();
-        ctx.roundRect(targetLeft - 18, targetTop - 18, targetQrSize + 36, targetQrSize + 36, 12);
+        ctx.moveTo(D0.x, D0.y + shadowY);
+        ctx.lineTo(D1.x, D1.y + shadowY);
+        ctx.lineTo(D2.x, D2.y + shadowY);
+        ctx.lineTo(D3.x, D3.y + shadowY);
+        ctx.closePath();
         ctx.fill();
+        ctx.restore();
+      }
+
+      // 4. Draw warm cream card substrate backing
+      ctx.save();
+      ctx.fillStyle = '#F4F3EE';
+      ctx.strokeStyle = '#D8D5CC';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(D0.x - 4, D0.y - 4);
+      ctx.lineTo(D1.x + 4, D1.y - 4);
+      ctx.lineTo(D2.x + 4, D2.y + 4);
+      ctx.lineTo(D3.x - 4, D3.y + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // 5. Draw the ACTUAL PHOTOGRAPHED STICKER rectifying in real perspective
+      const photoAlpha = Math.max(0, 1 - Math.min(Math.max((elapsed - 320) / 220, 0), 1));
+      if (photoAlpha > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = photoAlpha;
+        drawWarpedQuad(
+          ctx,
+          capture.capturedCanvas,
+          s0, s1, s2, s3,
+          D0, D1, D2, D3,
+          8
+        );
+        ctx.restore();
+      }
+
+      // 6. Seamlessly crossfade into the pristine digital vector QR code
+      const digitalAlpha = Math.min(Math.max((elapsed - 320) / 220, 0), 1);
+      const digitalEase = easeOutApple(digitalAlpha);
+      if (digitalEase > 0.01 && digitalImageRef.current) {
+        ctx.save();
+        ctx.globalAlpha = digitalEase;
+        drawWarpedQuad(
+          ctx,
+          digitalImageRef.current,
+          { x: 0, y: 0 },
+          { x: 512, y: 0 },
+          { x: 512, y: 512 },
+          { x: 0, y: 512 },
+          D0, D1, D2, D3,
+          8
+        );
+        ctx.restore();
+      }
+
+      // 7. Retrained lime focus confirmation (520ms to 680ms)
+      if (elapsed > 500 && elapsed <= 680) {
+        const fadeP = elapsed > 620 ? 1 - (elapsed - 620) / 60 : (elapsed - 500) / 120;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, fadeP));
+        ctx.strokeStyle = '#D7FF3F';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(targetLeft - 10, targetTop - 10, targetSize + 20, targetSize + 20, 10);
         ctx.stroke();
         ctx.restore();
-      }
-
-      // 3. Corner lock reticles (Phase 1: 0ms to 240ms)
-      const reticlePhase = Math.min(progress / 0.25, 1);
-      if (progress < 0.5) {
-        const reticleAlpha = progress < 0.2 ? reticlePhase : 1 - (progress - 0.2) / 0.3;
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, reticleAlpha);
-        ctx.strokeStyle = '#D7FF3F'; // Lime accent
-        ctx.lineWidth = 2.5;
-
-        const drawReticleCorner = (p: QrPoint, dx: number, dy: number) => {
-          const arm = 14;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y + dy * arm);
-          ctx.lineTo(p.x, p.y);
-          ctx.lineTo(p.x + dx * arm, p.y);
-          ctx.stroke();
-        };
-
-        drawReticleCorner(c0, 1, 1);
-        drawReticleCorner(c1, -1, 1);
-        drawReticleCorner(c2, -1, -1);
-        drawReticleCorner(c3, 1, -1);
-        ctx.restore();
-      }
-
-      // 4. Module Flight & Alignment (Phase 2: 180ms to 750ms)
-      const flightProgress = Math.max(0, (elapsed - 160) / 580);
-
-      for (let r = 0; r < gridSize; r++) {
-        const v = r / (gridSize - 1);
-        for (let c = 0; c < gridSize; c++) {
-          if (!moduleMap[r][c]) continue;
-
-          const u = c / (gridSize - 1);
-
-          // Physical perspective location in camera space
-          const topX = c0.x * (1 - u) + c1.x * u;
-          const topY = c0.y * (1 - u) + c1.y * u;
-          const botX = c3.x * (1 - u) + c2.x * u;
-          const botY = c3.y * (1 - u) + c2.y * u;
-          const srcX = topX * (1 - v) + botX * v;
-          const srcY = topY * (1 - v) + botY * v;
-
-          // Crisp digital destination
-          const destX = targetLeft + c * modSize;
-          const destY = targetTop + r * modSize;
-
-          // Staggered flight based on distance from center
-          const distCenter = Math.hypot(c - 10, r - 10) / 14;
-          const modP = Math.min(Math.max((flightProgress - distCenter * 0.18) / 0.82, 0), 1);
-          const ease = easeOutCubic(modP);
-
-          const curX = srcX + (destX - srcX) * ease;
-          const curY = srcY + (destY - srcY) * ease;
-          const curModSize = modSize * (0.85 + 0.15 * ease);
-
-          // Color transition: from camera contrast to Kauntact near-black ink
-          const isFinder = isFinderPattern(c, r, gridSize);
-          ctx.fillStyle = isFinder && ease > 0.8 ? '#11110F' : '#11110F';
-
-          ctx.beginPath();
-          ctx.roundRect(curX, curY, curModSize - 0.4, curModSize - 0.4, ease > 0.8 ? 1 : 0.5);
-          ctx.fill();
-        }
-      }
-
-      // 5. Digital Lock-in Lime Beam Sweep (Phase 3: 720ms to 960ms)
-      if (elapsed > 720) {
-        const sweepProgress = (elapsed - 720) / 240;
-        if (sweepProgress <= 1) {
-          const beamY = targetTop + sweepProgress * targetQrSize;
-          ctx.save();
-          const grad = ctx.createLinearGradient(0, beamY - 18, 0, beamY + 4);
-          grad.addColorStop(0, 'rgba(215, 255, 63, 0)');
-          grad.addColorStop(0.7, 'rgba(215, 255, 63, 0.25)');
-          grad.addColorStop(1, 'rgba(215, 255, 63, 0.85)');
-
-          ctx.fillStyle = grad;
-          ctx.fillRect(targetLeft - 10, beamY - 18, targetQrSize + 20, 22);
-
-          // Intense thin front edge
-          ctx.fillStyle = '#D7FF3F';
-          ctx.fillRect(targetLeft - 10, beamY, targetQrSize + 20, 1.5);
-          ctx.restore();
-        }
       }
 
       if (progress >= 1) {
@@ -317,20 +377,31 @@ export const QrReconstructionCanvas: React.FC<QrReconstructionCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-square w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-border shadow-md"
+      className="relative aspect-square w-full rounded-xl overflow-hidden bg-[#0F0E0D] flex items-center justify-center border border-border shadow-md"
     >
+      {/* Hidden pre-render of the mathematical digital QR for capture.rawData */}
+      <div ref={hiddenSvgRef} className="hidden" aria-hidden="true">
+        <QRCodeSVG
+          value={capture.rawData}
+          size={512}
+          bgColor="#F4F3EE"
+          fgColor="#11110F"
+          includeMargin={true}
+        />
+      </div>
+
       <canvas ref={canvasRef} className="block w-full h-full" />
 
-      {/* Subtle bottom telemetry label during/after animation */}
+      {/* Restrained bottom telemetry tag */}
       <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none">
         <span
           className={`font-mono text-[11px] uppercase tracking-wider px-3 py-1 rounded-full transition-all duration-300 ${
             isDone
-              ? 'bg-[#D7FF3F] text-black font-semibold shadow-sm'
-              : 'bg-black/80 text-white/90 border border-white/20'
+              ? 'bg-[#D7FF3F] text-black font-semibold shadow-xs'
+              : 'bg-black/70 text-white/80 border border-white/15'
           }`}
         >
-          {isDone ? `TAG IDENTIFIED: #${capture.tagCode}` : 'RECONSTRUCTING OPTICAL MATRIX…'}
+          {isDone ? `TAG #${capture.tagCode}` : 'CAPTURED'}
         </span>
       </div>
     </div>
