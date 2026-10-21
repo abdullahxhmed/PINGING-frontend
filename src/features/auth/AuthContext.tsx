@@ -6,7 +6,9 @@ import { authApi } from '../../lib/api';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
   login: (mobileNumber: string, otpOrPassword: string, isPassword?: boolean) => Promise<void>;
   loginWithPassword: (mobileNumber: string, password: string) => Promise<void>;
   loginWithOtp: (mobileNumber: string, otp: string) => Promise<void>;
@@ -20,6 +22,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(() => authStorage.getCurrentUser());
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  const refreshUser = async () => {
+    if (!authStorage.getAccessToken()) return;
+    try {
+      const res: any = await authApi.getMe();
+      const profile = res?.user || res?.data?.user || res?.data || res;
+      if (profile && (profile.id || profile.name || profile.role)) {
+        setUser((prev) => {
+          const merged: User = {
+            ...(prev || {}),
+            ...profile,
+            id: profile.id || prev?.id || '',
+            name: profile.name || prev?.name || '',
+            mobileNumber: profile.mobileNumber || prev?.mobileNumber || '',
+            active: profile.active ?? prev?.active ?? true,
+            role: profile.role || (profile as any)?.role || prev?.role || 'USER',
+          };
+          authStorage.setCurrentUser(merged);
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to refresh user profile:', err);
+    }
+  };
+
   useEffect(() => {
     const handleAuthExpired = () => {
       authStorage.clear();
@@ -27,6 +54,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     window.addEventListener('auth:expired', handleAuthExpired);
+    
+    // Refresh user role & profile on initial load
+    refreshUser();
+
     return () => {
       window.removeEventListener('auth:expired', handleAuthExpired);
     };
@@ -86,10 +117,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const isAdmin = Boolean(
+    user?.role === 'ADMIN' ||
+    (typeof window !== 'undefined' && Boolean(localStorage.getItem('pingin_admin_key')))
+  );
+
   const value: AuthContextType = {
     user,
     isAuthenticated: Boolean(user && authStorage.getAccessToken()),
+    isAdmin,
     isLoading,
+    refreshUser,
     login,
     loginWithPassword,
     loginWithOtp,

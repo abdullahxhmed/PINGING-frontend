@@ -17,7 +17,7 @@ interface EditResourceModalProps {
 
 const RESOURCE_TYPES: { type: ResourceType; label: string }[] = [
   { type: 'VEHICLE', label: 'Vehicle' },
-  { type: 'PROPERTY', label: 'Property' },
+  { type: 'PROPERTY', label: 'Place' },
   { type: 'EQUIPMENT', label: 'Equipment' },
   { type: 'OTHER', label: 'Other' },
 ];

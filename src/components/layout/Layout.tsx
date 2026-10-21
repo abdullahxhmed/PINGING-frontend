@@ -11,14 +11,14 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-bg flex flex-col text-ink">
+    <div className="min-h-[100dvh] bg-bg flex flex-col text-ink">
       <Navbar />
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-6 sm:py-8">
         <Container>
           {children}
         </Container>
       </main>
-      <footer className="border-t border-border bg-surface py-6">
+      <footer className="mt-auto border-t border-border bg-surface py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         <Container className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div className="flex items-center gap-3">
             ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />

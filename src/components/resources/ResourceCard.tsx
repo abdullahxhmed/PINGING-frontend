@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
 import { Surface, Button, IconButton } from '../ui';
 import { QrCodeModal } from './QrCodeModal';
-import { resourcesApi, extractResourceToken } from '../../lib/api';
+import { resourcesApi, extractResourceTag } from '../../lib/api';
 import {
   QrCode,
   ChevronRight,
@@ -32,7 +32,7 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
   const [showQr, setShowQr] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const contactToken = extractResourceToken(resource);
+  const tagNumber = extractResourceTag(resource);
 
   const handleDelete = async () => {
     if (!window.confirm(`Are you sure you want to delete "${resource.name}"?`)) {
@@ -97,7 +97,7 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
         {/* Action Buttons */}
         <div className="pt-4 mt-4 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-1.5">
-            {contactToken && (
+            {tagNumber && (
               <Button
                 variant="secondary"
                 onClick={() => setShowQr(true)}
@@ -134,11 +134,11 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
         </div>
       </Surface>
 
-      {contactToken && (
+      {tagNumber && (
         <QrCodeModal
           isOpen={showQr}
           onClose={() => setShowQr(false)}
-          token={contactToken}
+          tagNumber={tagNumber}
           resourceName={resource.name}
         />
       )}

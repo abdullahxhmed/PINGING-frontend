@@ -10,6 +10,15 @@ import type {
   InitiateCallResponse,
   CallStatusResponse,
   VerifyRegistrationResponse,
+  QrTagLookupResponse,
+  QrResolveResponse,
+  PairQrPayload,
+  PairQrResponse,
+  UnpairQrPayload,
+  UnpairQrResponse,
+  GenerateQrPayload,
+  GenerateQrResponse,
+  ResourceCallsResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -102,6 +111,13 @@ export async function request<T = any>(
   const token = authStorage.getAccessToken();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (typeof window !== 'undefined') {
+    const adminKey = localStorage.getItem('pingin_admin_key');
+    if (adminKey && !headers.has('x-admin-key')) {
+      headers.set('x-admin-key', adminKey.trim());
+    }
   }
 
   const response = await fetch(url, {
@@ -232,8 +248,20 @@ export const authApi = {
   refresh: (refreshToken?: string) =>
     api.post<{ accessToken: string }>('/api/auth/refresh', refreshToken ? { refreshToken } : {}),
 
-  getMe: () =>
-    api.get<UserProfile>('/api/auth/me'),
+  getMe: async () => {
+    try {
+      return await api.get<UserProfile>('/api/auth/me');
+    } catch (err: any) {
+      if (err.statusCode === 404) {
+        try {
+          return await api.get<UserProfile>('/auth/me');
+        } catch {
+          // fallback
+        }
+      }
+      throw err;
+    }
+  },
 
   logout: () =>
     api.post<{ message: string }>('/api/auth/logout'),
@@ -258,6 +286,14 @@ export const resourcesApi = {
 
   createContactLink: (resourceId: string) =>
     api.post<ContactLink>(`/api/resources/${resourceId}/contact-link`),
+
+  getCalls: (id: string, params?: { page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<ResourceCallsResponse>(`/api/resources/${id}/calls${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export const publicContactApi = {
@@ -306,6 +342,53 @@ export const communicationApi = {
    */
   getCallStatus: async (callId: string): Promise<CallStatusResponse> => {
     return await api.get<CallStatusResponse>(`/api/communication/calls/${callId}`);
+  },
+};
+
+export const qrApi = {
+  /**
+   * Public lookup by camera-scanned token OR printed 7-character tagNumber.
+   * GET /api/qr/:identifier
+   * Access: Public (no auth required)
+   */
+  lookup: (identifier: string): Promise<QrTagLookupResponse> => {
+    return api.get<QrTagLookupResponse>(`/api/qr/${encodeURIComponent(identifier.trim())}`);
+  },
+
+  /**
+   * Smart resolver for camera-scanned tokens or human-entered tag numbers.
+   * GET /api/qr/resolve/:token
+   * Access: Public (no auth required)
+   */
+  resolve: (token: string): Promise<QrResolveResponse> => {
+    return api.get<QrResolveResponse>(`/api/qr/resolve/${encodeURIComponent(token.trim())}`);
+  },
+
+  /**
+   * Pairs an unassigned QR tag to a resource owned by the authenticated user.
+   * POST /api/qr/pair
+   * Access: Private (Bearer JWT required)
+   */
+  pair: (payload: PairQrPayload): Promise<PairQrResponse> => {
+    return api.post<PairQrResponse>('/api/qr/pair', payload);
+  },
+
+  /**
+   * Unpairs / de-allocates an active QR tag from an owned resource.
+   * POST /api/qr/unpair
+   * Access: Private (Bearer JWT required)
+   */
+  unpair: (payload: UnpairQrPayload): Promise<UnpairQrResponse> => {
+    return api.post<UnpairQrResponse>('/api/qr/unpair', payload);
+  },
+
+  /**
+   * On-demand generation of a single digital QR tag (users and admins).
+   * POST /api/qr/generate
+   * Access: Private (Bearer JWT required)
+   */
+  generate: (payload: GenerateQrPayload = {}): Promise<GenerateQrResponse> => {
+    return api.post<GenerateQrResponse>('/api/qr/generate', payload);
   },
 };
 
@@ -400,4 +483,155 @@ export function getResourceContactUrl(resource: any): string {
   if (!token) return '';
   return `${getPublicBaseUrl()}/c/${token}`;
 }
+
+/**
+ * Resolves the fully-qualified public QR scan URL for a given resource and optional tag number.
+ * If a tag number is provided or assigned to the resource, generates `${baseUrl}/t/${tag}`.
+ * If the resource has NO QR tag assigned, returns empty string ('').
+ * NEVER falls back to the public contact link (/c/:token)!
+ */
+export function getResourceQrUrl(resource: any, tagNumber?: string): string {
+  const baseUrl = getPublicBaseUrl();
+  const tag = (tagNumber || extractResourceTag(resource) || '').trim();
+  if (tag) {
+    // Strip any accidental leading path prefixes
+    const cleanTag = tag.replace(/^(\/?(t|qr|c|contact)\/)+/i, '').replace(/^\/+/, '');
+    return `${baseUrl}/t/${cleanTag}`;
+  }
+  return '';
+}
+
+/**
+ * Normalizes any QR URL into the canonical /t/:identifier format.
+ * Replaces legacy /qr/ paths and never permits /c/ or /contact/ in QR codes.
+ */
+export function normalizeQrUrl(rawUrl?: string, fallbackTagOrToken?: string): string {
+  const baseUrl = getPublicBaseUrl();
+  const fallback = fallbackTagOrToken ? fallbackTagOrToken.trim() : '';
+
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    if (!fallback) return '';
+    const cleanFallback = fallback.replace(/^(\/?(t|qr|c|contact)\/)+/i, '').replace(/^\/+/, '');
+    return `${baseUrl}/t/${cleanFallback}`;
+  }
+
+  try {
+    const parsed = new URL(rawUrl, baseUrl);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const identifier = segments[segments.length - 1] || fallback;
+    const cleanId = identifier.replace(/^(\/?(t|qr|c|contact)\/)+/i, '').replace(/^\/+/, '');
+    return cleanId ? `${baseUrl}/t/${cleanId}` : '';
+  } catch {
+    const clean = rawUrl.replace(/^(\/?(t|qr|c|contact)\/)+/i, '').replace(/^\/+/, '');
+    return clean ? `${baseUrl}/t/${clean}` : '';
+  }
+}
+
+/**
+ * Robustly resolves the active QR tag code from a resource across all possible backend schemas:
+ * checks tagNumber, tag_number, qrTag, qr_tag, tag, qrTags array, qr_tags array, tags array,
+ * and resilient local client cache.
+ */
+export function extractResourceTag(resource: any): string {
+  if (!resource) return '';
+
+  const resId = resource.id || resource._id;
+
+  // 1. Direct tagNumber / tag_number
+  if (typeof resource.tagNumber === 'string' && resource.tagNumber) {
+    return resource.tagNumber.toUpperCase();
+  }
+  if (typeof resource.tag_number === 'string' && resource.tag_number) {
+    return resource.tag_number.toUpperCase();
+  }
+
+  // 2. qrTag object
+  if (resource.qrTag && typeof resource.qrTag === 'object') {
+    const code = resource.qrTag.tagNumber || resource.qrTag.tag_number || resource.qrTag.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 3. qr_tag object
+  if (resource.qr_tag && typeof resource.qr_tag === 'object') {
+    const code = resource.qr_tag.tagNumber || resource.qr_tag.tag_number || resource.qr_tag.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 4. tag object
+  if (resource.tag && typeof resource.tag === 'object') {
+    const code = resource.tag.tagNumber || resource.tag.tag_number || resource.tag.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 5. qrTags array
+  if (Array.isArray(resource.qrTags) && resource.qrTags.length > 0) {
+    const active =
+      resource.qrTags.find((t: any) => t.status === 'ASSIGNED' || t.active !== false) ||
+      resource.qrTags[0];
+    const code = active?.tagNumber || active?.tag_number || active?.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 6. qr_tags array
+  if (Array.isArray(resource.qr_tags) && resource.qr_tags.length > 0) {
+    const active =
+      resource.qr_tags.find((t: any) => t.status === 'ASSIGNED' || t.active !== false) ||
+      resource.qr_tags[0];
+    const code = active?.tagNumber || active?.tag_number || active?.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 7. tags array
+  if (Array.isArray(resource.tags) && resource.tags.length > 0) {
+    const active =
+      resource.tags.find((t: any) => t.status === 'ASSIGNED' || t.active !== false) ||
+      resource.tags[0];
+    const code = active?.tagNumber || active?.tag_number || active?.code;
+    if (code) return String(code).toUpperCase();
+  }
+
+  // 8. Client-side resilience cache fallback
+  if (resId && typeof window !== 'undefined') {
+    const cached = localStorage.getItem(`kauntact_tag_${resId}`);
+    if (cached) return cached.toUpperCase();
+  }
+
+  return '';
+}
+
+export function cacheResourceTag(resourceId: string, tagNumber: string) {
+  if (!resourceId || !tagNumber || typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`kauntact_tag_${resourceId}`, tagNumber.toUpperCase());
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+export function uncacheResourceTag(resourceId: string) {
+  if (!resourceId || typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(`kauntact_tag_${resourceId}`);
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+/**
+ * Extracts 7-character tag code from backend 409 conflict messages such as:
+ * "This resource already has an active QR tag (MD69QKS). Please unpair it before generating a new one."
+ * or "This resource already has a different QR tag assigned (KT83B45)."
+ */
+export function extractConflictTagNumber(errorMessage: string): string | null {
+  if (!errorMessage) return null;
+  const match =
+    errorMessage.match(/\(([A-Za-z0-9]{7})\)/) ||
+    errorMessage.match(/\(([A-Za-z0-9]{5,10})\)/) ||
+    errorMessage.match(/tag\s+([A-Za-z0-9]{7})/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+export { adminApi, adminStorage } from './adminApi';
+export { buildTagQrUrl, hasResourceQrTag, getResourceTagQrUrl } from './qr';
+
 

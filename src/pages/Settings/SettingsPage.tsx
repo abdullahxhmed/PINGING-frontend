@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
-import { authApi } from '../../lib/api';
-import type { UserProfile } from '../../types/api';
+import { authApi, resourcesApi, qrApi, extractResourceTag, uncacheResourceTag } from '../../lib/api';
+import type { UserProfile, Resource, QrTagLookupResponse } from '../../types/api';
 import {
   ArrowLeft,
   Lock,
@@ -13,9 +13,17 @@ import {
   Shield,
   PhoneCall,
   QrCode,
+  Search,
+  Loader2,
+  Unlink,
+  Car,
+  Building2,
+  Wrench,
+  Layers,
 } from 'lucide-react';
-import { DelayedSpinner } from '../../components/ui';
+import { DelayedSpinner, Button } from '../../components/ui';
 import { PingInSvgLogo } from '../../components/brand/PingInLogo';
+import { PairQrModal, UnpairQrModal } from '../../components/resources';
 
 export const SettingsPage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +31,36 @@ export const SettingsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
+  // Resources state for QR tag management
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
+
+  // Modals state
+  const [isPairModalOpen, setIsPairModalOpen] = useState(false);
+  const [unpairTarget, setUnpairTarget] = useState<{
+    resourceId: string;
+    resourceName: string;
+    tagNumber?: string;
+  } | null>(null);
+
+  // Tag Lookup Tool state
+  const [lookupInput, setLookupInput] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupResult, setLookupResult] = useState<QrTagLookupResponse | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const fetchResources = useCallback(async () => {
+    setIsLoadingResources(true);
+    try {
+      const data = await resourcesApi.list();
+      setResources(Array.isArray(data) ? data : []);
+    } catch {
+      // Graceful fallback
+    } finally {
+      setIsLoadingResources(false);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,10 +85,12 @@ export const SettingsPage: React.FC = () => {
     }
 
     fetchMe();
+    fetchResources();
+
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [fetchResources]);
 
   const handleCopyId = () => {
     if (!profile?.id) return;
@@ -58,6 +98,33 @@ export const SettingsPage: React.FC = () => {
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
+
+  const handleLookupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = lookupInput.trim();
+    if (!trimmed) return;
+
+    setIsLookingUp(true);
+    setLookupError(null);
+    setLookupResult(null);
+
+    // Clean code if a full URL was pasted
+    const match = trimmed.match(/\/qr\/([a-zA-Z0-9_-]+)/i);
+    const identifier = match ? match[1] : trimmed;
+
+    try {
+      const res = await qrApi.lookup(identifier);
+      setLookupResult(res);
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'QR tag not found';
+      setLookupError(msg);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  // Find paired resources using multi-source tag resolution
+  const pairedResources = resources.filter((r) => Boolean(extractResourceTag(r)));
 
   return (
     <Layout>
@@ -76,7 +143,7 @@ export const SettingsPage: React.FC = () => {
           </h1>
         </div>
 
-        {/* Single clear status indicator */}
+        {/* Status indicator */}
         <div className="flex items-center gap-2 self-start md:self-end">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-accent/10 border border-accent/20 font-sans text-[11px] font-semibold text-ink uppercase tracking-wider">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -147,7 +214,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Secondary Account ID Bar */}
+            {/* Account ID Bar */}
             <div className="flex items-center justify-between px-3.5 py-2 border border-border/70 bg-surface/20 rounded-sm text-xs font-sans">
               <div className="flex items-center gap-2 text-muted min-w-0">
                 <span className="uppercase text-[11px] tracking-wider shrink-0 font-medium">Account ID</span>
@@ -217,7 +284,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Concise Privacy Guarantee with Progressive Disclosure */}
+            {/* Privacy Guarantee */}
             <div className="p-4 border border-border/80 bg-surface/20 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans text-xs">
               <p className="text-muted leading-relaxed">
                 <span className="font-medium text-ink">Your contact number is private.</span>{' '}
@@ -269,6 +336,202 @@ export const SettingsPage: React.FC = () => {
                   Active
                 </span>
               </div>
+            </div>
+          </section>
+
+          {/* SECTION 04: QR & PHYSICAL TAGS */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-2.5">
+              <div className="flex items-center gap-3">
+                <span className="font-display text-sm font-medium text-subtle select-none">
+                  04
+                </span>
+                <h2 className="font-display font-medium text-lg sm:text-xl text-ink uppercase tracking-tight">
+                  QR &amp; PHYSICAL TAGS
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link to="/pair">
+                  <Button variant="secondary" className="!h-8 text-xs font-semibold uppercase">
+                    Pairing Suite →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <p className="font-sans text-xs text-muted leading-relaxed">
+              Manage your physical windshield stickers, inspect preprinted inventory, and generate digital tags.
+            </p>
+
+            {/* Pair Physical Sticker Banner */}
+            <div className="p-4 sm:p-5 border border-border bg-surface/40 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans">
+              <div className="space-y-1">
+                <h4 className="font-semibold text-ink text-sm flex items-center gap-2">
+                  <QrCode className="h-4 w-4" />
+                  <span>Pair Physical Sticker</span>
+                </h4>
+                <p className="text-muted text-xs leading-relaxed max-w-lg">
+                  Have a Kauntact sticker with you? Link its 7-character code to any existing vehicle or space, or create a new one.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                onClick={() => setIsPairModalOpen(true)}
+                className="!h-10 text-xs shrink-0 uppercase tracking-wider font-semibold px-5"
+              >
+                Pair Sticker
+              </Button>
+            </div>
+
+            {/* Tag Lookup & Inspection Tool */}
+            <div className="p-4 sm:p-5 border border-border bg-surface/30 rounded-sm space-y-3 font-sans text-xs">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-ink" />
+                <h4 className="font-semibold text-ink text-xs uppercase tracking-wider">
+                  Live Tag Lookup &amp; Verification
+                </h4>
+              </div>
+              <p className="text-muted leading-relaxed">
+                Enter any 7-character code or scanned token to inspect its assignment status in Kauntact registry.
+              </p>
+
+              <form onSubmit={handleLookupSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="e.g. KT83B45 or twr1IOXDf..."
+                  value={lookupInput}
+                  onChange={(e) => setLookupInput(e.target.value)}
+                  className="input !h-10 text-xs font-mono uppercase tracking-wider flex-1"
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  isLoading={isLookingUp}
+                  disabled={!lookupInput.trim()}
+                  className="!h-10 text-xs uppercase tracking-wider shrink-0"
+                >
+                  Check Status
+                </Button>
+              </form>
+
+              {lookupResult && (
+                <div className="p-3.5 bg-bg border border-border rounded-sm space-y-2 animate-fade-in mt-2">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-muted text-[11px] uppercase tracking-wider">Tag Code</span>
+                    <span className="font-mono font-bold text-ink text-sm">
+                      #{lookupResult.tagNumber}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-muted text-[11px] uppercase tracking-wider">Status</span>
+                    <span
+                      className={`font-semibold uppercase text-xs ${
+                        lookupResult.isAssigned ? 'text-accent' : 'text-success'
+                      }`}
+                    >
+                      {lookupResult.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-muted text-[11px] uppercase tracking-wider">Origin</span>
+                    <span className="text-ink font-medium">
+                      {lookupResult.origin === 'PREPRINTED_INVENTORY' ? 'Physical Preprinted Sticker' : 'Digital QR'}
+                    </span>
+                  </div>
+                  {lookupResult.pairedResource && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted text-[11px] uppercase tracking-wider">Paired Resource</span>
+                      <span className="font-medium text-ink">
+                        {lookupResult.pairedResource.name}
+                        {lookupResult.pairedResource.registrationNum ? ` • Plate: ${lookupResult.pairedResource.registrationNum}` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {lookupError && (
+                <div className="p-2.5 bg-danger/10 border border-danger/20 rounded-sm text-xs text-danger mt-2">
+                  {lookupError}
+                </div>
+              )}
+            </div>
+
+            {/* List of currently paired tags in account */}
+            <div className="space-y-2 font-sans pt-2">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">
+                PAIRED TAGS IN YOUR ACCOUNT ({pairedResources.length})
+              </span>
+
+              {isLoadingResources ? (
+                <div className="py-4 text-center text-xs text-muted flex items-center justify-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Loading paired tags...</span>
+                </div>
+              ) : pairedResources.length === 0 ? (
+                <div className="p-4 border border-border/70 bg-surface/20 rounded-sm text-center text-xs text-muted">
+                  No physical or digital tags currently paired to your resources.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {pairedResources.map((res) => {
+                    const tag = extractResourceTag(res);
+                    const resId = res.id || (res as any)._id;
+
+                    return (
+                      <div
+                        key={resId}
+                        className="p-3.5 border border-border bg-surface/40 rounded-sm flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-8 w-8 rounded-xs bg-ink text-surface flex items-center justify-center shrink-0">
+                            {res.type === 'VEHICLE' && <Car className="h-4 w-4" />}
+                            {res.type === 'PROPERTY' && <Building2 className="h-4 w-4" />}
+                            {res.type === 'EQUIPMENT' && <Wrench className="h-4 w-4" />}
+                            {(!res.type || res.type === 'OTHER') && <Layers className="h-4 w-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-ink block truncate">
+                              {res.name}
+                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-mono font-bold text-ink">
+                                #{tag}
+                              </span>
+                              <span className="text-[10px] text-accent uppercase tracking-wider">
+                                ● ASSIGNED
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Link to={`/resources/${resId}`}>
+                            <Button variant="secondary" className="!h-8 text-xs">
+                              Manage
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="danger"
+                            onClick={() =>
+                              setUnpairTarget({
+                                resourceId: resId,
+                                resourceName: res.name,
+                                tagNumber: tag,
+                              })
+                            }
+                            className="!h-8 text-xs"
+                            leftIcon={<Unlink className="h-3 w-3" />}
+                          >
+                            Unpair
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -361,6 +624,33 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* QR Modals */}
+      <PairQrModal
+        isOpen={isPairModalOpen}
+        onClose={() => setIsPairModalOpen(false)}
+        onSuccess={() => {
+          setIsPairModalOpen(false);
+          fetchResources();
+        }}
+      />
+
+      {unpairTarget && (
+        <UnpairQrModal
+          isOpen={Boolean(unpairTarget)}
+          onClose={() => setUnpairTarget(null)}
+          resourceId={unpairTarget.resourceId}
+          resourceName={unpairTarget.resourceName}
+          tagNumber={unpairTarget.tagNumber}
+          onUnpaired={() => {
+            if (unpairTarget?.resourceId) {
+              uncacheResourceTag(unpairTarget.resourceId);
+            }
+            setUnpairTarget(null);
+            fetchResources();
+          }}
+        />
       )}
     </Layout>
   );

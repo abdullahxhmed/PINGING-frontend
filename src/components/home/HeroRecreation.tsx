@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TargetCursor } from '../ui/TargetCursor';
 import { PingInSvgLogo } from '../brand/PingInLogo';
-import { QRCodeSVG } from 'qrcode.react';
+import { PingInQrCode } from '../qr/PingInQrCode';
+import { getPublicDomain } from '../../lib/api';
 import {
   Phone,
   CheckCircle2,
@@ -173,8 +174,8 @@ export const HeroRecreation: React.FC = () => {
 
                   {/* QR Core Container with Scan Viewport */}
                   <div className="relative bg-white p-4 sm:p-5 rounded-2xl border border-[#D8D5CC] overflow-hidden shadow-inner">
-                    <QRCodeSVG
-                      value="https://kauntact.com"
+                    <PingInQrCode
+                      value="DEMO-TAG"
                       size={220}
                       level="H"
                       fgColor="#11110F"
@@ -216,7 +217,7 @@ export const HeroRecreation: React.FC = () => {
 
                   {/* Bottom plate metadata */}
                   <div className="mt-4 flex items-center justify-between text-xs font-mono text-[#6E6B62] px-1">
-                    <span className="tracking-wider">kauntact.com</span>
+                    <span className="tracking-wider">{getPublicDomain()}/t/DEMO-TAG</span>
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm transition-all ${
                         heroState === 'scanning'

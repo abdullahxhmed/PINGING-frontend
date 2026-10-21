@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
-import { resourcesApi, extractResourceToken } from '../../lib/api';
+import {
+  resourcesApi,
+  extractResourceTag,
+  getPublicDomain,
+  buildTagQrUrl,
+} from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
 import { Surface, Button, Modal, useToast, DelayedSpinner } from '../../components/ui';
 import { EditResourceModal, QrCodeModal, ContactLinkPanel } from '../../components/resources';
@@ -27,6 +32,7 @@ export const ResourceDetailsPage: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [activeModalTag, setActiveModalTag] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -98,7 +104,8 @@ export const ResourceDetailsPage: React.FC = () => {
     );
   }
 
-  const token = extractResourceToken(resource);
+  const directTag = extractResourceTag(resource);
+  const activeTag = activeModalTag || directTag;
 
   return (
     <Layout>
@@ -224,7 +231,10 @@ export const ResourceDetailsPage: React.FC = () => {
         <ContactLinkPanel
           resource={resource}
           onRefresh={fetchResource}
-          onOpenQrModal={() => setShowQrModal(true)}
+          onOpenQrModal={(_customUrl, customTag) => {
+            setActiveModalTag(customTag || '');
+            setShowQrModal(true);
+          }}
         />
       </div>
 
@@ -265,13 +275,19 @@ export const ResourceDetailsPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* QR Modal */}
-      {token && (
+      {/* QR Modal - Only available when a QR tag is assigned */}
+      {Boolean(activeTag) && (
         <QrCodeModal
           isOpen={showQrModal}
-          onClose={() => setShowQrModal(false)}
-          token={token}
+          onClose={() => {
+            setShowQrModal(false);
+            setActiveModalTag('');
+          }}
+          tagNumber={activeTag}
+          token={activeTag}
           resourceName={resource.name}
+          customUrl={activeTag ? buildTagQrUrl(activeTag) : undefined}
+          customDisplayUrl={activeTag ? `${getPublicDomain()}/t/${activeTag}` : undefined}
         />
       )}
       </div>

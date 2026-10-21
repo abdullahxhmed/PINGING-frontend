@@ -1,15 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { PingInQrCode } from '../qr/PingInQrCode';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Check, Copy, ExternalLink, Download, Printer, Share2 } from 'lucide-react';
-import { getPublicBaseUrl, getPublicDomain } from '../../lib/api';
+import { Check, Copy, ExternalLink, Download, Printer, Share2, QrCode } from 'lucide-react';
+import { getPublicDomain } from '../../lib/api';
+import { buildTagQrUrl } from '../../lib/qr';
 import { PingInSvgLogo } from '../brand/PingInLogo';
 
 interface QrCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   token?: string;
+  tagNumber?: string;
   resourceName?: string;
   customUrl?: string;
   customDisplayUrl?: string;
@@ -37,6 +39,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   isOpen,
   onClose,
   token = '',
+  tagNumber = '',
   resourceName = 'Kauntact',
   customUrl,
   customDisplayUrl,
@@ -63,13 +66,16 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   const [isHoveringCard, setIsHoveringCard] = useState(false);
 
   // Dynamically resolve environment / Vercel / custom live domain URL
-  const baseUrl = getPublicBaseUrl();
+  // If customUrl is provided, use it. Otherwise, strictly require tagNumber or a short tag code (<= 12 chars).
+  // Under NO circumstance should a 64-character contact token be treated as a QR tag!
+  const candidateTag = tagNumber || (token && token.length <= 12 && !token.includes('/') ? token : '');
+  const rawTag = (candidateTag || '').trim();
+  const publicUrl = customUrl ? buildTagQrUrl(customUrl) : (rawTag ? buildTagQrUrl(rawTag) : '');
   const rawDomain = customDisplayUrl ? customDisplayUrl.replace(/^https?:\/\//, '') : getPublicDomain();
-  const domain = rawDomain.includes('localhost') ? 'kauntact.com' : rawDomain;
-  const publicUrl = customUrl || `${baseUrl}/c/${token}`;
+  const domain = rawDomain.includes('localhost') ? 'pingin.co.in' : rawDomain;
 
-  const shortToken = token ? (token.length > 8 ? token.slice(0, 8) : token) : 'qr';
-  const displayUrl = customDisplayUrl || (token ? `${domain}/c/${shortToken}` : domain);
+  const shortToken = rawTag || 'tag';
+  const displayUrl = customDisplayUrl || (publicUrl ? `${domain}/t/${rawTag || shortToken}` : domain);
   const footerText = `visit ${domain} to get yours!`;
 
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -317,6 +323,30 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     window.print();
   };
 
+  if (!publicUrl) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Printable Sticker"
+        description={`Physical adhesive sticker for ${resourceName || 'your resource'}.`}
+      >
+        <div className="py-8 text-center px-4">
+          <div className="w-12 h-12 rounded-full bg-border/40 flex items-center justify-center mx-auto mb-3 text-muted">
+            <QrCode className="w-6 h-6" />
+          </div>
+          <h4 className="font-semibold text-ink text-base mb-1">No QR Tag Assigned</h4>
+          <p className="text-xs text-muted max-w-sm mx-auto mb-5 leading-relaxed">
+            This resource does not have an active QR tag. To share or print physical stickers, please pair a windshield sticker or generate a digital tag first.
+          </p>
+          <Button variant="secondary" onClick={onClose} className="text-xs">
+            Close
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       isOpen={isOpen}
@@ -382,7 +412,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
               {/* Scannable QR Code */}
               <div ref={qrSvgRef} className="my-1.5 flex items-center justify-center w-full">
-                <QRCodeSVG
+                <PingInQrCode
                   value={publicUrl}
                   size={175}
                   level="H"

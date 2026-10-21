@@ -15,7 +15,7 @@ export const Container: React.FC<ContainerProps> = ({
   const Comp = Component as any;
   return (
     <Comp
-      className={`max-w-[var(--content-width)] w-full mx-auto px-4 sm:px-6 lg:px-8 ${className}`.trim()}
+      className={`max-w-[var(--content-width)] w-full mx-auto px-5 sm:px-6 lg:px-8 ${className}`.trim()}
       {...props}
     >
       {children}

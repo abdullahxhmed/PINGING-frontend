@@ -5,7 +5,7 @@ import { Container } from './Container';
 import { PingInLogo } from '../brand/PingInLogo';
 
 export const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -22,7 +22,18 @@ export const Navbar: React.FC = () => {
         </Link>
 
         {/* User / Actions */}
-        <div className="flex items-center gap-4 sm:gap-6 lg:gap-8">
+        <div className="flex items-center gap-3 sm:gap-6 lg:gap-8">
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-wider bg-ink text-surface hover:opacity-90 transition-opacity"
+              title="Open Admin Console"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              <span>Admin</span>
+            </Link>
+          )}
+
           {user && (
             <Link
               to="/settings"

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
+import { PingInQrCode } from '../../components/qr/PingInQrCode';
+import { buildTagQrUrl } from '../../lib/qr';
 import {
   Download,
   RotateCw,
@@ -740,8 +741,8 @@ export const KeychainPage: React.FC = () => {
                             : 'bg-white border-current/10'
                         }`}
                       >
-                        <QRCodeSVG
-                          value={qrValue || 'https://kauntact.com'}
+                        <PingInQrCode
+                          value={buildTagQrUrl(qrValue || 'DEMO83B')}
                           size={220}
                           level="M"
                           fgColor={isDark ? '#F5F4EE' : '#11110F'}
@@ -756,7 +757,7 @@ export const KeychainPage: React.FC = () => {
                         className="font-sans font-bold text-sm tracking-wider"
                         style={{ color: fadedTextColor }}
                       >
-                        kauntact.com
+                        pingin.co.in
                       </p>
                     </div>
                   </div>
@@ -785,8 +786,8 @@ export const KeychainPage: React.FC = () => {
           style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}
           aria-hidden="true"
         >
-          <QRCodeSVG
-            value={qrValue || 'https://kauntact.com'}
+          <PingInQrCode
+            value={buildTagQrUrl(qrValue || 'DEMO83B')}
             size={1300}
             level="M"
             fgColor={isDark ? '#F5F4EE' : '#11110F'}

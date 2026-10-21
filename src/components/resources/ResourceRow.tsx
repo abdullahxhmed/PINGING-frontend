@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
 import { IconButton, Button, Modal, useToast } from '../ui';
 import { QrCodeModal } from './QrCodeModal';
-import { resourcesApi, extractResourceToken, getResourceContactUrl } from '../../lib/api';
+import { resourcesApi, extractResourceToken, getResourceContactUrl, extractResourceTag } from '../../lib/api';
 import {
   ArrowUpRight,
   Trash2,
@@ -11,10 +11,7 @@ import {
   QrCode,
   Copy,
   Check,
-  Car,
-  Building2,
-  Wrench,
-  Layers,
+  Plus,
 } from 'lucide-react';
 
 export interface ResourceRowProps {
@@ -41,6 +38,7 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
 
   const resourceId = resource.id || (resource as any)._id;
   const token = extractResourceToken(resource);
+  const tagNumber = extractResourceTag(resource);
   const publicUrl = getResourceContactUrl(resource);
 
   const handleCopyLink = async () => {
@@ -70,162 +68,171 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
     }
   };
 
+  // Parse vehicle details
+  const rawDetails = resource.vehicleDetails;
+  const parsedDetails: any =
+    typeof rawDetails === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(rawDetails);
+          } catch {
+            return {};
+          }
+        })()
+      : rawDetails || {};
+
+  const reg =
+    parsedDetails?.registrationNum ||
+    parsedDetails?.registrationNumber ||
+    parsedDetails?.regNum ||
+    parsedDetails?.registrationLast4 ||
+    (resource as any)?.registrationNum ||
+    (resource as any)?.registrationLast4;
+
+  const clr =
+    parsedDetails?.vehicleColour ||
+    parsedDetails?.vehicleColor ||
+    parsedDetails?.colour ||
+    parsedDetails?.color ||
+    (resource as any)?.vehicleColour ||
+    (resource as any)?.color;
+
+  const rawDate =
+    resource.createdAt ||
+    (resource as any).created_at ||
+    (resource as any).CreatedAt;
+  const parsedDate = rawDate ? new Date(rawDate) : null;
+  const formattedDate =
+    parsedDate && !isNaN(parsedDate.getTime())
+      ? parsedDate.toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short',
+        })
+      : null;
+
   return (
     <>
-      <div className="py-7 sm:py-9 border-b border-border flex flex-col md:flex-row md:items-start justify-between gap-6 group">
-        {/* Left: Index + Name + Meta + Actions */}
-        <div className="flex items-start gap-5 sm:gap-8 flex-1 min-w-0">
-          {/* Index Counter (01, 02, etc.) */}
-          <span className="font-display text-xs sm:text-sm text-subtle font-medium shrink-0 pt-1 select-none">
-            {String(index + 1).padStart(2, '0')}
-          </span>
+      <div className="py-5 sm:py-6 border-b border-border flex items-start gap-3 sm:gap-6 group">
+        {/* Index Counter (01, 02, etc.) */}
+        <span className="font-mono text-xs text-muted/60 font-semibold shrink-0 pt-1 select-none w-5 text-right sm:w-auto">
+          {String(index + 1).padStart(2, '0')}
+        </span>
 
-          <div className="flex-1 min-w-0">
-            <Link
-              to={`/resources/${resourceId}`}
-              className="font-display font-medium text-xl sm:text-2xl text-ink uppercase tracking-tight hover:underline block truncate"
-            >
-              {resource.name}
-            </Link>
+        {/* Content Body */}
+        <div className="flex-1 min-w-0">
+          {/* Header Row: Title + Tag Badge + Edit/Delete actions */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <Link
+                to={`/resources/${resourceId}`}
+                className="font-display font-medium text-lg sm:text-2xl text-ink uppercase tracking-tight hover:underline truncate"
+              >
+                {resource.name}
+              </Link>
 
-            <div className="flex flex-wrap items-center gap-2 mt-1.5 font-sans text-[11px] text-muted uppercase tracking-wider">
-              {resource.type && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-surface border border-border text-ink font-semibold">
-                  {resource.type === 'VEHICLE' && <Car className="h-3 w-3" />}
-                  {resource.type === 'PROPERTY' && <Building2 className="h-3 w-3" />}
-                  {resource.type === 'EQUIPMENT' && <Wrench className="h-3 w-3" />}
-                  {resource.type === 'OTHER' && <Layers className="h-3 w-3" />}
-                  <span>{resource.type}</span>
+              {tagNumber ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-ink text-surface font-mono font-semibold text-[10px] tracking-wider shrink-0">
+                  <QrCode className="h-2.5 w-2.5 text-surface" />
+                  <span>#{tagNumber}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-border/50 text-muted font-mono text-[10px] tracking-wider uppercase shrink-0">
+                  <span>No Tag</span>
                 </span>
               )}
-              {(() => {
-                const rawDetails = resource.vehicleDetails;
-                const parsedDetails: any =
-                  typeof rawDetails === 'string'
-                    ? (() => {
-                        try {
-                          return JSON.parse(rawDetails);
-                        } catch {
-                          return {};
-                        }
-                      })()
-                    : rawDetails || {};
-
-                const reg =
-                  parsedDetails?.registrationNum ||
-                  parsedDetails?.registrationNumber ||
-                  parsedDetails?.regNum ||
-                  parsedDetails?.registrationLast4 ||
-                  (resource as any)?.registrationNum ||
-                  (resource as any)?.registrationLast4;
-
-                const clr =
-                  parsedDetails?.vehicleColour ||
-                  parsedDetails?.vehicleColor ||
-                  parsedDetails?.colour ||
-                  parsedDetails?.color ||
-                  (resource as any)?.vehicleColour ||
-                  (resource as any)?.color;
-
-                return (
-                  <>
-                    {reg && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-ink">
-                        <span>Plate:</span>
-                        <span className="font-mono font-medium">•••• {reg}</span>
-                      </span>
-                    )}
-                    {clr && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-bg border border-border text-muted">
-                        <span>Colour:</span>
-                        <span className="text-ink font-medium">{clr}</span>
-                      </span>
-                    )}
-                  </>
-                );
-              })()}
-              {(() => {
-                const rawDate =
-                  resource.createdAt ||
-                  (resource as any).created_at ||
-                  (resource as any).CreatedAt;
-                if (!rawDate) return null;
-                const date = new Date(rawDate);
-                if (isNaN(date.getTime())) return null;
-                return (
-                  <span>
-                    • ADDED{' '}
-                    {date.toLocaleDateString(undefined, {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                );
-              })()}
             </div>
 
-            {/* Direct QR & Share Action Bar */}
-            <div className="mt-4 flex flex-wrap items-center gap-2.5">
-              {token ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowQr(true)}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-sm bg-surface border border-border hover:border-ink text-xs font-sans font-semibold tracking-wider uppercase text-ink transition-colors cursor-pointer"
-                  >
-                    <QrCode className="h-3.5 w-3.5" />
-                    <span>SHARE QR CODE</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-transparent border border-border hover:border-border-strong text-xs font-sans text-muted hover:text-ink transition-colors cursor-pointer"
-                  >
-                    {copied ? (
-                      <Check className="h-3.5 w-3.5 text-success" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                    <span>{copied ? 'COPIED' : 'COPY LINK'}</span>
-                  </button>
-
-                  <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-sans text-muted hover:text-ink underline ml-1"
-                  >
-                    <span>Preview</span>
-                    <ArrowUpRight className="h-3 w-3" />
-                  </a>
-                </>
-              ) : (
-                <span className="text-xs font-sans text-muted">
-                  No active contact token
-                </span>
-              )}
+            {/* Edit / Delete Actions */}
+            <div className="flex items-center gap-1 shrink-0">
+              <IconButton
+                icon={<Edit2 className="h-3.5 w-3.5" />}
+                label="Edit resource"
+                onClick={() => onEdit(resource)}
+              />
+              <IconButton
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                label="Delete resource"
+                variant="danger"
+                disabled={isDeleting}
+                onClick={() => setIsDeleteModalOpen(true)}
+              />
             </div>
           </div>
-        </div>
 
-        {/* Right: Quiet Action Controls */}
-        <div className="flex items-center justify-end gap-2 shrink-0 pl-10 md:pl-0 pt-0 md:pt-1">
-          <div className="flex items-center gap-1">
-            <IconButton
-              icon={<Edit2 className="h-3.5 w-3.5" />}
-              label="Edit resource"
-              onClick={() => onEdit(resource)}
-            />
+          {/* Clean Editorial Meta (No repetitive boxes) */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-muted">
+            {resource.type && (
+              <span className="capitalize text-ink/75 font-medium">
+                {resource.type.toLowerCase()}
+              </span>
+            )}
+            {reg && (
+              <>
+                <span className="text-border select-none">&bull;</span>
+                <span className="font-mono text-ink/80">•••• {reg}</span>
+              </>
+            )}
+            {clr && (
+              <>
+                <span className="text-border select-none">&bull;</span>
+                <span className="capitalize text-muted">{clr.toLowerCase()}</span>
+              </>
+            )}
+            {formattedDate && (
+              <>
+                <span className="text-border select-none">&bull;</span>
+                <span className="text-muted/60">Added {formattedDate}</span>
+              </>
+            )}
+          </div>
 
-            <IconButton
-              icon={<Trash2 className="h-3.5 w-3.5" />}
-              label="Delete resource"
-              variant="danger"
-              disabled={isDeleting}
-              onClick={() => setIsDeleteModalOpen(true)}
-            />
+          {/* Action Bar (Mobile-friendly, no heavy duplicate borders) */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2 sm:gap-2.5 text-xs">
+            {tagNumber ? (
+              <button
+                type="button"
+                onClick={() => setShowQr(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-ink text-surface text-xs font-semibold uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-2xs"
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                <span>Share QR</span>
+              </button>
+            ) : (
+              <Link
+                to={`/resources/${resourceId}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs border border-border hover:border-ink text-xs font-semibold uppercase tracking-wider text-ink transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Pair Tag</span>
+              </Link>
+            )}
+
+            {token && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xs text-muted hover:text-ink hover:bg-surface transition-colors cursor-pointer"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-success" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  <span>{copied ? 'Copied' : 'Copy link'}</span>
+                </button>
+
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xs text-muted hover:text-ink hover:underline transition-colors"
+                >
+                  <span>Preview</span>
+                  <ArrowUpRight className="h-3 w-3" />
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -258,13 +265,13 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
         </div>
       </Modal>
 
-      {/* QR Sticker Modal */}
-      {token && (
+      {/* QR Sticker Modal - strictly gated to verified QR tag */}
+      {Boolean(tagNumber) && (
         <QrCodeModal
           isOpen={showQr}
           onClose={() => setShowQr(false)}
           resourceName={resource.name}
-          token={token}
+          tagNumber={tagNumber}
         />
       )}
     </>
