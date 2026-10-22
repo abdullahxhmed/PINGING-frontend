@@ -1,4 +1,5 @@
 import { authStorage } from './auth';
+import { resourceCache } from './resourceCache';
 import type {
   AuthResponse,
   ContactLink,
@@ -19,6 +20,7 @@ import type {
   GenerateQrPayload,
   GenerateQrResponse,
   ResourceCallsResponse,
+  ResourceAnalyticsResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -324,6 +326,9 @@ export const resourcesApi = {
     const qs = query.toString();
     return api.get<ResourceCallsResponse>(`/api/resources/${id}/calls${qs ? `?${qs}` : ''}`);
   },
+
+  getAnalytics: (id: string) =>
+    api.get<ResourceAnalyticsResponse>(`/api/resources/${id}/analytics`),
 };
 
 export const publicContactApi = {
@@ -337,6 +342,18 @@ export const publicContactApi = {
     return await api.post<VerifyRegistrationResponse>(`/api/contact/${token}/verify`, {
       registrationNum,
     });
+  },
+
+  recordVisit: async (token: string, visitId: string, source: string = 'direct') => {
+    try {
+      return await api.post<{ success: boolean }>(`/api/contact/${token}/visit`, {
+        visitId,
+        source,
+      });
+    } catch {
+      // Beacon is non-blocking fire-and-forget
+      return { success: false };
+    }
   },
 
   requestContact: async (token: string, contactorPhoneNumber: string) => {
@@ -358,12 +375,26 @@ export const publicContactApi = {
 export const communicationApi = {
   /**
    * Initiates a private proxied call to the owner.
-   * POST /api/communication/:token/call
+   * POST /api/communication/:token/call (with /call/:token fallback)
    */
-  initiateCall: async (token: string, phoneNumber: string): Promise<InitiateCallResponse> => {
-    return await api.post<InitiateCallResponse>(`/api/communication/${token}/call`, {
-      phoneNumber,
-    });
+  initiateCall: async (
+    token: string,
+    phoneNumber: string,
+    visitId?: string | null
+  ): Promise<InitiateCallResponse> => {
+    const payload: { phoneNumber: string; visitId?: string } = { phoneNumber };
+    if (visitId) {
+      payload.visitId = visitId;
+    }
+
+    try {
+      return await api.post<InitiateCallResponse>(`/api/communication/${token}/call`, payload);
+    } catch (err: any) {
+      if (err.statusCode === 404) {
+        return await api.post<InitiateCallResponse>(`/api/communication/call/${token}`, payload);
+      }
+      throw err;
+    }
   },
 
   /**
@@ -620,7 +651,28 @@ export function extractResourceTag(resource: any): string {
     if (code) return String(code).toUpperCase();
   }
 
-  // 8. Client-side resilience cache fallback
+  // 8. If the backend object explicitly defines empty, null, or unassigned tag properties,
+  // the server is the single source of truth. DO NOT revive previous tags from localStorage!
+  if (
+    ('tagNumber' in resource && !resource.tagNumber) ||
+    ('tag_number' in resource && !resource.tag_number) ||
+    ('qrTag' in resource && !resource.qrTag) ||
+    ('qr_tag' in resource && !resource.qr_tag) ||
+    ('tag' in resource && !resource.tag) ||
+    (Array.isArray(resource.qrTags) && resource.qrTags.length === 0) ||
+    (Array.isArray(resource.tags) && resource.tags.length === 0)
+  ) {
+    if (resId && typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(`kauntact_tag_${resId}`);
+      } catch {
+        // Ignore
+      }
+    }
+    return '';
+  }
+
+  // 9. Client-side resilience cache fallback (ONLY for partial/sparse client representations)
   if (resId && typeof window !== 'undefined') {
     const cached = localStorage.getItem(`kauntact_tag_${resId}`);
     if (cached) return cached.toUpperCase();
@@ -642,8 +694,60 @@ export function uncacheResourceTag(resourceId: string) {
   if (!resourceId || typeof window === 'undefined') return;
   try {
     localStorage.removeItem(`kauntact_tag_${resourceId}`);
+    resourceCache.invalidate();
+    window.dispatchEvent(new CustomEvent('resource:updated', { detail: { resourceId } }));
+    window.dispatchEvent(new CustomEvent('tag:updated', { detail: { resourceId } }));
   } catch {
     // Ignore localStorage errors
+  }
+}
+
+/**
+ * Synchronizes client caches when a tag is updated, reassigned, or removed.
+ * - Removes any conflicting mappings of newTagNumber or previousTagNumber across all resources
+ * - Updates the target resource's cache
+ * - Invalidates cached lists and broadcasts update events across the app
+ */
+export function syncResourceTagUpdate(
+  resourceId?: string,
+  newTagNumber?: string | null,
+  previousTagNumber?: string | null
+) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const tagToClear = previousTagNumber || newTagNumber;
+    if (tagToClear) {
+      const cleanUpper = tagToClear.toUpperCase().trim();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('kauntact_tag_')) {
+          if (localStorage.getItem(key)?.toUpperCase() === cleanUpper) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    }
+
+    if (resourceId && newTagNumber) {
+      localStorage.setItem(`kauntact_tag_${resourceId}`, newTagNumber.toUpperCase().trim());
+    } else if (resourceId && !newTagNumber) {
+      localStorage.removeItem(`kauntact_tag_${resourceId}`);
+    }
+
+    // Invalidate dashboard list cache so fresh server data is fetched
+    resourceCache.invalidate();
+
+    // Broadcast across windows and tabs
+    window.dispatchEvent(
+      new CustomEvent('resource:updated', {
+        detail: { resourceId, newTagNumber, previousTagNumber },
+      })
+    );
+    window.dispatchEvent(new CustomEvent('tag:updated', { detail: { resourceId, newTagNumber } }));
+    window.dispatchEvent(new CustomEvent('auth:refresh'));
+  } catch (err) {
+    console.warn('Failed to sync resource tag update', err);
   }
 }
 

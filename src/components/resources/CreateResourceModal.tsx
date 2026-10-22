@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
-import { resourcesApi, qrApi, cacheResourceTag, extractConflictTagNumber } from '../../lib/api';
+import { resourcesApi, qrApi, syncResourceTagUpdate, extractConflictTagNumber } from '../../lib/api';
 import type { Resource, ResourceType, CreateResourcePayload, QrTagLookupResponse } from '../../types/api';
 import { QrCode, Sparkles, Check, AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -178,7 +178,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
           const pairRes = await qrApi.pair(pairPayload);
           const assignedCode = pairRes.tag?.tagNumber || cleanSticker.tagNumber;
           createdResource.tagNumber = assignedCode;
-          if (assignedCode) cacheResourceTag(createdId, assignedCode);
+          if (assignedCode && createdId) syncResourceTagUpdate(createdId, assignedCode);
           toast.success(`"${trimmedName}" created and sticker #${assignedCode || cleanSticker.raw} paired!`);
         } catch (pairErr: any) {
           const pairMsg = pairErr?.data?.message || pairErr.message || 'Resource created, but sticker pairing failed.';
@@ -193,14 +193,14 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
           });
           const genCode = genRes.tag?.tagNumber;
           createdResource.tagNumber = genCode;
-          if (genCode) cacheResourceTag(createdId, genCode);
+          if (genCode) syncResourceTagUpdate(createdId, genCode);
           toast.success(`"${trimmedName}" created with digital QR tag #${genCode}!`);
         } catch (genErr: any) {
           const genMsg = genErr?.data?.message || genErr.message || '';
           const conflictCode = extractConflictTagNumber(genMsg);
           if (conflictCode) {
             createdResource.tagNumber = conflictCode;
-            cacheResourceTag(createdId, conflictCode);
+            syncResourceTagUpdate(createdId, conflictCode);
             toast.info(`"${trimmedName}" created; active tag #${conflictCode} linked.`);
           } else {
             toast.success(`"${trimmedName}" added successfully`);

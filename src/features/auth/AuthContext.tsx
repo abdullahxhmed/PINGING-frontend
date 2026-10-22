@@ -121,8 +121,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Refresh user role & profile on initial load
     refreshUser();
 
+    const handleUpdate = () => {
+      refreshUser();
+    };
+
+    window.addEventListener('resource:updated', handleUpdate);
+    window.addEventListener('tag:updated', handleUpdate);
+    window.addEventListener('auth:refresh', handleUpdate);
+
     return () => {
       window.removeEventListener('auth:expired', handleAuthExpired);
+      window.removeEventListener('resource:updated', handleUpdate);
+      window.removeEventListener('tag:updated', handleUpdate);
+      window.removeEventListener('auth:refresh', handleUpdate);
     };
   }, []);
 

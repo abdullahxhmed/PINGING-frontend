@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
-import { qrApi } from '../../lib/api';
+import { qrApi, syncResourceTagUpdate } from '../../lib/api';
 import type { UnpairQrPayload, UnpairQrResponse } from '../../types/api';
 import { Unlink, AlertTriangle } from 'lucide-react';
 
@@ -40,6 +40,7 @@ export const UnpairQrModal: React.FC<UnpairQrModalProps> = ({
 
     try {
       const res = await qrApi.unpair(payload);
+      syncResourceTagUpdate(resourceId, null, tagNumber);
       toast.success(res.message || 'QR tag successfully unassigned.');
       if (onUnpaired) {
         onUnpaired(res);

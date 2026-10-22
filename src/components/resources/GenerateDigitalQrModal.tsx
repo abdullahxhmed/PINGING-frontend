@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
-import { qrApi, extractConflictTagNumber, cacheResourceTag } from '../../lib/api';
+import { qrApi, extractConflictTagNumber, syncResourceTagUpdate } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
 import { PingInQrCode } from '../qr/PingInQrCode';
 import type { GenerateQrPayload, GenerateQrResponse } from '../../types/api';
@@ -50,6 +50,10 @@ export const GenerateDigitalQrModal: React.FC<GenerateDigitalQrModalProps> = ({
 
     try {
       const res = await qrApi.generate(payload);
+      const generatedTag = res.tag?.tagNumber;
+      if (resourceId && generatedTag) {
+        syncResourceTagUpdate(resourceId, generatedTag);
+      }
       setGeneratedData(res);
       toast.success(res.message || 'Digital QR tag generated!');
       if (onGenerated) {
@@ -59,7 +63,7 @@ export const GenerateDigitalQrModal: React.FC<GenerateDigitalQrModalProps> = ({
       const msg = err?.data?.message || err.message || 'Failed to generate QR tag';
       const conflictTag = extractConflictTagNumber(msg);
       if (conflictTag) {
-        if (resourceId) cacheResourceTag(resourceId, conflictTag);
+        if (resourceId) syncResourceTagUpdate(resourceId, conflictTag);
         toast.info(`Active QR tag #${conflictTag} detected on this resource.`);
         if (onGenerated) {
           onGenerated({

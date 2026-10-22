@@ -45,17 +45,30 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // If cached data is present and this is an in-app back/forth navigation, skip refetch
-    if (cachedList && !isReload) {
-      setIsLoading(false);
-      return;
-    }
+    // Stale-while-revalidate: display cached resources immediately without blocking,
+    // but always fetch fresh server data so tag additions/updates/unpairings are never missed!
     fetchResources(!cachedList);
-  }, [fetchResources, cachedList, isReload]);
+
+    const handleUpdate = () => {
+      fetchResources(false);
+    };
+
+    window.addEventListener('resource:updated', handleUpdate);
+    window.addEventListener('tag:updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('resource:updated', handleUpdate);
+      window.removeEventListener('tag:updated', handleUpdate);
+    };
+  }, [fetchResources, cachedList]);
 
   const handleCreated = (newResource: Resource) => {
+    const newId = newResource.id || (newResource as any)._id;
     setResources((prev) => {
-      const next = [newResource, ...prev];
+      const exists = prev.some((r) => (r.id || (r as any)._id) === newId);
+      const next = exists
+        ? prev.map((r) => ((r.id || (r as any)._id) === newId ? { ...r, ...newResource } : r))
+        : [newResource, ...prev];
       resourceCache.setResourcesList(next);
       return next;
     });

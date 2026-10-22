@@ -11,7 +11,10 @@ import {
   Clock,
   Layers,
   ChevronRight,
+  BarChart2,
+  X,
 } from 'lucide-react';
+import { ResourceAnalyticsModal } from '../../components/admin/ResourceAnalyticsModal';
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +24,14 @@ export const AdminDashboardPage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [analyticsResource, setAnalyticsResource] = useState<{
+    id: string;
+    name?: string;
+    tagNumber?: string;
+    ownerName?: string;
+  } | null>(null);
+  const [isLookupOpen, setIsLookupOpen] = useState(false);
+  const [lookupId, setLookupId] = useState('');
 
   const fetchDashboard = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -114,6 +125,15 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* Primary Header Action */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsLookupOpen(true)}
+            className="px-3.5 py-2 bg-surface border border-border hover:border-ink text-ink text-xs font-semibold uppercase tracking-wider rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Inspect scan and traffic analytics for any resource"
+          >
+            <BarChart2 className="w-3.5 h-3.5" />
+            <span>Resource Analytics</span>
+          </button>
           <button
             type="button"
             onClick={() => setIsBatchModalOpen(true)}
@@ -405,6 +425,92 @@ export const AdminDashboardPage: React.FC = () => {
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onSuccess={() => fetchDashboard(true)}
+      />
+
+      {/* Quick Lookup Modal */}
+      {isLookupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs">
+          <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-ink" />
+                <h3 className="font-display text-base font-semibold text-ink">
+                  Inspect Resource Analytics
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLookupOpen(false);
+                  setLookupId('');
+                }}
+                className="text-muted hover:text-ink p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted">
+              Enter a Resource ID to inspect real-time visitor traffic, QR scans, device breakdowns, and conversion metrics.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = lookupId.trim();
+                if (trimmed) {
+                  setIsLookupOpen(false);
+                  setAnalyticsResource({ id: trimmed });
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-muted mb-1.5">
+                  Resource ID
+                </label>
+                <input
+                  type="text"
+                  value={lookupId}
+                  onChange={(e) => setLookupId(e.target.value)}
+                  placeholder="e.g. res_clxyz... or UUID"
+                  className="w-full px-3 py-2 bg-bg border border-border rounded text-xs text-ink placeholder:text-muted/60 focus:outline-hidden focus:border-ink font-mono"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLookupOpen(false);
+                    setLookupId('');
+                  }}
+                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted hover:text-ink"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!lookupId.trim()}
+                  className="px-4 py-2 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  View Analytics
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Resource Analytics Modal */}
+      <ResourceAnalyticsModal
+        isOpen={Boolean(analyticsResource)}
+        onClose={() => setAnalyticsResource(null)}
+        resourceId={analyticsResource?.id || null}
+        resourceName={analyticsResource?.name}
+        tagNumber={analyticsResource?.tagNumber}
+        ownerName={analyticsResource?.ownerName}
       />
     </AdminLayout>
   );

@@ -214,8 +214,8 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
         </div>
       </div>
 
-      {/* 4-Column Balanced Tab Segment (No overflowing scroll row, natural casing) */}
-      <div className="grid grid-cols-4 border-b border-border">
+      {/* 3-Column Balanced Tab Segment (Natural casing) */}
+      <div className="grid grid-cols-3 border-b border-border">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (

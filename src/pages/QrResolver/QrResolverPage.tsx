@@ -48,9 +48,9 @@ export const QrResolverPage: React.FC = () => {
         if (!isMounted) return;
         setResolveData(res);
 
-        // Case A: Assigned -> Forward directly to public contact page
+        // Case A: Assigned -> Forward directly to public contact page with qr_scan source
         if (res.action === 'CONTACT' && res.contactToken) {
-          navigate(`/contact/${res.contactToken}`, { replace: true });
+          navigate(`/contact/${res.contactToken}?src=qr_scan`, { replace: true });
           return;
         }
       } catch (err: any) {
@@ -61,7 +61,7 @@ export const QrResolverPage: React.FC = () => {
           setLookupData(fallback);
 
           if (fallback.isAssigned) {
-            navigate(`/contact/${identifier}`, { replace: true });
+            navigate(`/contact/${identifier}?src=qr_scan`, { replace: true });
             return;
           }
         } catch (fallbackErr: any) {

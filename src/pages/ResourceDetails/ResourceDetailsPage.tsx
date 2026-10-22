@@ -8,6 +8,7 @@ import {
   getResourceContactUrl,
   buildTagQrUrl,
   resourceCache,
+  syncResourceTagUpdate,
 } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
 import { Surface, Button, Modal, useToast, DelayedSpinner } from '../../components/ui';
@@ -119,18 +120,28 @@ export const ResourceDetailsPage: React.FC = () => {
     if (!id) return;
 
     const cached = resourceCache.getResource(id);
-    // If we have cached data and this is NOT a browser reload, skip refetch on back/forth
-    if (cached && !isReload) {
+    if (cached) {
       setResource(cached);
       const cachedCalls = resourceCache.getCalls(id);
       if (cachedCalls) setCalls(cachedCalls);
       setIsLoading(false);
-      return;
     }
 
-    // Otherwise (browser reload or no cache), fetch fresh from network
+    // Always fetch fresh resource from backend to reflect tag additions, changes, or removals
     fetchResource(!cached);
-  }, [id, fetchResource, isReload]);
+
+    const handleUpdate = () => {
+      fetchResource(false);
+    };
+
+    window.addEventListener('resource:updated', handleUpdate);
+    window.addEventListener('tag:updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('resource:updated', handleUpdate);
+      window.removeEventListener('tag:updated', handleUpdate);
+    };
+  }, [id, fetchResource]);
 
   const handleConfirmDelete = async () => {
     if (!resource) return;
@@ -141,6 +152,7 @@ export const ResourceDetailsPage: React.FC = () => {
     try {
       await resourcesApi.delete(targetId);
       resourceCache.removeResource(targetId);
+      syncResourceTagUpdate(targetId, null, activeTag);
       toast.success(`"${resource.name}" deleted successfully`);
       setIsDeleteModalOpen(false);
       navigate('/dashboard');
@@ -267,6 +279,7 @@ export const ResourceDetailsPage: React.FC = () => {
             {activeTab === 'activity' && (
               <ResourceActivityTab
                 events={activities}
+                resourceId={resource.id}
               />
             )}
 
@@ -330,6 +343,7 @@ export const ResourceDetailsPage: React.FC = () => {
           resourceName={resource.name}
           tagNumber={activeTag}
           onUnpaired={() => {
+            syncResourceTagUpdate(resource.id, null, activeTag);
             fetchResource(false);
             setIsUnpairModalOpen(false);
           }}

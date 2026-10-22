@@ -14,7 +14,9 @@ import {
   XCircle,
   X,
   QrCode,
+  BarChart2,
 } from 'lucide-react';
+import { ResourceAnalyticsModal } from '../../components/admin/ResourceAnalyticsModal';
 
 export const AdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
@@ -33,6 +35,14 @@ export const AdminUsersPage: React.FC = () => {
   const [userDetail, setUserDetail] = useState<AdminUserDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Resource Analytics Modal
+  const [analyticsResource, setAnalyticsResource] = useState<{
+    id: string;
+    name: string;
+    tagNumber?: string;
+    ownerName?: string;
+  } | null>(null);
 
   // Search debounce
   useEffect(() => {
@@ -398,8 +408,8 @@ export const AdminUsersPage: React.FC = () => {
                               )}
                             </div>
 
-                            {/* Paired QR tag */}
-                            <div>
+                            {/* Actions & QR Tag */}
+                            <div className="flex items-center gap-2">
                               {res.qrTag ? (
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded">
                                   <QrCode className="w-4 h-4 text-ink" />
@@ -417,6 +427,23 @@ export const AdminUsersPage: React.FC = () => {
                                   No QR tag paired
                                 </span>
                               )}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAnalyticsResource({
+                                    id: res.id,
+                                    name: res.name,
+                                    tagNumber: res.qrTag?.tagNumber,
+                                    ownerName: userDetail.name,
+                                  })
+                                }
+                                className="px-2.5 py-1.5 rounded border border-border bg-surface hover:bg-bg text-ink text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                                title="View scan and visit analytics"
+                              >
+                                <BarChart2 className="w-3.5 h-3.5" />
+                                <span>Analytics</span>
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -444,6 +471,16 @@ export const AdminUsersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Resource Analytics Modal */}
+      <ResourceAnalyticsModal
+        isOpen={Boolean(analyticsResource)}
+        onClose={() => setAnalyticsResource(null)}
+        resourceId={analyticsResource?.id || null}
+        resourceName={analyticsResource?.name}
+        tagNumber={analyticsResource?.tagNumber}
+        ownerName={analyticsResource?.ownerName}
+      />
     </AdminLayout>
   );
 };

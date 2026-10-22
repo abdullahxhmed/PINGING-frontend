@@ -22,7 +22,9 @@ import {
   X,
   Trash2,
   Sparkles,
+  BarChart2,
 } from 'lucide-react';
+import { ResourceAnalyticsModal } from '../../components/admin/ResourceAnalyticsModal';
 
 export const AdminQrInventoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +59,12 @@ export const AdminQrInventoryPage: React.FC = () => {
   });
   const [revokeConfirmTag, setRevokeConfirmTag] = useState<AdminQrTagItem | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [analyticsResource, setAnalyticsResource] = useState<{
+    id: string;
+    name: string;
+    tagNumber?: string;
+    ownerName?: string;
+  } | null>(null);
 
   // Single Generate Form
   const [singleResourceId, setSingleResourceId] = useState('');
@@ -405,6 +413,25 @@ export const AdminQrInventoryPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {t.resource?.id && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAnalyticsResource({
+                                id: t.resource!.id,
+                                name: t.resource!.name,
+                                tagNumber: t.tagNumber,
+                                ownerName: t.resource?.owner ? `${t.resource.owner.name} (${t.resource.owner.mobileNumber})` : undefined,
+                              })
+                            }
+                            className="px-2.5 py-1 bg-surface border border-border hover:border-ink rounded text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            title="View scan & visitor analytics"
+                          >
+                            <BarChart2 className="w-3 h-3 text-muted" />
+                            <span>Analytics</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() =>
@@ -667,6 +694,16 @@ export const AdminQrInventoryPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Resource Analytics Modal */}
+      <ResourceAnalyticsModal
+        isOpen={Boolean(analyticsResource)}
+        onClose={() => setAnalyticsResource(null)}
+        resourceId={analyticsResource?.id || null}
+        resourceName={analyticsResource?.name}
+        tagNumber={analyticsResource?.tagNumber}
+        ownerName={analyticsResource?.ownerName}
+      />
     </AdminLayout>
   );
 };

@@ -6,6 +6,10 @@ export interface User {
   role?: 'USER' | 'ADMIN';
   createdAt?: string;
   updatedAt?: string;
+  tagNumber?: string | null;
+  tag?: string | null;
+  tags?: string[];
+  qrTag?: any;
 }
 
 export interface ContactEndpoint {
@@ -22,6 +26,10 @@ export interface UserProfile {
   createdAt?: string;
   updatedAt?: string;
   contactEndpoint?: ContactEndpoint | null;
+  tagNumber?: string | null;
+  tag?: string | null;
+  tags?: string[];
+  qrTag?: any;
 }
 
 export interface ContactLink {
@@ -144,6 +152,56 @@ export interface VerifyRegistrationResponse {
 export interface ApiErrorResponse {
   message?: string;
   error?: string;
+}
+
+export type VisitSource = 'qr_scan' | 'share' | 'direct';
+
+export interface TagVisitPayload {
+  visitId: string;
+  source: VisitSource | string;
+}
+
+export interface ResourceAnalyticsSummary {
+  totalVisits: number;
+  qrScans: number;
+  sharedVisits: number;
+  directVisits: number;
+  callsInitiated: number;
+  callsCompleted: number;
+  conversionRate: number;
+}
+
+export interface ResourceAnalyticsDeviceBreakdown {
+  mobile: number;
+  desktop: number;
+  tablet: number;
+}
+
+export interface ResourceAnalyticsHourlyItem {
+  hour: number;
+  count: number;
+}
+
+export interface ResourceAnalyticsRecentVisit {
+  id: string;
+  createdAt: string;
+  deviceType: 'MOBILE' | 'DESKTOP' | 'TABLET' | string;
+  source: VisitSource | string;
+  os?: string;
+  browser?: string;
+}
+
+export interface ResourceAnalyticsResponse {
+  resourceId: string;
+  summary: ResourceAnalyticsSummary;
+  deviceBreakdown: ResourceAnalyticsDeviceBreakdown;
+  hourlyActivity: ResourceAnalyticsHourlyItem[];
+  recentVisits: ResourceAnalyticsRecentVisit[];
+}
+
+export interface InitiateCallPayload {
+  phoneNumber: string;
+  visitId?: string | null;
 }
 
 export interface InitiateCallResponse {

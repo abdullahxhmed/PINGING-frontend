@@ -3,7 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useToast } from '../ui/Toast';
-import { qrApi, resourcesApi, cacheResourceTag } from '../../lib/api';
+import { qrApi, resourcesApi, syncResourceTagUpdate } from '../../lib/api';
 import type { Resource, ResourceType, QrTagLookupResponse, PairQrResponse, CreateResourcePayload } from '../../types/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { PingInQrCode } from '../qr/PingInQrCode';
@@ -251,7 +251,7 @@ export const PairQrModal: React.FC<PairQrModalProps> = ({
       const res = await qrApi.pair(pairPayload);
       const code = res.tag?.tagNumber || clean.tagNumber;
       if (code && targetResourceId) {
-        cacheResourceTag(targetResourceId, code);
+        syncResourceTagUpdate(targetResourceId, code);
       }
       setSuccessData(res);
       toast.success(res.message || 'QR tag successfully paired!');

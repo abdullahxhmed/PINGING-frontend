@@ -4,7 +4,7 @@ import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useToast } from '../../components/ui/Toast';
-import { qrApi, resourcesApi, cacheResourceTag } from '../../lib/api';
+import { qrApi, resourcesApi, syncResourceTagUpdate } from '../../lib/api';
 import type { Resource, ResourceType, QrTagLookupResponse, PairQrResponse, CreateResourcePayload } from '../../types/api';
 import {
   QrCode,
@@ -213,7 +213,7 @@ export const QrPairPage: React.FC = () => {
       const res = await qrApi.pair(payload);
       const code = res.tag?.tagNumber || clean.tagNumber;
       if (code && targetId) {
-        cacheResourceTag(targetId, code);
+        syncResourceTagUpdate(targetId, code);
       }
       setSuccessResult(res);
       toast.success(res.message || 'Tag paired successfully!');

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { ActivityItem } from './ResourceOverviewTab';
+import { resourcesApi } from '../../lib/api';
 import {
   PhoneCall,
   QrCode,
@@ -16,13 +17,47 @@ export type ActivityFilter = 'all' | 'scans' | 'clicks' | 'calls' | 'notificatio
 
 interface ResourceActivityTabProps {
   events: ActivityItem[];
+  resourceId?: string;
 }
 
 export const ResourceActivityTab: React.FC<ResourceActivityTabProps> = ({
   events,
+  resourceId,
 }) => {
   const [filter, setFilter] = useState<ActivityFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<{
+    scans: number;
+    clicks: number;
+    calls: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!resourceId) return;
+    let isMounted = true;
+
+    resourcesApi
+      .getAnalytics(resourceId)
+      .then((res: any) => {
+        if (!isMounted) return;
+        const payload = res?.data || res;
+        const s = payload?.summary;
+        if (s) {
+          setSummary({
+            scans: Number(s.qrScans ?? 0),
+            clicks: Number(s.sharedVisits ?? 0) + Number(s.directVisits ?? 0),
+            calls: Number(s.callsInitiated ?? 0),
+          });
+        }
+      })
+      .catch(() => {
+        // Quietly fallback to event counts
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [resourceId]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -64,17 +99,66 @@ export const ResourceActivityTab: React.FC<ResourceActivityTabProps> = ({
     }
   };
 
+  const displayScans = summary ? summary.scans : counts.scans;
+  const displayClicks = summary ? summary.clicks : counts.clicks;
+  const displayCalls = summary ? summary.calls : counts.calls;
+
   const filterTabs: { key: ActivityFilter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: counts.all },
-    { key: 'scans', label: 'Scans', count: counts.scans },
-    { key: 'clicks', label: 'Clicks', count: counts.clicks },
-    { key: 'calls', label: 'Calls', count: counts.calls },
+    { key: 'scans', label: 'Scans', count: displayScans },
+    { key: 'clicks', label: 'Clicks', count: displayClicks },
+    { key: 'calls', label: 'Calls', count: displayCalls },
     { key: 'notifications', label: 'Notifications', count: counts.notifications },
   ];
 
   return (
     <div className="space-y-3.5 animate-fade-in">
-      {/* 1. Filter strip */}
+      {/* 1. Concise 3-Stat Metric Row (Scans, Clicks, Calls Initiated) */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Scans */}
+        <div className="rounded-xl border border-border bg-surface p-3.5 sm:p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted text-xs mb-1">
+            <span className="font-medium text-[11px]">Scans</span>
+            <QrCode className="h-3.5 w-3.5 text-muted" />
+          </div>
+          <div>
+            <span className="font-display text-xl sm:text-2xl font-semibold text-ink tracking-tight">
+              {displayScans.toLocaleString()}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted mt-0.5 truncate">Physical QR scans</p>
+        </div>
+
+        {/* Clicks */}
+        <div className="rounded-xl border border-border bg-surface p-3.5 sm:p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted text-xs mb-1">
+            <span className="font-medium text-[11px]">Clicks</span>
+            <Eye className="h-3.5 w-3.5 text-muted" />
+          </div>
+          <div>
+            <span className="font-display text-xl sm:text-2xl font-semibold text-ink tracking-tight">
+              {displayClicks.toLocaleString()}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted mt-0.5 truncate">Shared & direct links</p>
+        </div>
+
+        {/* Calls Initiated */}
+        <div className="rounded-xl border border-border bg-surface p-3.5 sm:p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted text-xs mb-1">
+            <span className="font-medium text-[11px]">Calls Initiated</span>
+            <PhoneCall className="h-3.5 w-3.5 text-muted" />
+          </div>
+          <div>
+            <span className="font-display text-xl sm:text-2xl font-semibold text-ink tracking-tight">
+              {displayCalls.toLocaleString()}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted mt-0.5 truncate">Relay contact taps</p>
+        </div>
+      </div>
+
+      {/* 2. Filter strip */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
         {filterTabs.map((tab) => {
           const isActive = filter === tab.key;
@@ -102,7 +186,7 @@ export const ResourceActivityTab: React.FC<ResourceActivityTabProps> = ({
         })}
       </div>
 
-      {/* 2. Structured Grid Table (All columns aligned in a grid, click expands details) */}
+      {/* 3. Structured Grid Table (All columns aligned in a grid, click expands details) */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
         {/* Column Headers */}
         <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-bg/50 border-b border-border text-[11px] font-semibold text-muted">
@@ -215,3 +299,5 @@ export const ResourceActivityTab: React.FC<ResourceActivityTabProps> = ({
     </div>
   );
 };
+
+export default ResourceActivityTab;

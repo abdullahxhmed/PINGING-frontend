@@ -247,6 +247,37 @@ export const PublicContactPage: React.FC = () => {
     fetchContact();
   }, [token]);
 
+  // Tag Visit Beacon & Analytics Source Tracking
+  useEffect(() => {
+    if (!token) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const rawSource = params.get('src') || 'direct';
+    const source = ['qr_scan', 'share', 'direct'].includes(rawSource) ? rawSource : 'direct';
+
+    // 1. Strip ?src= from address bar so sharing doesn't propagate it
+    if (params.has('src')) {
+      params.delete('src');
+      const cleanUrl =
+        window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    // 2. Generate and store visitId in sessionStorage
+    const visitId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'v_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    try {
+      sessionStorage.setItem('active_visit_id', visitId);
+    } catch {
+      // Ignore sessionStorage errors
+    }
+
+    // 3. Send beacon
+    publicContactApi.recordVisit(token, visitId, source).catch(() => {});
+  }, [token]);
+
   // Active call session states
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<CallStatus | null>(null);
@@ -417,7 +448,9 @@ export const PublicContactPage: React.FC = () => {
     setPhoneError(null);
 
     try {
-      const res = await communicationApi.initiateCall(token, visitorPhone.trim());
+      const activeVisitId =
+        typeof window !== 'undefined' ? sessionStorage.getItem('active_visit_id') : null;
+      const res = await communicationApi.initiateCall(token, visitorPhone.trim(), activeVisitId);
       const newCallId = res?.data?.callId || (res as any)?.callId;
       const initialStatus = res?.data?.status || 'INITIATED';
 

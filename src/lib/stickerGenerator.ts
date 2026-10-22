@@ -1,22 +1,39 @@
+export type StickerTheme = 'light' | 'dark';
+
 export const STICKER_WIDTH = 1033;
 export const STICKER_HEIGHT = 1447;
 
-// Coordinates for #edece6 QR box on 1033x1447 canvas
+// Coordinates for QR box on 1033x1447 canvas
 export const QR_BOX_X = 179;
 export const QR_BOX_Y = 624;
 export const QR_BOX_SIZE = 675;
 export const QR_BOX_RADIUS = 28;
 
 // Tag number typography & placement
-// Position: Top-right, right edge at X=978, baseline at Y=103
-export const TAG_RIGHT_X = 978;
-export const TAG_BASELINE_Y = 103;
-export const TAG_COLOR = '#737373';
-export const TAG_FONT_SIZE = 51; // 7.9pt equivalent on 1447px canvas
-export const TAG_TRACKING = 0.025; // 25 letter spacing (0.025em)
+// Position: Top-right, moved away from corners equally in both X and Y
+// Right edge at X=968 (10px away from right edge), baseline at Y=113 (10px away from top edge)
+export const TAG_RIGHT_X = 968;
+export const TAG_BASELINE_Y = 113;
+export const TAG_FONT_SIZE = 52; // 8pt equivalent on 1447px canvas (increased from 7.9pt / 51px)
+
+// Light Theme Specs
+export const LIGHT_TAG_COLOR = '#737373';
+export const LIGHT_TAG_TRACKING = 0.025; // 25 letter spacing (0.025em)
+export const LIGHT_QR_FG_COLOR = '#11110F';
+export const LIGHT_QR_BOX_COLOR = '#edece6';
+
+// Dark Theme Specs
+export const DARK_TAG_COLOR = '#6b6961';
+export const DARK_TAG_TRACKING = 0; // text spacing: 0
+export const DARK_QR_FG_COLOR = '#f5f4ee';
+export const DARK_QR_BOX_COLOR = '#262621';
+
+// Backward compatibility defaults
+export const TAG_COLOR = LIGHT_TAG_COLOR;
+export const TAG_TRACKING = LIGHT_TAG_TRACKING;
 
 /**
- * Loads the Kauntact sticker template image.
+ * Loads the Kauntact Light sticker template image.
  */
 export function loadTemplateImage(src = '/kauntactStickerTemplate.png'): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -28,11 +45,45 @@ export function loadTemplateImage(src = '/kauntactStickerTemplate.png'): Promise
       const fallbackImg = new Image();
       fallbackImg.crossOrigin = 'anonymous';
       fallbackImg.onload = () => resolve(fallbackImg);
-      fallbackImg.onerror = (e) => reject(new Error(`Failed to load sticker template: ${e}`));
+      fallbackImg.onerror = (e) => reject(new Error(`Failed to load light sticker template: ${e}`));
       fallbackImg.src = '/src/assets/kauntactStickerTemplate.png';
     };
     img.src = src;
   });
+}
+
+/**
+ * Loads the Kauntact Dark sticker template image.
+ */
+export function loadDarkTemplateImage(src = '/darkKauntactSticker.png'): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      // Fallback 1: darkKauntactStickerTemplate.png
+      const fallbackImg = new Image();
+      fallbackImg.crossOrigin = 'anonymous';
+      fallbackImg.onload = () => resolve(fallbackImg);
+      fallbackImg.onerror = () => {
+        // Fallback 2: local asset path
+        const localImg = new Image();
+        localImg.crossOrigin = 'anonymous';
+        localImg.onload = () => resolve(localImg);
+        localImg.onerror = (e) => reject(new Error(`Failed to load dark sticker template: ${e}`));
+        localImg.src = '/src/assets/darkKauntactSticker.png';
+      };
+      fallbackImg.src = '/darkKauntactStickerTemplate.png';
+    };
+    img.src = src;
+  });
+}
+
+/**
+ * Loads the appropriate sticker template based on theme.
+ */
+export function loadStickerTemplate(theme: StickerTheme = 'light'): Promise<HTMLImageElement> {
+  return theme === 'dark' ? loadDarkTemplateImage() : loadTemplateImage();
 }
 
 /**
@@ -43,8 +94,21 @@ function drawTrackedTextRightAligned(
   text: string,
   rightX: number,
   baselineY: number,
-  letterSpacingEm = 0.025
+  letterSpacingEm = 0
 ) {
+  // If letterSpacing is 0, standard right-aligned fill is fastest and cleanest
+  if (letterSpacingEm === 0) {
+    ctx.save();
+    if ('letterSpacing' in ctx) {
+      (ctx as any).letterSpacing = '0px';
+    }
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, rightX, baselineY);
+    ctx.restore();
+    return;
+  }
+
   // If native canvas letterSpacing is supported
   if ('letterSpacing' in ctx && typeof (ctx as any).letterSpacing === 'string') {
     ctx.save();
@@ -76,6 +140,7 @@ function drawTrackedTextRightAligned(
 
 export interface RenderStickerOptions {
   tagNumber: string;
+  theme?: StickerTheme;
   qrUrl?: string;
   qrSource?: CanvasImageSource | null;
   qrSourceCanvas?: HTMLCanvasElement | null; // deprecated alias
@@ -83,13 +148,14 @@ export interface RenderStickerOptions {
 }
 
 /**
- * Renders the production Kauntact Sticker onto the target canvas (1033x1447).
+ * Renders the production Kauntact Sticker (Light or Dark) onto the target canvas (1033x1447).
  */
 export async function renderKauntactSticker(
   canvas: HTMLCanvasElement,
   options: RenderStickerOptions
 ): Promise<void> {
   const { tagNumber } = options;
+  const theme: StickerTheme = options.theme || 'light';
   const qrSource = options.qrSource || options.qrSourceCanvas;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2D canvas context');
@@ -98,11 +164,12 @@ export async function renderKauntactSticker(
   canvas.width = STICKER_WIDTH;
   canvas.height = STICKER_HEIGHT;
 
-  // 1. Load and draw the base template
-  const template = options.templateImage || (await loadTemplateImage());
+  // 1. Load and draw the base template (Light or Dark)
+  const template = options.templateImage || (await loadStickerTemplate(theme));
   ctx.drawImage(template, 0, 0, STICKER_WIDTH, STICKER_HEIGHT);
 
-  // 2. Draw Transparent QR code inside #edece6 box filling to edges
+  // 2. Draw QR code inside the rounded square box (fills to edges with clean radius clipping)
+  // Light: #edece6 square. Dark: #262621 square.
   if (qrSource) {
     ctx.save();
     ctx.beginPath();
@@ -122,7 +189,7 @@ export async function renderKauntactSticker(
   // 3. Draw Tag Number at top-right
   const cleanTag = (tagNumber || '').trim().toUpperCase();
   if (cleanTag) {
-    // Wait for fonts to be ready
+    // Wait for Satoshi fonts to be ready
     if (document.fonts) {
       try {
         await document.fonts.load(`500 ${TAG_FONT_SIZE}px "Satoshi"`);
@@ -132,8 +199,11 @@ export async function renderKauntactSticker(
       }
     }
 
+    const tagColor = theme === 'dark' ? DARK_TAG_COLOR : LIGHT_TAG_COLOR;
+    const tracking = theme === 'dark' ? DARK_TAG_TRACKING : LIGHT_TAG_TRACKING;
+
     ctx.save();
-    ctx.fillStyle = TAG_COLOR;
+    ctx.fillStyle = tagColor;
     ctx.font = `500 ${TAG_FONT_SIZE}px "Satoshi", "General Sans", sans-serif`;
 
     drawTrackedTextRightAligned(
@@ -141,10 +211,21 @@ export async function renderKauntactSticker(
       cleanTag,
       TAG_RIGHT_X,
       TAG_BASELINE_Y,
-      TAG_TRACKING
+      tracking
     );
     ctx.restore();
   }
+}
+
+/**
+ * Dedicated builder for the Dark Kauntact QR Sticker.
+ * Overlays #6b6961 tag number in Satoshi Medium (spacing 0) and #f5f4ee QR code inside the #262621 rounded square.
+ */
+export async function renderDarkKauntactSticker(
+  canvas: HTMLCanvasElement,
+  options: Omit<RenderStickerOptions, 'theme'>
+): Promise<void> {
+  return renderKauntactSticker(canvas, { ...options, theme: 'dark' });
 }
 
 /**

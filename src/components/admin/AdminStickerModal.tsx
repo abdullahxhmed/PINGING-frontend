@@ -7,7 +7,10 @@ import {
   printStickerFromDataUrl,
   STICKER_WIDTH,
   STICKER_HEIGHT,
-  loadTemplateImage,
+  loadStickerTemplate,
+  type StickerTheme,
+  DARK_QR_FG_COLOR,
+  LIGHT_QR_FG_COLOR,
 } from '../../lib/stickerGenerator';
 import {
   X,
@@ -17,6 +20,8 @@ import {
   Check,
   Sparkles,
   RefreshCw,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 interface AdminStickerModalProps {
@@ -24,6 +29,7 @@ interface AdminStickerModalProps {
   onClose: () => void;
   initialTagNumber?: string;
   initialQrUrl?: string;
+  initialTheme?: StickerTheme;
   resourceName?: string;
   ownerName?: string;
 }
@@ -33,38 +39,57 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
   onClose,
   initialTagNumber = '',
   initialQrUrl = '',
+  initialTheme = 'dark',
   resourceName,
   ownerName,
 }) => {
+  const [theme, setTheme] = useState<StickerTheme>(initialTheme);
   const [tagNumber, setTagNumber] = useState(initialTagNumber);
   const [isRendering, setIsRendering] = useState(true);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
-  const [templateImg, setTemplateImg] = useState<HTMLImageElement | null>(null);
+  const [templates, setTemplates] = useState<{
+    light: HTMLImageElement | null;
+    dark: HTMLImageElement | null;
+  }>({
+    light: null,
+    dark: null,
+  });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const qrSvgWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Sync initial tag
+  // Sync initial tag and theme
   useEffect(() => {
     if (initialTagNumber) {
       setTagNumber(initialTagNumber);
     }
   }, [initialTagNumber]);
 
-  // Preload template once
   useEffect(() => {
-    loadTemplateImage()
-      .then((img) => setTemplateImg(img))
-      .catch((err) => console.error('Failed to preload sticker template:', err));
-  }, []);
+    if (initialTheme) {
+      setTheme(initialTheme);
+    }
+  }, [initialTheme]);
+
+  // Preload both templates when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    Promise.all([loadStickerTemplate('dark'), loadStickerTemplate('light')])
+      .then(([darkImg, lightImg]) => {
+        setTemplates({ dark: darkImg, light: lightImg });
+      })
+      .catch((err) => console.error('Failed to preload sticker templates:', err));
+  }, [isOpen]);
 
   const cleanTag = (tagNumber || '').trim().toUpperCase();
   const targetQrUrl = initialQrUrl || buildTagQrUrl(cleanTag || 'PINGIN');
+  const activeTemplate = templates[theme];
 
   const updateSticker = useCallback(async () => {
     const svgEl = qrSvgWrapperRef.current?.querySelector('svg');
-    if (!canvasRef.current || !svgEl || !templateImg) return;
+    if (!canvasRef.current || !svgEl) return;
     setIsRendering(true);
     try {
       const xml = new XMLSerializer().serializeToString(svgEl);
@@ -79,8 +104,9 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
 
       await renderKauntactSticker(canvasRef.current, {
         tagNumber: cleanTag,
+        theme,
         qrSource: img,
-        templateImage: templateImg,
+        templateImage: activeTemplate,
       });
 
       URL.revokeObjectURL(url);
@@ -91,23 +117,23 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
     } finally {
       setIsRendering(false);
     }
-  }, [cleanTag, templateImg]);
+  }, [cleanTag, theme, activeTemplate]);
 
-  // Trigger render when QR svg is ready or tag updates
+  // Trigger render when QR svg is ready, tag updates, or theme changes
   useEffect(() => {
-    if (isOpen && templateImg) {
+    if (isOpen) {
       const timer = setTimeout(() => {
         updateSticker();
-      }, 50);
+      }, 60);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, cleanTag, templateImg, updateSticker]);
+  }, [isOpen, cleanTag, theme, activeTemplate, updateSticker]);
 
   if (!isOpen) return null;
 
   const handleDownload = () => {
     if (!canvasRef.current) return;
-    const filename = `kauntact_sticker_${cleanTag || 'sample'}.png`;
+    const filename = `kauntact_${theme}_sticker_${cleanTag || 'sample'}.png`;
     downloadCanvasPng(canvasRef.current, filename);
   };
 
@@ -129,11 +155,12 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
       <div style={{ position: 'absolute', left: -9999, top: -9999, opacity: 0, pointerEvents: 'none' }} aria-hidden="true">
         <div ref={qrSvgWrapperRef}>
           <PingInQrCode
+            key={`qr-src-${theme}-${cleanTag}`}
             value={cleanTag || 'PINGIN'}
             size={675}
             level="H"
             bgColor="transparent"
-            fgColor="#11110F"
+            fgColor={theme === 'dark' ? DARK_QR_FG_COLOR : LIGHT_QR_FG_COLOR}
             includeMargin={false}
           />
         </div>
@@ -208,9 +235,37 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
           <div className="md:col-span-5 flex flex-col justify-between space-y-5">
             {/* Tag Config Form */}
             <div className="space-y-4">
+              {/* Theme Selector: Dark Plate vs Light Plate */}
+              <div className="p-1 bg-bg border border-border rounded-lg grid grid-cols-2 gap-1 select-none">
+                <button
+                  type="button"
+                  onClick={() => setTheme('dark')}
+                  className={`py-1.5 px-3 rounded text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-ink text-surface shadow-xs'
+                      : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  <Moon className="w-3.5 h-3.5 text-accent" />
+                  <span>Dark Plate</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme('light')}
+                  className={`py-1.5 px-3 rounded text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-ink text-surface shadow-xs'
+                      : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5 text-muted" />
+                  <span>Light Plate</span>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-muted mb-1.5">
-                  Tag Number (Caps · 7.9 Size · Tracking 25)
+                  Tag Number ({theme === 'dark' ? 'Satoshi Medium · #6B6961 · Spacing 0' : 'Satoshi · #737373 · Tracking 25'})
                 </label>
                 <div className="relative">
                   <input
@@ -273,12 +328,23 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
               <div className="p-3 bg-bg/50 border border-border/80 rounded space-y-1.5 text-[11px] font-mono text-muted">
                 <div className="flex items-center gap-2 text-ink font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                  <span>Production Ready Specs</span>
+                  <span>Production Ready Specs ({theme.toUpperCase()})</span>
                 </div>
-                <div>• Base: kauntactStickerTemplate.png</div>
-                <div>• Tag Text: Top-right, Satoshi, #737373 (Tracking 25)</div>
-                <div>• QR Code: Transparent in #edece6 box (fills to edges)</div>
-                <div>• Output: 1033 × 1447 px 300 DPI layout</div>
+                {theme === 'dark' ? (
+                  <>
+                    <div>• Base: darkKauntactStickerTemplate.png</div>
+                    <div>• Tag: Top-right, Satoshi Medium, #6B6961 (Spacing 0)</div>
+                    <div>• QR Code: #F5F4EE in rounded #262621 square</div>
+                    <div>• Output: 1033 × 1447 px 300 DPI layout</div>
+                  </>
+                ) : (
+                  <>
+                    <div>• Base: kauntactStickerTemplate.png</div>
+                    <div>• Tag: Top-right, Satoshi, #737373 (Tracking 25)</div>
+                    <div>• QR Code: Transparent in #EDECE6 box</div>
+                    <div>• Output: 1033 × 1447 px 300 DPI layout</div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -291,7 +357,7 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
                 className="w-full py-3 px-4 bg-ink text-surface hover:opacity-90 rounded font-semibold text-xs tracking-wider uppercase flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
               >
                 <Download className="w-4 h-4 text-accent" />
-                <span>Download PNG (1033×1447)</span>
+                <span>Download {theme === 'dark' ? 'Dark' : 'Light'} PNG (1033×1447)</span>
               </button>
 
               <button

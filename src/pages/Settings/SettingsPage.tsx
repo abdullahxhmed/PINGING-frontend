@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
-import { authApi, resourcesApi, extractResourceTag, uncacheResourceTag } from '../../lib/api';
+import { authApi, resourcesApi, extractResourceTag, syncResourceTagUpdate } from '../../lib/api';
 import type { UserProfile, Resource } from '../../types/api';
 import {
   ArrowLeft,
@@ -118,8 +118,18 @@ export const SettingsPage: React.FC = () => {
     fetchMe();
     fetchResources();
 
+    const handleUpdate = () => {
+      fetchMe();
+      fetchResources();
+    };
+
+    window.addEventListener('resource:updated', handleUpdate);
+    window.addEventListener('tag:updated', handleUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('resource:updated', handleUpdate);
+      window.removeEventListener('tag:updated', handleUpdate);
     };
   }, [fetchResources]);
 
@@ -814,7 +824,7 @@ export const SettingsPage: React.FC = () => {
             tagNumber={unpairTarget.tagNumber}
             onUnpaired={() => {
               if (unpairTarget?.resourceId) {
-                uncacheResourceTag(unpairTarget.resourceId);
+                syncResourceTagUpdate(unpairTarget.resourceId, null, unpairTarget.tagNumber);
               }
               setUnpairTarget(null);
               fetchResources();

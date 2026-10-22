@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { qrApi, resourcesApi, cacheResourceTag } from '../../lib/api';
+import { qrApi, resourcesApi, syncResourceTagUpdate } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
 import { PingInQrCode } from '../qr/PingInQrCode';
 import type { Resource, ResourceType, QrTagLookupResponse } from '../../types/api';
@@ -244,10 +244,20 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
 
       const finalTag = pairRes.tag?.tagNumber || detectedCode;
       if (targetId && finalTag) {
-        cacheResourceTag(targetId, finalTag);
+        syncResourceTagUpdate(targetId, finalTag);
       }
 
-      setCompletedResource(targetResource);
+      const updatedResource: Resource = {
+        ...targetResource,
+        tagNumber: finalTag,
+        qrTag: {
+          id: pairRes.tag?.id || '',
+          tagNumber: finalTag,
+          status: 'ASSIGNED',
+        },
+      };
+
+      setCompletedResource(updatedResource);
       setCompletedTagNumber(finalTag);
       setView('completed');
     } catch (err: any) {
@@ -290,10 +300,20 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
 
       const assignedTag = genRes.tag?.tagNumber || 'DIGITAL';
       if (resourceId && assignedTag) {
-        cacheResourceTag(resourceId, assignedTag);
+        syncResourceTagUpdate(resourceId, assignedTag);
       }
 
-      setCompletedResource(newResource);
+      const updatedNewResource: Resource = {
+        ...newResource,
+        tagNumber: assignedTag,
+        qrTag: {
+          id: genRes.tag?.id || '',
+          tagNumber: assignedTag,
+          status: 'ASSIGNED',
+        },
+      };
+
+      setCompletedResource(updatedNewResource);
       setCompletedTagNumber(assignedTag);
       setView('completed');
     } catch (err: any) {

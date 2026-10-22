@@ -108,6 +108,18 @@ export const resourceCache = {
   },
 
   /**
+   * Invalidates cached resources list so next query fetches fresh server state.
+   */
+  invalidate(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(RES_LIST_KEY);
+    } catch {
+      // Ignore
+    }
+  },
+
+  /**
    * Detects whether the current page load is a browser reload/refresh (e.g. F5 or refresh button).
    */
   isPageReload(): boolean {
