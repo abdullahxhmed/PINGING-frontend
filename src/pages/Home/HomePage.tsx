@@ -116,6 +116,7 @@ export const HomePage: React.FC = () => {
           <nav className="hidden md:flex items-center gap-8 text-xs font-sans font-medium tracking-wider uppercase text-muted">
             <a href="#the-problem" className="hover:text-ink transition-colors">The Problem</a>
             <a href="#use-cases" className="hover:text-ink transition-colors">Use Cases</a>
+            <Link to="/shop" className="hover:text-ink transition-colors">Shop</Link>
             <a href="#faq" className="hover:text-ink transition-colors">FAQ</a>
           </nav>
 
@@ -123,7 +124,7 @@ export const HomePage: React.FC = () => {
             <Link to="/login" className="px-4 py-2 text-xs font-sans font-medium tracking-wider uppercase text-ink hover:text-muted transition-colors">
               Sign In
             </Link>
-            <Link to="/signup" className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-xs">
+            <Link to="/shop" className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-xs">
               <span>GET YOUR TAG</span>
               <span className="text-accent">→</span>
             </Link>
@@ -306,7 +307,7 @@ export const HomePage: React.FC = () => {
               <div className="flex justify-center">
                 <ClickSpark sparkCount={7} sparkColor="#d7ff3f" sparkDuration={380}>
                   <Link
-                    to="/signup"
+                    to="/shop"
                     id="footer-cta"
                     className="inline-flex items-center gap-3 px-8 py-4 bg-accent hover:bg-accent-hover text-ink rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-md group cursor-pointer"
                   >

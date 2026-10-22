@@ -92,7 +92,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
               {/* Signature Kauntact Action Buttons */}
               <div className="flex flex-col gap-2.5">
                 <Link
-                  to="/signup"
+                  to="/shop"
                   onClick={onClose}
                   className="w-full flex items-center justify-between px-5 py-3.5 bg-surface-dark hover:bg-black active:scale-[0.99] text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-xs"
                 >

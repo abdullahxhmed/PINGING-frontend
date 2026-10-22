@@ -611,7 +611,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
                       }
                     }}
                     error={hasError && !mobileNumber ? ' ' : undefined}
-                    autoFocus={mode === 'login'}
+                    autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768 && mode === 'login'}
                   />
                 </div>
 
@@ -758,7 +758,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
                     error={hasError ? ' ' : undefined}
                     maxLength={6}
                     className="text-center font-sans font-medium text-2xl tracking-[0.3em] !h-14"
-                    autoFocus
+                    autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768}
                   />
                 </div>
 

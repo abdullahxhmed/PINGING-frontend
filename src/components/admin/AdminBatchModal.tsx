@@ -3,6 +3,7 @@ import { adminApi } from '../../lib/adminApi';
 import { buildTagQrUrl } from '../../lib/qr';
 import type { AdminBatchQrItem } from '../../types/admin';
 import { Layers, X, Download, Sparkles } from 'lucide-react';
+import { AdminStickerModal } from './AdminStickerModal';
 
 interface AdminBatchModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ batchId: string; items: AdminBatchQrItem[] } | null>(null);
+  const [selectedStickerTag, setSelectedStickerTag] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -54,7 +56,7 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
     const rows = result.items.map((item) => [
       item.tagNumber,
       item.token,
-      buildTagQrUrl(item.token || item.tagNumber),
+      buildTagQrUrl(item.tagNumber),
     ]);
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -138,15 +140,24 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
                   {result.items.slice(0, 50).map((item, idx) => (
                     <div
                       key={idx}
-                      className="px-3.5 py-2 text-xs font-mono flex items-center justify-between hover:bg-bg/40"
+                      className="px-3.5 py-2 text-xs font-mono flex items-center justify-between hover:bg-bg/40 gap-2"
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-muted text-[11px] w-6">#{idx + 1}</span>
                         <span className="font-semibold text-ink">{item.tagNumber}</span>
+                        <span className="text-muted truncate max-w-[150px] sm:max-w-[200px] text-[11px] hidden sm:inline">
+                          {buildTagQrUrl(item.token || item.tagNumber)}
+                        </span>
                       </div>
-                      <span className="text-muted truncate max-w-[200px] text-[11px]">
-                        {buildTagQrUrl(item.token || item.tagNumber)}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStickerTag(item.tagNumber)}
+                        className="px-2 py-0.5 bg-surface border border-border hover:border-ink rounded text-[11px] font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                        title="Preview & Download Sticker"
+                      >
+                        <Sparkles className="w-3 h-3 text-accent" />
+                        <span>Sticker</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -230,6 +241,16 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Kauntact Sticker Modal */}
+      {selectedStickerTag && (
+        <AdminStickerModal
+          isOpen={Boolean(selectedStickerTag)}
+          onClose={() => setSelectedStickerTag(null)}
+          initialTagNumber={selectedStickerTag}
+          initialQrUrl={buildTagQrUrl(selectedStickerTag)}
+        />
+      )}
     </div>
   );
 };

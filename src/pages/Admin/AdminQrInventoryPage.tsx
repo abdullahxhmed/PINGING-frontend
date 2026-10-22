@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { AdminBatchModal } from '../../components/admin/AdminBatchModal';
+import { AdminStickerModal } from '../../components/admin/AdminStickerModal';
+import { PingInQrCode } from '../../components/qr/PingInQrCode';
+import { buildTagQrUrl } from '../../lib/qr';
 import { adminApi } from '../../lib/adminApi';
 import type {
   AdminQrSummary,
   AdminQrTagItem,
   AdminGenerateSingleQrResponse,
 } from '../../types/admin';
-import { PingInQrCode } from '../../components/qr/PingInQrCode';
-import { buildTagQrUrl } from '../../lib/qr';
 import {
-  QrCode,
   Plus,
   Layers,
   ChevronLeft,
@@ -45,7 +45,16 @@ export const AdminQrInventoryPage: React.FC = () => {
   // Modals state
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
-  const [previewTag, setPreviewTag] = useState<{ tagNumber: string; qrUrl?: string; token?: string } | null>(null);
+  const [stickerModal, setStickerModal] = useState<{
+    isOpen: boolean;
+    tagNumber: string;
+    qrUrl?: string;
+    resourceName?: string;
+    ownerName?: string;
+  }>({
+    isOpen: false,
+    tagNumber: '',
+  });
   const [revokeConfirmTag, setRevokeConfirmTag] = useState<AdminQrTagItem | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
 
@@ -158,6 +167,22 @@ export const AdminQrInventoryPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setStickerModal({
+                isOpen: true,
+                tagNumber: tags[0]?.tagNumber || 'J39VFSA',
+                qrUrl: tags[0] ? buildTagQrUrl(tags[0].tagNumber) : undefined,
+              })
+            }
+            className="px-3 py-2 rounded border border-border bg-surface hover:border-ink text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Open Kauntact Sticker Generator Studio"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            <span>Sticker Studio</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -383,16 +408,19 @@ export const AdminQrInventoryPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            setPreviewTag({
+                            setStickerModal({
+                              isOpen: true,
                               tagNumber: t.tagNumber,
-                              qrUrl: `https://pingin.co.in/qr/${t.tagNumber}`,
+                              qrUrl: buildTagQrUrl(t.tagNumber),
+                              resourceName: t.resource?.name,
+                              ownerName: t.resource?.owner ? `${t.resource.owner.name} (${t.resource.owner.mobileNumber})` : undefined,
                             })
                           }
-                          className="px-2.5 py-1 bg-surface border border-border hover:border-ink rounded text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1"
-                          title="Preview QR Code"
+                          className="px-2.5 py-1 bg-surface border border-border hover:border-ink rounded text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer group"
+                          title="Generate, Preview & Download Kauntact Sticker"
                         >
-                          <QrCode className="w-3 h-3" />
-                          <span className="hidden sm:inline">Preview</span>
+                          <Sparkles className="w-3 h-3 text-accent group-hover:rotate-12 transition-transform" />
+                          <span>Sticker</span>
                         </button>
 
                         {t.status !== 'REVOKED' && (
@@ -582,44 +610,15 @@ export const AdminQrInventoryPage: React.FC = () => {
         }}
       />
 
-      {/* QR PREVIEW MODAL */}
-      {previewTag && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs">
-          <div className="w-full max-w-sm bg-surface border border-border rounded-lg p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-150 text-center">
-            <button
-              type="button"
-              onClick={() => setPreviewTag(null)}
-              className="absolute top-4 right-4 text-muted hover:text-ink p-1 rounded"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <h3 className="font-display text-lg font-medium uppercase text-ink mb-1">
-              QR Code Preview
-            </h3>
-            <p className="font-mono text-xs text-muted mb-4">Tag: {previewTag.tagNumber}</p>
-
-            <div className="p-4 bg-white border border-border rounded-lg inline-block mx-auto mb-4 shadow-sm">
-              <PingInQrCode
-                value={previewTag.tagNumber}
-                size={180}
-              />
-            </div>
-
-            <p className="font-mono text-[11px] text-muted break-all mb-4 px-2">
-              {buildTagQrUrl(previewTag.tagNumber)}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setPreviewTag(null)}
-              className="w-full py-2 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* KAUNTACT STICKER STUDIO & PREVIEW MODAL */}
+      <AdminStickerModal
+        isOpen={stickerModal.isOpen}
+        onClose={() => setStickerModal({ isOpen: false, tagNumber: '' })}
+        initialTagNumber={stickerModal.tagNumber}
+        initialQrUrl={stickerModal.qrUrl}
+        resourceName={stickerModal.resourceName}
+        ownerName={stickerModal.ownerName}
+      />
 
       {/* REVOKE CONFIRMATION MODAL */}
       {revokeConfirmTag && (

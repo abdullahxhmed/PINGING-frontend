@@ -16,6 +16,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* Backgrounds */
   --color-bg: #edece6;
@@ -47,10 +55,11 @@
   /* Layout */
   --content-width: 1280px;
 
-  /* Typography - Only Clash Display and General Sans */
+  /* Typography */
   --font-display: "Clash Display", sans-serif;
   --font-sans: "General Sans", sans-serif;
   --font-mono: "General Sans", sans-serif;
+  --font-satoshi: "Satoshi", sans-serif;
 }
 
 :root {
@@ -303,7 +312,7 @@ select {
   outline: none;
 
   font-family: var(--font-sans);
-  font-size: 0.9rem;
+  font-size: 1rem;
 
   transition:
     border-color 150ms ease,
@@ -343,6 +352,17 @@ select {
 
 .phone-input {
   color: var(--color-ink);
+}
+
+/* Prevent iOS Safari and Mobile WebKit auto-zooming on input focus (requires >= 16px) */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .input,
+  .phone-input {
+    font-size: 16px !important;
+  }
 }
 
 /* Toast Smooth Transitions */

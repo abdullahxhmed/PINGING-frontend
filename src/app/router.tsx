@@ -1,5 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { RootLayout } from '../components/layout/RootLayout';
 import { HomePage } from '../pages/Home/HomePage';
+import { StorefrontPage } from '../pages/Storefront/StorefrontPage';
+import { CheckoutPage } from '../pages/Checkout/CheckoutPage';
+import { OrderConfirmationPage } from '../pages/Checkout/OrderConfirmationPage';
 import { AuthPage } from '../pages/Auth/AuthPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { ResourceDetailsPage } from '../pages/ResourceDetails/ResourceDetailsPage';
@@ -18,10 +22,31 @@ import { AdminCommunicationsPage } from '../pages/Admin/AdminCommunicationsPage'
 // import { KeychainPage } from '../pages/Keychain/KeychainPage';
 
 export const router = createBrowserRouter([
-  // Public Home Page
   {
-    path: '/',
-    element: <HomePage />,
+    element: <RootLayout />,
+    children: [
+      // Main Application Home Page
+      {
+        path: '/',
+        element: <HomePage />,
+      },
+
+  // Kauntact Storefront & Purchase Flow (Public, No Login Required)
+  {
+    path: '/shop',
+    element: <StorefrontPage />,
+  },
+  {
+    path: '/store',
+    element: <StorefrontPage />,
+  },
+  {
+    path: '/checkout',
+    element: <CheckoutPage />,
+  },
+  {
+    path: '/order/:orderId',
+    element: <OrderConfirmationPage />,
   },
 
   // Keychain Studio (unmounted for now)
@@ -195,9 +220,11 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Fallback Route
-  {
-    path: '*',
-    element: <Navigate to="/dashboard" replace />,
+      // Fallback Route
+      {
+        path: '*',
+        element: <Navigate to="/dashboard" replace />,
+      },
+    ],
   },
 ]);

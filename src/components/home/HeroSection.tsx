@@ -38,7 +38,7 @@ export const HeroSection: React.FC = () => {
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <ClickSpark sparkCount={7} sparkColor="#d7ff3f" sparkDuration={380}>
                 <Link
-                  to="/signup"
+                  to="/shop"
                   className="inline-flex items-center justify-center gap-3 px-7 py-4 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all group cursor-pointer w-full sm:w-auto"
                 >
                   <span>Get your tag</span>

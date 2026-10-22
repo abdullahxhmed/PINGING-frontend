@@ -1160,7 +1160,7 @@ export const PublicContactPage: React.FC = () => {
 
           <div className="shrink-0 pt-1 sm:pt-0">
             <Link
-              to="/signup"
+              to="/shop"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-5 py-3 bg-surface-dark hover:bg-black text-[#f5f4ee] rounded-sm text-xs font-sans font-semibold tracking-widest uppercase transition-all shadow-xs group cursor-pointer"
             >
               <span>GET YOUR TAG</span>
