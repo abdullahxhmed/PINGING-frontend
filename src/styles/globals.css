@@ -670,3 +670,14 @@ select {
 .animate-fade-in {
   animation: contentFadeIn 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useMotionValue, animate } from 'motion/react';
+import { motion } from 'motion/react';
 import type { Resource, CallRecord } from '../../types/api';
 import { extractResourceTag, getResourceContactUrl, resourcesApi } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
@@ -16,6 +16,21 @@ import {
   PhoneMissed,
   PhoneIncoming,
 } from 'lucide-react';
+
+/**
+ * Tunable constants for the custom high-performance 120Hz drag carousel
+ */
+export const CAROUSEL_CONFIG = {
+  COMMIT_DISTANCE_RATIO: 0.22,
+  COMMIT_VELOCITY: 0.5, // px/ms
+  MAX_PULL_RATIO: 0.45,
+  EDGE_PULL_RATIO: 0.12,
+  SLOP_PX: 6,
+  SPRING_EASING: 'linear(0, .38 9%, .95 20%, 1.07 30%, 1.03 42%, .99 58%, 1)',
+  REDUCED_MOTION_EASING: 'ease-out',
+  DURATION_MS: 520,
+  REDUCED_DURATION_MS: 150,
+} as const;
 
 export interface MobileTagDetailViewProps {
   resources: Resource[];
@@ -77,13 +92,14 @@ const formatCallerNumber = (call: CallRecord): string => {
 
 /**
  * Individual Belonging Plate Card
+ * Flat styling (no heavy blur or complex box shadows) to keep repaint cost cheap at 120Hz.
  */
 interface BelongingPlateCardProps {
   resource: Resource;
   onOpenShare: () => void;
 }
 
-const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
+const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
   resource,
   onOpenShare,
 }) => {
@@ -125,7 +141,9 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
     }
   }, [tagId, cardResource]);
 
-  const publicUrl = tagNumber ? buildTagQrUrl(tagNumber) : getResourceContactUrl(cardResource);
+  const publicUrl = useMemo(() => {
+    return tagNumber ? buildTagQrUrl(tagNumber) : getResourceContactUrl(cardResource);
+  }, [tagNumber, cardResource]);
 
   // Fetch or resolve call records for this specific belonging
   const [calls, setCalls] = useState<CallRecord[]>(() => {
@@ -211,7 +229,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
   const BelongingIcon = getBelongingIcon();
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] space-y-4 relative overflow-hidden select-none">
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-4 relative overflow-hidden select-none">
       {/* Top Section: Category & Tag */}
       <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-3">
         <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -339,14 +357,9 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = ({
       </div>
     </div>
   );
-};
+});
 
-// Fluid rubber-band resistance at boundaries (iOS-grade elastic stretch)
-const rubberBand = (distance: number, dimension: number, constant = 0.55): number => {
-  const absDist = Math.abs(distance);
-  const resisted = (absDist * dimension * constant) / (dimension + constant * absDist);
-  return distance < 0 ? -resisted : resisted;
-};
+BelongingPlateCard.displayName = 'BelongingPlateCard';
 
 export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
   resources,
@@ -359,273 +372,422 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [selectedShareResource, setSelectedShareResource] = useState<Resource | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const activeAnimRef = useRef<any>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
 
-  // Gesture state for predictable, tactile horizontal card swipe
-  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const directionLockRef = useRef<'horizontal' | 'vertical' | null>(null);
-  const isPointerDownRef = useRef(false);
-  const hasSwipedRef = useRef(false);
+  // Active Web Animation API instance
+  const activeAnimRef = useRef<Animation | null>(null);
 
-  const getContainerWidth = useCallback(() => {
-    return containerRef.current?.offsetWidth || window.innerWidth || 360;
-  }, []);
+  // High-performance pointer session state (0 React renders during gestures)
+  const sessionRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    viewportWidth: number;
+    initialTrackX: number;
+    samples: Array<{ x: number; time: number }>;
+    isCaptured: boolean;
+    hasExceededSlop: boolean;
+  } | null>(null);
 
-  const animateTo = useCallback(
-    (
-      targetIndex: number,
-      velocity = 0,
-      mode: 'advance' | 'snapback' | 'boundary' = 'advance'
-    ) => {
-      const width = getContainerWidth();
+  const suppressClickRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingXRef = useRef<number | null>(null);
+
+  // Run compositor spring animation via Web Animations API (WAAPI)
+  const runSpringAnimation = useCallback(
+    (fromX: number, targetIndex: number, width: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+
       const targetX = -targetIndex * width;
+      const prefersReduced =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+      const duration = prefersReduced
+        ? CAROUSEL_CONFIG.REDUCED_DURATION_MS
+        : CAROUSEL_CONFIG.DURATION_MS;
+
+      const easing = prefersReduced
+        ? CAROUSEL_CONFIG.REDUCED_MOTION_EASING
+        : CAROUSEL_CONFIG.SPRING_EASING;
+
+      // Cancel any ongoing animation
       if (activeAnimRef.current) {
-        activeAnimRef.current.stop();
+        activeAnimRef.current.cancel();
+        activeAnimRef.current = null;
       }
 
-      // Playful spring physics tailored to the gesture outcome:
-      // - snapback / boundary: lively, bouncy, elastic recoil
-      // - advance: deliberate, confident glide with a subtle cushion settle
-      const springConfig =
-        mode === 'boundary'
-          ? { stiffness: 320, damping: 14, mass: 0.45 }
-          : mode === 'snapback'
-          ? { stiffness: 300, damping: 15, mass: 0.45 }
-          : { stiffness: 240, damping: 18, mass: 0.5 };
+      // Immediately set the persistent inline style so it holds target after animation
+      track.style.transform = `translate3d(${targetX}px, 0, 0)`;
 
-      activeAnimRef.current = animate(x, targetX, {
-        type: 'spring',
-        ...springConfig,
-        velocity,
-      });
-    },
-    [getContainerWidth, x]
-  );
-
-  // Sync activeIndex with external selectedIndex if changed from parent
-  useEffect(() => {
-    if (
-      selectedIndex !== activeIndex &&
-      selectedIndex >= 0 &&
-      selectedIndex < resources.length
-    ) {
-      setActiveIndex(selectedIndex);
-      animateTo(selectedIndex, 0);
-    }
-  }, [selectedIndex, activeIndex, resources.length, animateTo]);
-
-  // Handle window resize or orientation change
-  useEffect(() => {
-    const handleResize = () => {
-      const width = getContainerWidth();
-      x.set(-activeIndex * width);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, [activeIndex, getContainerWidth, x]);
-
-  const handleDotClick = useCallback((idx: number) => {
-    setActiveIndex(idx);
-    onSelectIndex(idx);
-    animateTo(idx, 0);
-  }, [onSelectIndex, animateTo]);
-
-  // Touch and pointer gesture handlers with zero-lag compositor direct tracking
-  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    if (resources.length <= 1) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-    if (activeAnimRef.current) {
-      activeAnimRef.current.stop();
-    }
-
-    touchStartRef.current = { x: clientX, y: clientY, time: performance.now() };
-    directionLockRef.current = null;
-    isPointerDownRef.current = true;
-    hasSwipedRef.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!touchStartRef.current || !isPointerDownRef.current || resources.length <= 1) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-    const dx = clientX - touchStartRef.current.x;
-    const dy = clientY - touchStartRef.current.y;
-
-    // Filter out accidental micro-taps (< 6px deadzone)
-    if (directionLockRef.current === null) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
-        return;
-      }
-      if (Math.abs(dy) >= Math.abs(dx)) {
-        // Vertical scroll: leave browser native scroll uninterrupted
-        directionLockRef.current = 'vertical';
-        return;
-      } else {
-        // Horizontal swipe: claim card swipe gesture
-        directionLockRef.current = 'horizontal';
-        hasSwipedRef.current = true;
-      }
-    }
-
-    if (directionLockRef.current === 'horizontal') {
-      const width = getContainerWidth();
-      const baseOffset = -activeIndex * width;
-
-      let effectiveDx = dx;
-      // Fluid rubber-band elasticity at boundaries
-      if (activeIndex === 0 && dx > 0) {
-        effectiveDx = rubberBand(dx, width, 0.55);
-      } else if (activeIndex === resources.length - 1 && dx < 0) {
-        effectiveDx = rubberBand(dx, width, 0.55);
-      }
-
-      x.set(baseOffset + effectiveDx);
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isPointerDownRef.current) return;
-    isPointerDownRef.current = false;
-
-    if (!touchStartRef.current || resources.length <= 1) {
-      return;
-    }
-
-    const wasLockedHorizontal = directionLockRef.current === 'horizontal';
-    const clientX =
-      'changedTouches' in e
-        ? e.changedTouches[0].clientX
-        : (e as React.MouseEvent).clientX;
-
-    const dx = clientX - touchStartRef.current.x;
-    const elapsed = Math.max(1, performance.now() - touchStartRef.current.time);
-    const vx = (dx / elapsed) * 1000; // px per second
-
-    touchStartRef.current = null;
-    directionLockRef.current = null;
-
-    if (wasLockedHorizontal) {
-      const width = getContainerWidth();
-      // Deliberate and playful threshold:
-      // - Requires deliberate drag of ~20% card width (~68-75px), or
-      // - Decisive flick (>380px/s with >28px drag displacement)
-      const isFlick = Math.abs(vx) > 380 && Math.abs(dx) > 28;
-      const isDisplaced = Math.abs(dx) > Math.min(75, width * 0.20);
-
-      let targetIndex = activeIndex;
-
-      if ((isDisplaced || isFlick) && dx < 0) {
-        if (activeIndex < resources.length - 1) {
-          targetIndex = activeIndex + 1;
+      const anim = track.animate(
+        [
+          { transform: `translate3d(${fromX}px, 0, 0)` },
+          { transform: `translate3d(${targetX}px, 0, 0)` },
+        ],
+        {
+          duration,
+          easing,
+          fill: 'forwards',
         }
-      } else if ((isDisplaced || isFlick) && dx > 0) {
-        if (activeIndex > 0) {
-          targetIndex = activeIndex - 1;
+      );
+
+      activeAnimRef.current = anim;
+
+      anim.onfinish = () => {
+        if (activeAnimRef.current === anim) {
+          activeAnimRef.current = null;
+          anim.cancel(); // Clears WAAPI override layer so inline transform cleanly persists
+          track.style.transform = `translate3d(${targetX}px, 0, 0)`;
         }
-      }
+      };
 
-      const isBoundary =
-        (activeIndex === 0 && dx > 0) ||
-        (activeIndex === resources.length - 1 && dx < 0);
-
-      const didChange = targetIndex !== activeIndex;
-
-      if (didChange) {
+      // Commit to React state ONCE on release/navigation
+      if (targetIndex !== activeIndexRef.current) {
         setActiveIndex(targetIndex);
         onSelectIndex(targetIndex);
       }
+    },
+    [onSelectIndex]
+  );
 
-      const mode = isBoundary
-        ? 'boundary'
-        : didChange
-        ? 'advance'
-        : 'snapback';
+  const goTo = useCallback(
+    (targetIndex: number) => {
+      if (targetIndex < 0 || targetIndex >= resources.length) return;
+      const track = trackRef.current;
+      const viewport = viewportRef.current;
+      if (!track || !viewport) return;
 
-      animateTo(targetIndex, vx, mode);
+      const width = viewport.offsetWidth || 360;
+      let currentX = -activeIndexRef.current * width;
+      try {
+        const style = window.getComputedStyle(track);
+        const matrix = new DOMMatrix(style.transform);
+        currentX = matrix.m41;
+      } catch {}
 
-      setTimeout(() => {
-        hasSwipedRef.current = false;
-      }, 80);
+      runSpringAnimation(currentX, targetIndex, width);
+    },
+    [resources.length, runSpringAnimation]
+  );
+
+  // Sync with external selectedIndex changes
+  useEffect(() => {
+    if (
+      selectedIndex !== activeIndexRef.current &&
+      selectedIndex >= 0 &&
+      selectedIndex < resources.length
+    ) {
+      goTo(selectedIndex);
+    }
+  }, [selectedIndex, resources.length, goTo]);
+
+  // Recompute position on resize/orientation change without animating
+  useEffect(() => {
+    const handleResize = () => {
+      const viewport = viewportRef.current;
+      const track = trackRef.current;
+      if (!viewport || !track) return;
+      const width = viewport.offsetWidth || 360;
+      const targetX = -activeIndexRef.current * width;
+
+      if (activeAnimRef.current) {
+        activeAnimRef.current.cancel();
+        activeAnimRef.current = null;
+      }
+      track.style.transform = `translate3d(${targetX}px, 0, 0)`;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Keyboard navigation support
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (resources.length <= 1) return;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      goTo(Math.max(0, activeIndexRef.current - 1));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      goTo(Math.min(resources.length - 1, activeIndexRef.current + 1));
     }
   };
 
+  // Pointer Event handlers (never call preventDefault; touch-action: pan-y lets browser own vertical scroll)
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (resources.length <= 1) return;
+
+    const track = trackRef.current;
+    const viewport = viewportRef.current;
+    if (!track || !viewport) return;
+
+    // Layout read done strictly on pointerdown, never in pointermove
+    const viewportWidth = viewport.offsetWidth || 360;
+
+    // If interrupted during an ongoing animation, read current x from DOMMatrix and continue seamlessly
+    let initialTrackX = -activeIndexRef.current * viewportWidth;
+    if (activeAnimRef.current) {
+      try {
+        const style = window.getComputedStyle(track);
+        const matrix = new DOMMatrix(style.transform);
+        initialTrackX = matrix.m41;
+      } catch {}
+      activeAnimRef.current.cancel();
+      activeAnimRef.current = null;
+      track.style.transform = `translate3d(${initialTrackX}px, 0, 0)`;
+    }
+
+    sessionRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      viewportWidth,
+      initialTrackX,
+      samples: [{ x: e.clientX, time: performance.now() }],
+      isCaptured: false,
+      hasExceededSlop: false,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const session = sessionRef.current;
+    if (!session || session.pointerId !== e.pointerId) return;
+
+    const now = performance.now();
+    const dx = e.clientX - session.startX;
+    const absDx = Math.abs(dx);
+
+    session.samples.push({ x: e.clientX, time: now });
+    if (session.samples.length > 3) {
+      session.samples.shift();
+    }
+
+    // Call setPointerCapture ONLY after moving more than SLOP_PX (6px) so taps pass through naturally
+    if (!session.hasExceededSlop) {
+      if (absDx > CAROUSEL_CONFIG.SLOP_PX) {
+        session.hasExceededSlop = true;
+        suppressClickRef.current = true;
+        if (!session.isCaptured && trackRef.current) {
+          try {
+            trackRef.current.setPointerCapture(session.pointerId);
+            session.isCaptured = true;
+          } catch {}
+        }
+      } else {
+        return;
+      }
+    }
+
+    // Gesture response formula:
+    // offset = sign(dx) * max * (1 - exp(-|dx| / (max * 1.2)))
+    const width = session.viewportWidth;
+    const currIndex = activeIndexRef.current;
+    const isMissingNeighbor =
+      (currIndex === 0 && dx > 0) ||
+      (currIndex === resources.length - 1 && dx < 0);
+
+    const max = (isMissingNeighbor
+      ? CAROUSEL_CONFIG.EDGE_PULL_RATIO
+      : CAROUSEL_CONFIG.MAX_PULL_RATIO) * width;
+
+    const sign = dx < 0 ? -1 : 1;
+    const offset = sign * max * (1 - Math.exp(-absDx / (max * 1.2)));
+
+    const currentX = -currIndex * width + offset;
+    pendingXRef.current = currentX;
+
+    // At most ONE write per frame via requestAnimationFrame
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (trackRef.current && pendingXRef.current !== null) {
+          trackRef.current.style.transform = `translate3d(${pendingXRef.current}px, 0, 0)`;
+        }
+      });
+    }
+  };
+
+  const finishGesture = (e: React.PointerEvent<HTMLDivElement>, isCancel: boolean) => {
+    const session = sessionRef.current;
+    if (!session || session.pointerId !== e.pointerId) return;
+
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
+    if (session.isCaptured && trackRef.current) {
+      try {
+        trackRef.current.releasePointerCapture(session.pointerId);
+      } catch {}
+    }
+
+    const track = trackRef.current;
+    const width = session.viewportWidth;
+    const currIndex = activeIndexRef.current;
+
+    // Read current position from track
+    let currentX = -currIndex * width;
+    if (track) {
+      try {
+        const style = window.getComputedStyle(track);
+        const matrix = new DOMMatrix(style.transform);
+        currentX = matrix.m41;
+      } catch {
+        currentX = pendingXRef.current ?? (-currIndex * width);
+      }
+    }
+
+    const dx = e.clientX - session.startX;
+
+    // Velocity from the last two pointer samples (px/ms)
+    let vx = 0;
+    if (session.samples.length >= 2) {
+      const s0 = session.samples[session.samples.length - 2];
+      const s1 = session.samples[session.samples.length - 1];
+      const dt = Math.max(1, s1.time - s0.time);
+      vx = (s1.x - s0.x) / dt;
+    }
+
+    sessionRef.current = null;
+
+    let targetIndex = currIndex;
+
+    // Commit rule: commit if |dx| > 0.22 * width OR |velocity| > 0.5 px/ms
+    if (!isCancel && session.hasExceededSlop) {
+      const isDisplaced = Math.abs(dx) > CAROUSEL_CONFIG.COMMIT_DISTANCE_RATIO * width;
+      const isFastFlick = Math.abs(vx) > CAROUSEL_CONFIG.COMMIT_VELOCITY;
+
+      if (isDisplaced || isFastFlick) {
+        if ((dx < 0 || vx < -CAROUSEL_CONFIG.COMMIT_VELOCITY) && currIndex < resources.length - 1) {
+          targetIndex = currIndex + 1;
+        } else if ((dx > 0 || vx > CAROUSEL_CONFIG.COMMIT_VELOCITY) && currIndex > 0) {
+          targetIndex = currIndex - 1;
+        }
+      }
+    }
+
+    runSpringAnimation(currentX, targetIndex, width);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    finishGesture(e, false);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    finishGesture(e, true);
+  };
+
+  // Suppress resulting click in the capture phase if pointer moved > 6px
   const handleClickCapture = (e: React.MouseEvent) => {
-    if (hasSwipedRef.current) {
-      e.stopPropagation();
+    if (suppressClickRef.current) {
       e.preventDefault();
+      e.stopPropagation();
+      setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
     }
   };
 
   if (!resources || resources.length === 0) return null;
 
+  // Single tag: no carousel, no drag handlers, static render
+  if (resources.length === 1) {
+    const single = resources[0];
+    return (
+      <div className="pt-2 font-sans">
+        <BelongingPlateCard
+          resource={single}
+          onOpenShare={() => {
+            setSelectedShareResource(single);
+            setIsShareSheetOpen(true);
+          }}
+        />
+        <ShareTagSheet
+          isOpen={isShareSheetOpen}
+          onClose={() => setIsShareSheetOpen(false)}
+          resource={single}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="relative pt-2 font-sans space-y-3">
-      {/* Scroll Rail at the Top: Centered, Borderless with spring morphing */}
-      {resources.length > 1 && (
-        <div
-          className="flex items-center justify-center gap-2 py-1 select-none"
-          role="tablist"
-          aria-label="Belonging selector"
-        >
-          {resources.map((res, idx) => {
-            const isActive = idx === activeIndex;
-            return (
-              <button
-                key={res.id || (res as any)._id || idx}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-label={`View ${res.name} (Tag ${idx + 1} of ${resources.length})`}
-                onClick={() => handleDotClick(idx)}
-                className="group py-1 px-0.5 flex items-center justify-center cursor-pointer"
-              >
-                <motion.span
-                  animate={{
-                    width: isActive ? 24 : 6,
-                    backgroundColor: isActive ? '#11110F' : 'rgba(17, 17, 15, 0.4)',
-                  }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 340,
-                    damping: 18,
-                  }}
-                  className="h-1.5 rounded-full block"
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Springy Resistive Card Slider with Immediate Hardware Acceleration */}
+      {/* Indicator Dots Rail */}
       <div
-        ref={containerRef}
-        className="w-full overflow-hidden relative touch-pan-y select-none"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-        onMouseDown={handleTouchStart}
-        onMouseMove={handleTouchMove}
-        onMouseUp={handleTouchEnd}
-        onMouseLeave={handleTouchEnd}
-        onClickCapture={handleClickCapture}
+        className="flex items-center justify-center gap-2 py-1 select-none"
+        role="tablist"
+        aria-label="Belonging selector"
       >
-        <motion.div
-          style={{ x }}
-          className="flex w-full"
+        {resources.map((res, idx) => {
+          const isActive = idx === activeIndex;
+          return (
+            <button
+              key={res.id || (res as any)._id || idx}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`View ${res.name} (Tag ${idx + 1} of ${resources.length})`}
+              onClick={() => goTo(idx)}
+              className="group py-1 px-0.5 flex items-center justify-center cursor-pointer"
+            >
+              <motion.span
+                animate={{
+                  width: isActive ? 24 : 6,
+                  backgroundColor: isActive ? '#11110F' : 'rgba(17, 17, 15, 0.4)',
+                }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 340,
+                  damping: 18,
+                }}
+                className="h-1.5 rounded-full block"
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Viewport: overflow hidden, focusable for arrow keys */}
+      <div
+        ref={viewportRef}
+        tabIndex={0}
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Your Tags Carousel"
+        onKeyDown={handleKeyDown}
+        className="viewport w-full overflow-hidden relative select-none focus:outline-none"
+      >
+        {/* Track: flex, will-change: transform, touch-action: pan-y (browser owns vertical, JS owns horizontal) */}
+        <div
+          ref={trackRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          onClickCapture={handleClickCapture}
+          className="track flex w-full cursor-grab active:cursor-grabbing"
+          style={{
+            willChange: 'transform',
+            touchAction: 'pan-y',
+            transform: `translate3d(${-activeIndex * (viewportRef.current?.offsetWidth || 360)}px, 0, 0)`,
+          }}
         >
           {resources.map((resource, idx) => (
             <div
               key={resource.id || (resource as any)._id || idx}
-              className="w-full shrink-0 select-none px-0.5"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`Tag ${idx + 1} of ${resources.length}`}
+              className="card w-full shrink-0 flex-none px-0.5"
+              style={{ flex: '0 0 100%' }}
             >
               <BelongingPlateCard
                 resource={resource}
@@ -636,7 +798,7 @@ export const MobileTagDetailView: React.FC<MobileTagDetailViewProps> = ({
               />
             </div>
           ))}
-        </motion.div>
+        </div>
       </div>
 
       {/* Share Tag Bottom Sheet */}
