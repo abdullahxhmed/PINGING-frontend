@@ -51,11 +51,13 @@ export const AdminQrInventoryPage: React.FC = () => {
     isOpen: boolean;
     tagNumber: string;
     qrUrl?: string;
+    initialFormat?: 'standard' | 'mini';
     resourceName?: string;
     ownerName?: string;
   }>({
     isOpen: false,
     tagNumber: '',
+    initialFormat: 'standard',
   });
   const [revokeConfirmTag, setRevokeConfirmTag] = useState<AdminQrTagItem | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
@@ -72,13 +74,21 @@ export const AdminQrInventoryPage: React.FC = () => {
   const [singleSubmitting, setSingleSubmitting] = useState(false);
   const [singleResult, setSingleResult] = useState<AdminGenerateSingleQrResponse | null>(null);
 
-  // Handle URL action=batch
+  // Handle URL action=batch or action=mini
   useEffect(() => {
     if (searchParams.get('action') === 'batch') {
       setIsBatchModalOpen(true);
       setSearchParams({}, { replace: true });
+    } else if (searchParams.get('action') === 'mini' || searchParams.get('action') === 'small-qr') {
+      setStickerModal({
+        isOpen: true,
+        tagNumber: tags[0]?.tagNumber || 'J39VFSA',
+        qrUrl: tags[0] ? buildTagQrUrl(tags[0].tagNumber) : undefined,
+        initialFormat: 'mini',
+      });
+      setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, tags]);
 
   const fetchSummary = async () => {
     try {
@@ -182,6 +192,7 @@ export const AdminQrInventoryPage: React.FC = () => {
                 isOpen: true,
                 tagNumber: tags[0]?.tagNumber || 'J39VFSA',
                 qrUrl: tags[0] ? buildTagQrUrl(tags[0].tagNumber) : undefined,
+                initialFormat: 'standard',
               })
             }
             className="px-3 py-2 rounded border border-border bg-surface hover:border-ink text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
@@ -189,6 +200,23 @@ export const AdminQrInventoryPage: React.FC = () => {
           >
             <Sparkles className="w-3.5 h-3.5 text-accent" />
             <span>Sticker Studio</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setStickerModal({
+                isOpen: true,
+                tagNumber: tags[0]?.tagNumber || 'J39VFSA',
+                qrUrl: tags[0] ? buildTagQrUrl(tags[0].tagNumber) : undefined,
+                initialFormat: 'mini',
+              })
+            }
+            className="px-3 py-2 rounded border border-border bg-surface hover:border-ink text-xs font-semibold uppercase tracking-wider text-ink transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Open Small QR (Mini) Sticker Builder"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            <span>Small QR</span>
           </button>
 
           <button
@@ -643,6 +671,7 @@ export const AdminQrInventoryPage: React.FC = () => {
         onClose={() => setStickerModal({ isOpen: false, tagNumber: '' })}
         initialTagNumber={stickerModal.tagNumber}
         initialQrUrl={stickerModal.qrUrl}
+        initialFormat={stickerModal.initialFormat || 'standard'}
         resourceName={stickerModal.resourceName}
         ownerName={stickerModal.ownerName}
       />

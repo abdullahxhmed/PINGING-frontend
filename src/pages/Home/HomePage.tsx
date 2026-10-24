@@ -210,6 +210,16 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
 
+        {/* ── FULL WIDTH FLEX STICKERS SHOWCASE ─────────────────── */}
+        <section className="w-full border-b border-border bg-[#0d0d0c] overflow-hidden">
+          <img
+            src="/stickerImages/flexStickers.PNG"
+            alt="Kauntact Flex Stickers"
+            className="w-full h-auto block select-none pointer-events-none"
+            loading="lazy"
+          />
+        </section>
+
         {/* ── 02. USE CASES (SPREAD HORIZONTAL LAYOUT) ─────────── */}
         <section id="use-cases" className="py-4 sm:py-14 lg:py-24 border-b border-border bg-bg relative">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -295,7 +305,7 @@ export const HomePage: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-8">
             <RevealBlock>
               <h2 className="font-display font-medium text-[clamp(3rem,8vw,6.5rem)] text-[#f5f4ee] tracking-tight uppercase leading-[0.9]">
-                Put a <PingInSvgLogo inline findColor="#f5f4ee" atColor="#8f8f8f" className="mx-2" /> tag<br />on something.
+                Put a <PingInSvgLogo inline findColor="#f5f4ee" atColor="#8f8f8f" className="mx-2" />on something.
               </h2>
             </RevealBlock>
             <RevealBlock delay={60}>

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   BarChart2,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { ResourceAnalyticsModal } from '../../components/admin/ResourceAnalyticsModal';
 
@@ -133,6 +134,15 @@ export const AdminDashboardPage: React.FC = () => {
           >
             <BarChart2 className="w-3.5 h-3.5" />
             <span>Resource Analytics</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/inventory?action=mini')}
+            className="px-3.5 py-2 bg-surface border border-border hover:border-ink text-ink text-xs font-semibold uppercase tracking-wider rounded transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Open Small QR (Mini) Sticker Builder"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            <span>Small QR Builder</span>
           </button>
           <button
             type="button"

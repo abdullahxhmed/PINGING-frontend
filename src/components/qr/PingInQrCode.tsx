@@ -6,9 +6,14 @@ import { QrCode as QrCodeIcon } from 'lucide-react';
 export interface PingInQrCodeProps {
   /**
    * The tag token, tag number, or target URL.
-   * Will be strictly normalized into `${baseUrl}/t/${identifier}`.
+   * Will be strictly normalized into `${baseUrl}/t/${identifier}` unless directUrl is true.
    */
   value?: string | null;
+
+  /**
+   * If true, encodes the exact value string directly without tag normalization.
+   */
+  directUrl?: boolean;
 
   /**
    * Size in pixels (width and height). Default: 150
@@ -55,12 +60,13 @@ export interface PingInQrCodeProps {
  * Canonical Single QR Builder Component for PingIn.
  *
  * Guarantees that every QR code rendered across the app:
- * 1. Strictly encodes `https://.../t/:identifier`.
+ * 1. Strictly encodes `https://.../t/:identifier` unless directUrl is explicitly set.
  * 2. Never accidentally embeds direct contact URLs (/c/:token).
  * 3. Gracefully disables display if no QR tag is provided.
  */
 export const PingInQrCode: React.FC<PingInQrCodeProps> = ({
   value,
+  directUrl = false,
   size = 150,
   fgColor = '#11110F',
   bgColor = '#FFFFFF',
@@ -70,7 +76,7 @@ export const PingInQrCode: React.FC<PingInQrCodeProps> = ({
   className = '',
   fallback,
 }) => {
-  const finalUrl = buildTagQrUrl(value);
+  const finalUrl = directUrl && value ? value : buildTagQrUrl(value);
 
   // If no valid tag or URL could be constructed, do not render a QR code
   if (!finalUrl) {
@@ -99,6 +105,7 @@ export const PingInQrCode: React.FC<PingInQrCodeProps> = ({
         bgColor={bgColor}
         level={level}
         includeMargin={includeMargin}
+        className={className.includes('w-full') ? 'w-full h-full max-w-full max-h-full block' : undefined}
       />
     </div>
   );

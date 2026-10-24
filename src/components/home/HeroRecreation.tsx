@@ -152,36 +152,33 @@ export const HeroRecreation: React.FC = () => {
                   className={`cursor-target relative p-6 sm:p-8 bg-[#F4F3EE] rounded-3xl border-2 transition-all duration-300 ${
                     heroState === 'scanning'
                       ? 'border-[#11110F] shadow-[0_24px_60px_rgba(215,255,63,0.35)] scale-[1.03]'
-                      : 'border-[#11110F] shadow-[0_16px_40px_rgba(17,17,15,0.08)] hover:shadow-[0_20px_50px_rgba(17,17,15,0.16)] hover:-translate-y-1'
+                      : 'border-[#11110F] shadow-[0_18px_48px_rgba(17,17,15,0.14)] hover:shadow-[0_24px_56px_rgba(17,17,15,0.22)] hover:-translate-y-1'
                   } group cursor-pointer`}
                 >
                   {/* Top brand header on physical plate */}
                   <div className="flex items-center justify-between gap-6 mb-5 px-1">
-                    <PingInSvgLogo height={14} className="text-[#11110F]" />
-                    <div className="flex items-center gap-1.5">
+                    <PingInSvgLogo height={14} className="text-[#11110F] opacity-30" />
+                    <div>
                       <span className="text-[10px] font-mono font-bold text-[#6E6B62]">
                         TAG #PG-4421
                       </span>
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full border border-[#11110F] ${
-                          heroState === 'scanning'
-                            ? 'bg-[#D7FF3F] animate-pulse'
-                            : 'bg-[#D7FF3F]'
-                        }`}
-                      />
                     </div>
                   </div>
 
                   {/* QR Core Container with Scan Viewport */}
-                  <div className="relative bg-white p-4 sm:p-5 rounded-2xl border border-[#D8D5CC] overflow-hidden shadow-inner">
-                    <PingInQrCode
-                      value="DEMO-TAG"
-                      size={220}
-                      level="H"
-                      fgColor="#11110F"
-                      bgColor="#FFFFFF"
-                      includeMargin={false}
-                    />
+                  <div className="relative bg-white p-3.5 sm:p-4.5 rounded-2xl border border-[#D8D5CC] overflow-hidden shadow-[0_2px_8px_rgba(17,17,15,0.05)] w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] aspect-square flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <PingInQrCode
+                        value="http://kauntact.in"
+                        directUrl={true}
+                        size={220}
+                        level="H"
+                        fgColor="#11110F"
+                        bgColor="#FFFFFF"
+                        includeMargin={false}
+                        className="w-full h-full flex items-center justify-center"
+                      />
+                    </div>
 
                     {/* Corner Target Reticles */}
                     <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-[#11110F]" />
@@ -216,8 +213,7 @@ export const HeroRecreation: React.FC = () => {
                   </div>
 
                   {/* Bottom plate metadata */}
-                  <div className="mt-4 flex items-center justify-between text-xs font-mono text-[#6E6B62] px-1">
-                    <span className="tracking-wider">{getPublicDomain()}/t/DEMO-TAG</span>
+                  <div className="mt-4 flex items-center justify-end text-xs font-mono text-[#6E6B62] px-1 w-full">
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm transition-all ${
                         heroState === 'scanning'

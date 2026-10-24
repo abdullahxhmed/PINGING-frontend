@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { StoreHeader } from '../../components/store/StoreHeader';
-import { StoreFooter } from '../../components/store/StoreFooter';
+import { StoreHeader, StoreFooter } from '../../components/store';
 import {
   type StoreCartState,
   calculateCart,
@@ -505,7 +504,7 @@ export const CheckoutPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (it.id === 'pair' || it.id === 'complete-set') {
+                                if (it.isSet) {
                                   updateSetQty(it.id, -1);
                                 } else {
                                   updateAddonQty(it.id, -1);
@@ -520,7 +519,7 @@ export const CheckoutPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (it.id === 'pair' || it.id === 'complete-set') {
+                                if (it.isSet) {
                                   updateSetQty(it.id, 1);
                                 } else {
                                   updateAddonQty(it.id, 1);

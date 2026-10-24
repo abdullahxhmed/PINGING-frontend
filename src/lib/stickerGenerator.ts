@@ -312,3 +312,6 @@ export function printStickerFromDataUrl(dataUrl: string, tagNumber: string): voi
   `);
   printWindow.document.close();
 }
+
+// Re-export mini sticker builder functions, types, and constants
+export * from './miniStickerGenerator';

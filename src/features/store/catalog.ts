@@ -4,7 +4,12 @@ export interface SetProduct {
   tagline: string;
   price: number;
   shippingFee: number;
+  featured?: boolean;
   image: string;
+  images: {
+    dark: string;
+    light: string;
+  };
   contents: string[];
   tagsCount: number;
   plusMonths: number;
@@ -23,7 +28,11 @@ export const SETS: Record<string, SetProduct> = {
     tagline: '2 vehicle stickers + 12 months of Plus',
     price: 179,
     shippingFee: 40,
-    image: '/assets/kauntact_sticker_pack.jpg',
+    image: '/stickerImages/darkDuo.PNG',
+    images: {
+      dark: '/stickerImages/darkDuo.PNG',
+      light: '/stickerImages/lightDuo.PNG',
+    },
     contents: ['2 vehicle stickers', 'Includes 12 months of Plus'],
     tagsCount: 2,
     plusMonths: 12,
@@ -45,7 +54,12 @@ export const SETS: Record<string, SetProduct> = {
     tagline: '2 vehicle stickers + 1 keychain + 1 general-purpose sticker + 12 months of Plus',
     price: 499,
     shippingFee: 0,
-    image: '/assets/kauntact_everyday_pack.jpg',
+    featured: true,
+    image: '/stickerImages/darkSet.PNG',
+    images: {
+      dark: '/stickerImages/darkSet.PNG',
+      light: '/stickerImages/lightSet.PNG',
+    },
     contents: [
       '2 vehicle stickers',
       '1 QR keychain tag',
@@ -72,6 +86,9 @@ export const SETS: Record<string, SetProduct> = {
 SETS.pair = SETS.essential;
 SETS['complete-set'] = SETS['curated-kit'];
 
+export const PRIMARY_PACK_IDS = ['essential', 'curated-kit'] as const;
+export type PrimaryPackId = typeof PRIMARY_PACK_IDS[number];
+
 export interface AddonItem {
   id: string;
   name: string;
@@ -92,7 +109,7 @@ export const ADDONS: Record<string, AddonItem> = {
     tone: 'dark',
     swatchHex: '#151513',
     price: 99,
-    image: '/assets/kauntact_sticker_pack.jpg',
+    image: '/stickerImages/kauntactDark.png',
     tagsCount: 2,
   },
   'light-sticker-pair': {
@@ -103,7 +120,7 @@ export const ADDONS: Record<string, AddonItem> = {
     swatchHex: '#edece6',
     swatchBorderHex: '#aaa79c',
     price: 99,
-    image: '/assets/kauntact_sticker_pack.jpg',
+    image: '/stickerImages/kauntactLight.png',
     tagsCount: 2,
   },
   'dark-keychain': {
@@ -113,7 +130,7 @@ export const ADDONS: Record<string, AddonItem> = {
     tone: 'dark',
     swatchHex: '#151513',
     price: 179,
-    image: '/assets/kauntact_everyday_pack.jpg',
+    image: '/stickerImages/darkKeychain.PNG',
     tagsCount: 1,
   },
   'light-keychain': {
@@ -123,17 +140,28 @@ export const ADDONS: Record<string, AddonItem> = {
     tone: 'light',
     swatchHex: '#d8d5cc',
     price: 179,
-    image: '/assets/kauntact_everyday_pack.jpg',
+    image: '/stickerImages/lightKeychain.PNG',
     tagsCount: 1,
   },
-  'small-stickers': {
-    id: 'small-stickers',
+  'dark-mini': {
+    id: 'dark-mini',
     name: 'Small stickers (2-pack)',
     subtitle: 'For helmets, laptops and compact gear',
     tone: 'dark',
     swatchHex: '#151513',
     price: 79,
-    image: '/assets/kauntact_sticker_pack.jpg',
+    image: '/stickerImages/darkMini.PNG',
+    tagsCount: 2,
+  },
+  'light-mini': {
+    id: 'light-mini',
+    name: 'Small stickers (2-pack)',
+    subtitle: 'For tinted glass, laptops and dark gear',
+    tone: 'light',
+    swatchHex: '#edece6',
+    swatchBorderHex: '#aaa79c',
+    price: 79,
+    image: '/stickerImages/lightMini.PNG',
     tagsCount: 2,
   },
 };
@@ -147,6 +175,7 @@ export interface CartItemDetail {
   totalPrice: number;
   image?: string;
   tagsCount: number;
+  isSet?: boolean;
 }
 
 export interface CartCalculation {
@@ -163,11 +192,16 @@ export interface CartCalculation {
 export interface StoreCartState {
   sets: Record<string, number>;
   addons: Record<string, number>;
+  setTones?: Record<string, 'dark' | 'light'>;
 }
 
 export const DEFAULT_STORE_CART: StoreCartState = {
   sets: {},
   addons: {},
+  setTones: {
+    essential: 'dark',
+    'curated-kit': 'dark',
+  },
 };
 
 export function calculateCart(cart: StoreCartState): CartCalculation {
@@ -187,15 +221,19 @@ export function calculateCart(cart: StoreCartState): CartCalculation {
         if (targetId === 'curated-kit') hasCuratedKit = true;
         const safeQty = Math.max(1, Math.min(20, qty));
         totalTags += setProd.tagsCount * safeQty;
+        const tone = cart.setTones?.[targetId] || cart.setTones?.[id] || 'dark';
+        const displayImg = setProd.images ? setProd.images[tone] : setProd.image;
+        const toneLabel = tone === 'light' ? 'Light' : 'Dark';
         items.push({
           id: setProd.id,
-          name: setProd.name,
+          name: `${setProd.name} (${toneLabel})`,
           subtitle: setProd.tagline,
           unitPrice: setProd.price,
           quantity: safeQty,
           totalPrice: setProd.price * safeQty,
-          image: setProd.image,
+          image: displayImg,
           tagsCount: setProd.tagsCount,
+          isSet: true,
         });
       }
     }
@@ -209,20 +247,24 @@ export function calculateCart(cart: StoreCartState): CartCalculation {
           ? 'dark-sticker-pair'
           : id === 'light-sticker'
           ? 'light-sticker-pair'
+          : id === 'small-stickers'
+          ? 'dark-mini'
           : id;
       const addon = ADDONS[targetId];
       if (addon) {
         const safeQty = Math.max(1, Math.min(20, qty));
         totalTags += addon.tagsCount * safeQty;
+        const toneLabel = addon.tone === 'light' ? 'Light' : 'Dark';
         items.push({
           id: addon.id,
-          name: addon.name,
+          name: `${addon.name} (${toneLabel})`,
           subtitle: addon.subtitle,
           unitPrice: addon.price,
           quantity: safeQty,
           totalPrice: addon.price * safeQty,
           image: addon.image,
           tagsCount: addon.tagsCount,
+          isSet: false,
         });
       }
     }
@@ -291,6 +333,7 @@ export function getCartFromStorage(): StoreCartState {
     return {
       sets: parsed.sets || {},
       addons: parsed.addons || {},
+      setTones: parsed.setTones || { essential: 'dark', 'curated-kit': 'dark' },
     };
   } catch {
     return DEFAULT_STORE_CART;

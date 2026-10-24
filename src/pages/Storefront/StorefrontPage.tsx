@@ -1,25 +1,130 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { StoreHeader } from '../../components/store/StoreHeader';
-import { StoreFooter } from '../../components/store/StoreFooter';
+import {
+  StoreHeader,
+  StoreFooter,
+  StorePackCard,
+  StoreAddonCard,
+} from '../../components/store';
 import {
   SETS,
   ADDONS,
+  PRIMARY_PACK_IDS,
   type StoreCartState,
   calculateCart,
   saveCartToStorage,
   getCartFromStorage,
 } from '../../features/store/catalog';
 import {
-  Check,
-  Plus,
-  Minus,
   ArrowRight,
-  RotateCw,
   ChevronDown,
-  MapPin,
 } from 'lucide-react';
+
+interface StorePolicyItem {
+  label: string;
+  value?: string;
+  values?: string[];
+  isLink?: boolean;
+}
+
+const STORE_POLICIES: StorePolicyItem[] = [
+  {
+    label: 'Sizes',
+    values: ['Normal stickers: 5 × 7 cm', 'Mini: 3 × 4 cm', 'Keychain: 2.5 × 4 cm'],
+  },
+  {
+    label: 'Material & finish',
+    value: 'Vinyl, satin finish',
+  },
+  {
+    label: 'Adhesive',
+    value: '3M non-residue',
+  },
+  {
+    label: 'Outdoor resistance',
+    value: 'Weather & UV tolerant',
+  },
+  {
+    label: 'Returns & refunds',
+    value: 'Plan can be cancelled & refunded. Shipping is non-refundable.',
+  },
+  {
+    label: 'Payment methods',
+    value: 'UPI, Cards, Netbanking, COD',
+  },
+  {
+    label: 'Support',
+    value: 'info@kauntact.in',
+    isLink: true,
+  },
+];
+
+const PLAN_COMPARISON_ROWS = [
+  {
+    feature: 'Tags covered',
+    basic: '2 tags',
+    basicClass: 'font-mono text-muted',
+    plus: 'Up to 8 tags',
+    plusClass: 'font-mono font-medium text-ink',
+  },
+  {
+    feature: 'Voice calls',
+    basic: 'Included',
+    basicClass: 'text-success',
+    plus: 'Included',
+    plusClass: 'text-success',
+  },
+  {
+    feature: 'Whatsapp notifications',
+    basic: 'None',
+    basicClass: 'text-muted',
+    plus: 'Included',
+    plusClass: 'text-success',
+  },
+  {
+    feature: 'Call history',
+    basic: 'Recent',
+    basicClass: 'text-muted',
+    plus: 'Full history',
+    plusClass: 'text-ink font-medium',
+  },
+  {
+    feature: 'Price',
+    basic: 'Free',
+    basicClass: 'font-mono text-success font-semibold',
+    plus: '₹99/year *',
+    plusClass: 'font-mono text-ink font-semibold',
+    isHighlight: true,
+  },
+];
+
+const STORE_FAQS = [
+  {
+    q: 'Does the person scanning need an app?',
+    a: 'No. Any smartphone camera opens the contact page directly in their browser. The person reaching out never needs to install an app or create an account.',
+  },
+  {
+    q: 'Will they see my phone number?',
+    a: 'Never. Calls pass through our secure relay bridge. The caller talks to you through a virtual connection without ever seeing your personal digits.',
+  },
+  {
+    q: 'How do I activate or manage multiple tags?',
+    a: 'When your package arrives, scan any tag with your camera to link it to your Kauntact dashboard. You can manage multiple vehicles, keys, and personal belongings from one account.',
+  },
+  {
+    q: 'What is included for the first 12 months?',
+    a: 'Both packs include 12 months of Plus service: voice relay calling, web alerts, and up to 8 active tags. There are no monthly fees during your included year.',
+  },
+  {
+    q: 'What happens if I don’t renew for ₹99?',
+    a: 'Your first 2 tags keep working for calls with no expiry. Plus renewal (₹99/year) is only needed if you have more than 2 tags active or want web notifications.',
+  },
+  {
+    q: 'Where do orders ship from and what is the return policy?',
+    a: 'All orders dispatch within 24–48 hours from Hyderabad via express courier (3–5 business days across India). Defective items receive an immediate free replacement.',
+  },
+];
 
 export const StorefrontPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,10 +132,23 @@ export const StorefrontPage: React.FC = () => {
   // Cart state persisted to storage
   const [cart, setCart] = useState<StoreCartState>(() => getCartFromStorage());
 
-  // Flipped state for the two pack cards (front vs back)
-  const [flipped, setFlipped] = useState<Record<string, boolean>>({
-    essential: false,
-    'curated-kit': false,
+  // Finish tone state for the pack cards (dark vs light) dynamically initialized from primary packs
+  const [packTones, setPackTones] = useState<Record<string, 'dark' | 'light'>>(() => {
+    const c = getCartFromStorage();
+    const init: Record<string, 'dark' | 'light'> = {};
+    PRIMARY_PACK_IDS.forEach((id) => {
+      init[id] = c.setTones?.[id] || 'dark';
+    });
+    return init;
+  });
+
+  // Flipped state for the pack cards (front vs back) dynamically initialized
+  const [flipped, setFlipped] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    PRIMARY_PACK_IDS.forEach((id) => {
+      init[id] = false;
+    });
+    return init;
   });
 
   // Quirky animation trigger key
@@ -42,6 +160,24 @@ export const StorefrontPage: React.FC = () => {
   useEffect(() => {
     saveCartToStorage(cart);
   }, [cart]);
+
+  // Dynamically preload pack images and addon images for instant finish switching without 1s lag
+  useEffect(() => {
+    const toPreload: string[] = [];
+    PRIMARY_PACK_IDS.forEach((id) => {
+      const p = SETS[id];
+      if (p?.images) {
+        toPreload.push(p.images.dark, p.images.light);
+      }
+    });
+    Object.values(ADDONS).forEach((a) => {
+      if (a.image) toPreload.push(a.image);
+    });
+    toPreload.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
 
   const cartCalc = calculateCart(cart);
 
@@ -83,37 +219,27 @@ export const StorefrontPage: React.FC = () => {
     });
   };
 
+  const handleToneChange = (setId: string, tone: 'dark' | 'light') => {
+    setPackTones((prev) => ({ ...prev, [setId]: tone }));
+    setCart((prev) => {
+      const updated = {
+        ...prev,
+        setTones: {
+          ...(prev.setTones || {}),
+          [setId]: tone,
+        },
+      };
+      saveCartToStorage(updated);
+      return updated;
+    });
+  };
+
   const handleCheckout = () => {
     navigate('/checkout', { state: { from: 'bottom' } });
   };
 
 
-  const faqs = [
-    {
-      q: 'Does the person scanning need an app?',
-      a: 'No. Any smartphone camera opens the contact page directly in their browser. The person reaching out never needs to install an app or create an account.',
-    },
-    {
-      q: 'Will they see my phone number?',
-      a: 'Never. Calls pass through our secure relay bridge. The caller talks to you through a virtual connection without ever seeing your personal digits.',
-    },
-    {
-      q: 'How do I activate or manage multiple tags?',
-      a: 'When your package arrives, scan any tag with your camera to link it to your Kauntact dashboard. You can manage multiple vehicles, keys, and personal belongings from one account.',
-    },
-    {
-      q: 'What is included for the first 12 months?',
-      a: 'Both packs include 12 months of Plus service: voice relay calling, web alerts, and up to 8 active tags. There are no monthly fees during your included year.',
-    },
-    {
-      q: 'What happens if I don’t renew for ₹99?',
-      a: 'Your first 2 tags keep working for calls with no expiry. Plus renewal (₹99/year) is only needed if you have more than 2 tags active or want web notifications.',
-    },
-    {
-      q: 'Where do orders ship from and what is the return policy?',
-      a: 'All orders dispatch within 24–48 hours from Hyderabad via express courier (3–5 business days across India). Defective items receive an immediate free replacement.',
-    },
-  ];
+
 
   return (
     <div className="min-h-screen bg-bg text-ink font-sans selection:bg-accent selection:text-ink flex flex-col relative">
@@ -133,368 +259,65 @@ export const StorefrontPage: React.FC = () => {
           </p>
         </section>
 
-        {/* ── 2. SELECT A PACK: ESSENTIAL & CURATED KIT WITH 60FPS CARD FLIP ── */}
+        {/* ── 2. SELECT A PACK: ESSENTIAL & CURATED KIT (MODULAR) ────────── */}
         <section className="py-6 space-y-4">
           <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
             SELECT A PACK
           </p>
 
-          {/* CARD 1: ESSENTIAL (₹179) */}
-          <div className="relative grid grid-cols-1 grid-rows-1" style={{ perspective: '1200px' }}>
-            {/* FRONT SIDE */}
-            <div
-              className="col-start-1 row-start-1 w-full rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col justify-between space-y-3.5 shadow-2xs"
-              style={{
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transform: flipped.essential ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                transition: 'transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)',
-                pointerEvents: flipped.essential ? 'none' : 'auto',
-                transformStyle: 'preserve-3d',
-              }}
-              aria-hidden={flipped.essential}
-            >
-              <div className="space-y-3.5">
-                <div className="flex items-baseline justify-between gap-2 border-b border-border/80 pb-2.5">
-                  <div>
-                    <h2 className="font-display font-medium text-xl text-ink uppercase tracking-tight">
-                      {SETS.essential.name}
-                    </h2>
-                    <p className="text-[13px] text-muted">{SETS.essential.tagline}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-mono text-xl font-semibold text-ink">
-                      ₹{SETS.essential.price}
-                    </span>
-                  </div>
-                </div>
+          <div className="space-y-4">
+            {PRIMARY_PACK_IDS.map((packId) => {
+              const product = SETS[packId];
+              if (!product) return null;
 
-                {/* Product Artwork Photo */}
-                <div className="aspect-[16/9] rounded-md overflow-hidden border border-border bg-[#eceae1]">
-                  <img
-                    src={SETS.essential.image}
-                    alt={SETS.essential.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Included Items Checklist (No delivery claims upfront) */}
-                <div className="space-y-1.5 text-xs text-ink pt-0.5">
-                  {SETS.essential.contents.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
-                      <span className="text-[14px] leading-snug">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Slot: Stepper + Know More Flip Button */}
-              <div className="pt-2 flex items-center gap-2.5">
-                <div className="flex-1">
-                  {(cart.sets.essential || 0) === 0 ? (
-                    <motion.button
-                      type="button"
-                      whileTap={{ scale: 0.94 }}
-                      whileHover={{ scale: 1.01 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                      onClick={() => setSetQty('essential', 1)}
-                      className="w-full min-h-[44px] px-4 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded-md hover:opacity-90 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      <span>Add to cart</span>
-                      <Plus className="w-3.5 h-3.5 text-accent" />
-                    </motion.button>
-                  ) : (
-                    <div className="min-h-[44px] flex items-center justify-between border border-ink rounded-md bg-bg px-2 shadow-2xs">
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.8 }}
-                        transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                        onClick={() => setSetQty('essential', -1)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink hover:bg-surface rounded transition-colors cursor-pointer"
-                        aria-label="Decrease Essential quantity"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </motion.button>
-                      <span className="font-mono text-sm font-semibold text-ink">
-                        {cart.sets.essential} in cart
-                      </span>
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.8 }}
-                        transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                        onClick={() => setSetQty('essential', 1)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink hover:bg-surface rounded transition-colors cursor-pointer"
-                        aria-label="Increase Essential quantity"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Know More Flip Trigger */}
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.92 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                  onClick={() => toggleFlip('essential')}
-                  className="min-h-[44px] px-3.5 border border-border hover:border-ink rounded-md text-xs font-mono font-medium text-ink bg-bg hover:bg-surface transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                  title="Flip card for dispatch and specifications"
-                >
-                  <span>Know more</span>
-                  <RotateCw className="w-3 h-3 text-muted" />
-                </motion.button>
-              </div>
-            </div>
-
-            {/* BACK SIDE (Clean 0deg facing with zero raster blur) */}
-            <div
-              className="col-start-1 row-start-1 w-full rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-2xs"
-              style={{
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transform: flipped.essential ? 'rotateY(0deg)' : 'rotateY(-180deg)',
-                transition: 'transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)',
-                pointerEvents: flipped.essential ? 'auto' : 'none',
-                transformStyle: 'preserve-3d',
-              }}
-              aria-hidden={!flipped.essential}
-            >
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted">
-                    ESSENTIAL · DETAILS
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => toggleFlip('essential')}
-                    className="text-xs font-mono font-medium text-ink hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Back</span>
-                    <RotateCw className="w-3 h-3 text-muted" />
-                  </button>
-                </div>
-
-                {/* Origin & Delivery Terms */}
-                <div className="p-3 rounded-md bg-bg border border-border space-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5 text-ink font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-ink" />
-                    <span>{SETS.essential.details.origin}</span>
-                  </div>
-                  <p className="text-muted leading-relaxed pl-5">
-                    {SETS.essential.details.shipping}
-                  </p>
-                </div>
-
-                {/* Specifications Checklist */}
-                <div className="space-y-2 text-xs">
-                  <span className="font-mono text-[10px] uppercase font-semibold text-muted block">
-                    SPECIFICATIONS
-                  </span>
-                  <ul className="space-y-1.5 text-[13px] text-ink">
-                    {SETS.essential.details.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
-                        <span className="leading-snug">{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Close back side action */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => toggleFlip('essential')}
-                  className="w-full min-h-[44px] border border-border hover:border-ink rounded-md text-xs font-mono font-medium text-ink bg-bg transition-colors cursor-pointer"
-                >
-                  Close details
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 2: CURATED KIT (₹499) — HIGHLIGHTED VIA DEEP BORDER & ELEVATION SHADOW (NO BLACK BAR) */}
-          <div className="relative grid grid-cols-1 grid-rows-1" style={{ perspective: '1200px' }}>
-            {/* FRONT SIDE */}
-            <div
-              className="col-start-1 row-start-1 w-full rounded-lg border-2 border-[#1c1b18] bg-[#f0eee6] p-4 sm:p-5 flex flex-col justify-between space-y-3.5 shadow-lg shadow-black/8 ring-1 ring-black/5"
-              style={{
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transform: flipped['curated-kit'] ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                transition: 'transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)',
-                pointerEvents: flipped['curated-kit'] ? 'none' : 'auto',
-                transformStyle: 'preserve-3d',
-              }}
-              aria-hidden={flipped['curated-kit']}
-            >
-              <div className="space-y-3.5">
-                <div className="flex items-baseline justify-between gap-2 border-b border-border/80 pb-2.5">
-                  <div>
-                    <h2 className="font-display font-medium text-xl text-ink uppercase tracking-tight">
-                      {SETS['curated-kit'].name}
-                    </h2>
-                    <p className="text-[13px] text-muted">Complete 4-piece kit</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-mono text-xl font-semibold text-ink">
-                      ₹{SETS['curated-kit'].price}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Product Artwork Photo */}
-                <div className="aspect-[16/9] rounded-md overflow-hidden border border-border bg-[#eceae1]">
-                  <img
-                    src={SETS['curated-kit'].image}
-                    alt={SETS['curated-kit'].name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Exact Contents (No delivery claims upfront) */}
-                <div className="space-y-1.5 text-xs text-ink pt-0.5">
-                  {SETS['curated-kit'].contents.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-success shrink-0" />
-                      <span className="text-[14px] leading-snug">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Slot: Stepper + Know More Flip Button */}
-              <div className="pt-2 flex items-center gap-2.5">
-                <div className="flex-1">
-                  {(cart.sets['curated-kit'] || 0) === 0 ? (
-                    <motion.button
-                      type="button"
-                      whileTap={{ scale: 0.94 }}
-                      whileHover={{ scale: 1.01 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                      onClick={() => setSetQty('curated-kit', 1)}
-                      className="w-full min-h-[44px] px-4 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded-md hover:opacity-90 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      <span>Add to cart</span>
-                      <Plus className="w-3.5 h-3.5 text-accent" />
-                    </motion.button>
-                  ) : (
-                    <div className="min-h-[44px] flex items-center justify-between border border-ink rounded-md bg-bg px-2 shadow-2xs">
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.8 }}
-                        transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                        onClick={() => setSetQty('curated-kit', -1)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink hover:bg-surface rounded transition-colors cursor-pointer"
-                        aria-label="Decrease Curated kit quantity"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </motion.button>
-                      <span className="font-mono text-sm font-semibold text-ink">
-                        {cart.sets['curated-kit']} in cart
-                      </span>
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.8 }}
-                        transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                        onClick={() => setSetQty('curated-kit', 1)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink hover:bg-surface rounded transition-colors cursor-pointer"
-                        aria-label="Increase Curated kit quantity"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Know More Flip Trigger */}
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.92 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                  onClick={() => toggleFlip('curated-kit')}
-                  className="min-h-[44px] px-3.5 border border-border hover:border-ink rounded-md text-xs font-mono font-medium text-ink bg-bg hover:bg-surface transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                  title="Flip card for dispatch and specifications"
-                >
-                  <span>Know more</span>
-                  <RotateCw className="w-3 h-3 text-muted" />
-                </motion.button>
-              </div>
-            </div>
-
-            {/* BACK SIDE (Clean 0deg facing with zero raster blur) */}
-            <div
-              className="col-start-1 row-start-1 w-full rounded-lg border-2 border-[#1c1b18] bg-[#f0eee6] p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg shadow-black/8"
-              style={{
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transform: flipped['curated-kit'] ? 'rotateY(0deg)' : 'rotateY(-180deg)',
-                transition: 'transform 0.55s cubic-bezier(0.25, 1, 0.5, 1)',
-                pointerEvents: flipped['curated-kit'] ? 'auto' : 'none',
-                transformStyle: 'preserve-3d',
-              }}
-              aria-hidden={!flipped['curated-kit']}
-            >
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between border-b border-border/80 pb-2.5">
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted">
-                    CURATED KIT · DETAILS
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => toggleFlip('curated-kit')}
-                    className="text-xs font-mono font-medium text-ink hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Back</span>
-                    <RotateCw className="w-3 h-3 text-muted" />
-                  </button>
-                </div>
-
-                {/* Origin & Delivery Terms */}
-                <div className="p-3 rounded-md bg-bg border border-border space-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5 text-ink font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-ink" />
-                    <span>{SETS['curated-kit'].details.origin}</span>
-                  </div>
-                  <p className="text-muted leading-relaxed pl-5">
-                    {SETS['curated-kit'].details.shipping}
-                  </p>
-                </div>
-
-                {/* Specifications Checklist */}
-                <div className="space-y-2 text-xs">
-                  <span className="font-mono text-[10px] uppercase font-semibold text-muted block">
-                    SPECIFICATIONS
-                  </span>
-                  <ul className="space-y-1.5 text-[13px] text-ink">
-                    {SETS['curated-kit'].details.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
-                        <span className="leading-snug">{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Close back side action */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => toggleFlip('curated-kit')}
-                  className="w-full min-h-[44px] border border-border hover:border-ink rounded-md text-xs font-mono font-medium text-ink bg-bg transition-colors cursor-pointer"
-                >
-                  Close details
-                </button>
-              </div>
-            </div>
+              return (
+                <StorePackCard
+                  key={packId}
+                  product={product}
+                  tone={packTones[packId] || 'dark'}
+                  onToneChange={(tone) => handleToneChange(packId, tone)}
+                  quantity={cart.sets[packId] || 0}
+                  onQuantityChange={(delta) => setSetQty(packId, delta)}
+                  isFlipped={Boolean(flipped[packId])}
+                  onToggleFlip={() => toggleFlip(packId)}
+                  isFeatured={Boolean(product.featured)}
+                />
+              );
+            })}
           </div>
         </section>
 
-        {/* ── 3. PLAN COMPARISON: BASIC VS PLUS (COMPACT TABLE) ───────────── */}
+        {/* ── 3. À LA CARTE (BUY INDIVIDUALLY OR ADD ON) ─────────────────── */}
+        <section className="py-6 border-t border-border space-y-4">
+          <div>
+            <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
+              À LA CARTE
+            </p>
+            <h2 className="font-display font-medium text-xl text-ink uppercase tracking-tight mt-0.5">
+              Buy individually or add on
+            </h2>
+            <p className="text-[13px] text-muted">
+              Extra stickers and keychains for people who want tags separately.
+            </p>
+            <p>
+              Click on the images to add to cart.
+            </p>
+          </div>
+
+          {/* Edge-to-edge Seamless Photo Grid with Clean Break Lines */}
+          <div className="-mx-4 sm:-mx-5 grid grid-cols-2 gap-[1px] bg-border border-y border-border">
+            {Object.values(ADDONS).map((addon) => (
+              <StoreAddonCard
+                key={addon.id}
+                addon={addon}
+                quantity={cart.addons[addon.id] || 0}
+                onQuantityChange={(delta) => setAddonQty(addon.id, delta)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* ── 4. PLAN COMPARISON: BASIC VS PLUS (COMPACT TABLE) ───────────── */}
         <section className="py-6 border-t border-border space-y-3">
           <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
             PLAN COMPARISON
@@ -512,41 +335,16 @@ export const StorefrontPage: React.FC = () => {
             </div>
 
             <div className="divide-y divide-border/70">
-              <div className="grid grid-cols-12 p-2.5 items-center">
-                <span className="col-span-5 text-ink font-medium">Tags covered</span>
-                <span className="col-span-3 text-center font-mono text-muted">2 tags</span>
-                <span className="col-span-4 text-right font-mono font-medium text-ink">
-                  Up to 8 tags
-                </span>
-              </div>
-
-              <div className="grid grid-cols-12 p-2.5 items-center">
-                <span className="col-span-5 text-ink font-medium">Voice calls</span>
-                <span className="col-span-3 text-center text-success">Included</span>
-                <span className="col-span-4 text-right text-success">Included</span>
-              </div>
-
-              <div className="grid grid-cols-12 p-2.5 items-center">
-                <span className="col-span-5 text-ink font-medium">Whatsapp notifications</span>
-                <span className="col-span-3 text-center text-muted">None</span>
-                <span className="col-span-4 text-right text-success">Included</span>
-              </div>
-
-              <div className="grid grid-cols-12 p-2.5 items-center">
-                <span className="col-span-5 text-ink font-medium">Call history</span>
-                <span className="col-span-3 text-center text-muted">Recent</span>
-                <span className="col-span-4 text-right text-ink font-medium">Full history</span>
-              </div>
-
-              <div className="grid grid-cols-12 p-2.5 items-center bg-bg/40">
-                <span className="col-span-5 text-ink font-medium">Price</span>
-                <span className="col-span-3 text-center font-mono text-success font-semibold">
-                  Free
-                </span>
-                <span className="col-span-4 text-right font-mono text-ink font-semibold">
-                  ₹99/year *
-                </span>
-              </div>
+              {PLAN_COMPARISON_ROWS.map((row, idx) => (
+                <div
+                  key={idx}
+                  className={`grid grid-cols-12 p-2.5 items-center ${row.isHighlight ? 'bg-bg/40' : ''}`}
+                >
+                  <span className="col-span-5 text-ink font-medium">{row.feature}</span>
+                  <span className={`col-span-3 text-center ${row.basicClass}`}>{row.basic}</span>
+                  <span className={`col-span-4 text-right ${row.plusClass}`}>{row.plus}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -556,222 +354,107 @@ export const StorefrontPage: React.FC = () => {
           </p>
         </section>
 
-        {/* ── 4. À LA CARTE (BUY INDIVIDUALLY OR ADD ON) ─────────────────── */}
-        <section className="py-6 border-t border-border space-y-4">
-          <div>
-            <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
-              À LA CARTE
-            </p>
-            <h2 className="font-display font-medium text-xl text-ink uppercase tracking-tight mt-0.5">
-              Buy individually or add on
-            </h2>
-            <p className="text-[13px] text-muted">
-              Extra stickers and keychains for people who want tags separately.
-            </p>
-          </div>
-
-          {/* 2-Column Grid separated by break lines only (No cards) */}
-          <div className="border-t border-border grid grid-cols-2">
-            {Object.values(ADDONS).map((addon, idx) => {
-              const qty = cart.addons[addon.id] || 0;
-              const isLeftCol = idx % 2 === 0;
-
-              return (
-                <div
-                  key={addon.id}
-                  className={`p-3 sm:p-4 flex flex-col justify-between border-b border-border ${
-                    isLeftCol ? 'border-r border-border' : ''
-                  }`}
-                >
-                  <div className="space-y-2.5">
-                    {/* Uncropped Image */}
-                    <div className="aspect-[3/4] rounded-sm overflow-hidden bg-[#eceae1] relative border border-border/60">
-                      <img
-                        src={addon.image}
-                        alt={addon.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-
-                      {/* Visual Swatch */}
-                      <div className="absolute top-2 right-2 flex items-center justify-center p-1 rounded-full bg-bg/90 border border-border/80 shadow-2xs">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full block border"
-                          style={{
-                            backgroundColor: addon.swatchHex,
-                            borderColor: addon.swatchBorderHex || addon.swatchHex,
-                          }}
-                          title={`Finish: ${addon.tone}`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Metadata */}
-                    <div className="space-y-0.5">
-                      <div className="flex items-baseline justify-between gap-1">
-                        <h3 className="text-xs sm:text-sm font-medium text-ink truncate">
-                          {addon.name}
-                        </h3>
-                        <span className="font-mono text-xs sm:text-sm font-semibold text-ink shrink-0">
-                          ₹{addon.price}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted line-clamp-1">
-                        {addon.subtitle}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Clean 44px Stepper / Add button */}
-                  <div className="pt-3">
-                    {qty === 0 ? (
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.94 }}
-                        whileHover={{ scale: 1.015 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                        onClick={() => setAddonQty(addon.id, 1)}
-                        className="w-full min-h-[44px] border border-border hover:border-ink rounded text-xs font-mono font-medium text-ink hover:bg-surface flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                      >
-                        <span>Add</span>
-                        <Plus className="w-3.5 h-3.5 text-muted" />
-                      </motion.button>
-                    ) : (
-                      <div className="min-h-[44px] flex items-center justify-between border border-ink rounded bg-surface px-1.5 shadow-2xs">
-                        <motion.button
-                          type="button"
-                          whileTap={{ scale: 0.8 }}
-                          transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                          onClick={() => setAddonQty(addon.id, -1)}
-                          className="min-w-[36px] min-h-[44px] flex items-center justify-center text-ink hover:bg-bg rounded transition-colors cursor-pointer"
-                          aria-label={`Decrease ${addon.name}`}
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </motion.button>
-                        <span className="font-mono text-xs font-semibold text-ink">
-                          {qty}
-                        </span>
-                        <motion.button
-                          type="button"
-                          whileTap={{ scale: 0.8 }}
-                          transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                          onClick={() => setAddonQty(addon.id, 1)}
-                          className="min-w-[36px] min-h-[44px] flex items-center justify-center text-ink hover:bg-bg rounded transition-colors cursor-pointer"
-                          aria-label={`Increase ${addon.name}`}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </motion.button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Subtle empty spacer cell if items are odd count so hairline finishes neatly */}
-            {Object.values(ADDONS).length % 2 !== 0 && (
-              <div className="border-b border-border p-3 sm:p-4 flex flex-col justify-center items-center text-center opacity-40">
-                <span className="font-mono text-[10px] tracking-wider uppercase text-muted">
-                  Kauntact
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ── 5. SPECIFICATIONS & POLICIES (MARKED PLACEHOLDERS) ───────────── */}
-        <section className="py-6 border-t border-border space-y-3 text-xs">
+        {/* ── 5. SPECIFICATIONS & POLICIES ────────────────────────────────── */}
+        <section className="py-6 border-t border-border space-y-3 font-sans">
           <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
             SPECIFICATIONS &amp; POLICIES
           </p>
 
-          <div className="rounded-lg border border-border bg-surface p-4 space-y-2.5 text-[13px] text-muted">
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Dimensions</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Physical dimensions]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Material &amp; Finish</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Vinyl material &amp; finish]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Adhesive</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Adhesive specification]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Outdoor Life</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Outdoor durability rating]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Returns &amp; Refunds</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Returns and refund policy]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">Payment Methods</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Supported payment methods]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between border-b border-border/70 pb-2">
-              <span className="font-medium text-ink">GST Invoice</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: GST invoice information]
-              </span>
-            </div>
-
-            <div className="flex items-start justify-between">
-              <span className="font-medium text-ink">Support</span>
-              <span className="font-mono text-muted text-right">
-                [PLACEHOLDER: Support contact email/phone]
-              </span>
-            </div>
+          <div className="space-y-0 font-sans">
+            {STORE_POLICIES.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-start sm:items-center justify-between gap-4 py-2.5 sm:py-3 border-t border-border/50 first:border-t-0"
+              >
+                <span className="text-sm sm:text-base text-muted font-medium shrink-0">
+                  {item.label}
+                </span>
+                {item.isLink ? (
+                  <a
+                    href={`mailto:${item.value}`}
+                    className="text-sm sm:text-base font-medium text-ink hover:text-muted transition-colors text-right underline underline-offset-4 decoration-border/60 hover:decoration-ink"
+                  >
+                    {item.value}
+                  </a>
+                ) : item.values ? (
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2.5 text-right font-sans">
+                    {item.values.map((v, i) => (
+                      <span key={i} className="text-sm sm:text-base font-medium text-ink inline-flex items-center gap-2.5">
+                        {i > 0 && <span className="hidden sm:inline text-border">·</span>}
+                        <span>{v}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm sm:text-base font-medium text-ink text-right">
+                    {item.value}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </section>
 
         {/* ── 6. FAQ (MOVED TO THE END) ───────────────────────────────────── */}
-        <section className="py-6 border-t border-border space-y-3">
+        <section className="py-6 border-t border-border space-y-3 font-sans">
           <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
             FREQUENTLY ASKED QUESTIONS
           </p>
 
           <div className="divide-y divide-border border-y border-border">
-            {faqs.map((faq, idx) => {
+            {STORE_FAQS.map((faq, idx) => {
               const isOpen = activeFaq === idx;
               return (
-                <div key={idx} className="py-3.5">
+                <div key={idx} className="py-1">
                   <button
                     type="button"
                     onClick={() => setActiveFaq(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between text-left gap-3 font-medium text-[14px] text-ink hover:text-muted transition-colors cursor-pointer"
+                    className="w-full py-3 sm:py-3.5 flex items-center justify-between text-left gap-4 font-medium text-[15px] sm:text-base text-ink hover:text-muted transition-colors cursor-pointer"
+                    aria-expanded={isOpen}
                   >
-                    <span>{faq.q}</span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-muted shrink-0 transition-transform duration-200 ${
-                        isOpen ? 'rotate-180 text-ink' : ''
-                      }`}
-                    />
+                    <span className="leading-snug">{faq.q}</span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.25, ease: [0.04, 0.62, 0.23, 0.98] }}
+                      className="shrink-0 text-muted"
+                    >
+                      <ChevronDown
+                        className={`w-4 h-4 transition-colors ${
+                          isOpen ? 'text-ink' : 'text-muted'
+                        }`}
+                      />
+                    </motion.span>
                   </button>
-                  {isOpen && (
-                    <p className="mt-2 text-[13px] text-muted leading-relaxed animate-in fade-in duration-150">
-                      {faq.a}
-                    </p>
-                  )}
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="content"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{
+                          height: 'auto',
+                          opacity: 1,
+                          transition: {
+                            height: { duration: 0.28, ease: [0.04, 0.62, 0.23, 0.98] },
+                            opacity: { duration: 0.2, delay: 0.05 },
+                          },
+                        }}
+                        exit={{
+                          height: 0,
+                          opacity: 0,
+                          transition: {
+                            height: { duration: 0.22, ease: [0.04, 0.62, 0.23, 0.98] },
+                            opacity: { duration: 0.15 },
+                          },
+                        }}
+                        className="overflow-hidden"
+                      >
+                        <p className="pb-3 text-sm sm:text-[15px] text-muted leading-relaxed">
+                          {faq.a}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
