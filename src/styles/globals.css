@@ -354,9 +354,26 @@ select {
   color: var(--color-ink);
 }
 
+/* Statement conversational input styling */
+.statement-input {
+  font-family: var(--font-display) !important;
+  font-size: clamp(1.875rem, 4.5vw, 2.5rem) !important;
+  line-height: inherit !important;
+  font-weight: 500 !important;
+  color: var(--color-ink) !important;
+}
+
+.statement-input::placeholder {
+  font-family: var(--font-sans) !important;
+  font-size: clamp(1.5rem, 3.5vw, 2.125rem) !important;
+  font-weight: 400 !important;
+  opacity: 0.75 !important;
+  color: var(--color-muted) !important;
+}
+
 /* Prevent iOS Safari and Mobile WebKit auto-zooming on input focus (requires >= 16px) */
 @media screen and (max-width: 768px) {
-  input,
+  input:not(.statement-input),
   select,
   textarea,
   .input,

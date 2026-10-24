@@ -190,7 +190,7 @@ export const DashboardPage: React.FC = () => {
             /* Reused Setup Flow when user clicks ADD TAG with smooth roll down / up */
             <motion.div
               key="add-tag-flow"
-              initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              initial={{ opacity: 0, height: 0 }}
               animate={{
                 opacity: 1,
                 height: 'auto',
@@ -198,6 +198,7 @@ export const DashboardPage: React.FC = () => {
                   height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
                   opacity: { duration: 0.35, delay: 0.08 },
                 },
+                transitionEnd: { overflow: 'visible' },
               }}
               exit={{
                 opacity: 0,
@@ -208,7 +209,6 @@ export const DashboardPage: React.FC = () => {
                   opacity: { duration: 0.2 },
                 },
               }}
-              style={{ overflow: 'hidden' }}
               className="py-6 sm:py-12"
             >
               <TagSetupFlow

@@ -12,6 +12,13 @@ export const ManualTagInput: React.FC<ManualTagInputProps> = ({
   onSwitchToCamera,
 }) => {
   const [code, setCode] = useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    inputRef.current?.focus();
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +39,17 @@ export const ManualTagInput: React.FC<ManualTagInputProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
+            ref={(el) => {
+              inputRef.current = el;
+              if (el) el.focus();
+            }}
             type="text"
             autoFocus
             placeholder="e.g. JE5PBCE"
             maxLength={10}
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            className="w-full h-11 px-3.5 bg-bg border border-border focus:border-ink rounded-xs font-mono text-base uppercase text-ink outline-none tracking-wider placeholder:text-muted/50"
+            className="w-full h-11 px-3.5 bg-bg border border-border focus:border-ink rounded-xs font-satoshi font-medium text-base uppercase text-ink outline-none tracking-wider placeholder:text-muted/50"
           />
 
           <button

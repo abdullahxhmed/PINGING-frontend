@@ -131,7 +131,7 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
               </Link>
 
               {tagNumber ? (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-ink text-surface font-mono font-semibold text-[10px] tracking-wider shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-ink text-surface font-satoshi font-medium text-[11px] tracking-wider shrink-0">
                   <QrCode className="h-2.5 w-2.5 text-surface" />
                   <span>#{tagNumber}</span>
                 </span>

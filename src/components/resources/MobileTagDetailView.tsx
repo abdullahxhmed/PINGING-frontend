@@ -236,8 +236,12 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
           <BelongingIcon className="h-3.5 w-3.5 text-ink/80" />
           <span>{cardResource.type === 'PROPERTY' ? 'PROPERTY SPEC' : (cardResource.type || 'VEHICLE SPEC')}</span>
         </div>
-        <span className="font-sans text-xs text-muted font-medium">
-          {tagNumber ? `#${tagNumber}` : 'No tag'}
+        <span className="text-xs text-muted">
+          {tagNumber ? (
+            <span className="font-satoshi font-medium text-ink">#{tagNumber}</span>
+          ) : (
+            'No tag'
+          )}
         </span>
       </div>
 

@@ -204,9 +204,9 @@ export const StickerPairing: React.FC<StickerPairingProps> = ({
             onAnimationComplete={handleAnimationComplete}
           />
 
-          {/* Bold Tag Number Display below QR (eases in smoothly) */}
+          {/* Tag Number Display below QR (eases in smoothly) */}
           <div className="text-center pt-1 space-y-0.5 animate-tag-ease-in">
-            <span className="font-mono text-2xl font-bold tracking-wider text-ink block">
+            <span className="font-satoshi font-medium text-2xl tracking-wider text-ink block">
               #{activeCapture.tagCode}
             </span>
             <span className="text-xs text-muted block">
