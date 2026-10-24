@@ -8,6 +8,7 @@ import type { Resource, ResourceType, QrTagLookupResponse, PairQrResponse, Creat
 import { motion, AnimatePresence } from 'motion/react';
 import { PingInQrCode } from '../qr/PingInQrCode';
 import { buildTagQrUrl } from '../../lib/qr';
+import { useSubscription } from '../../features/subscription';
 import {
   QrCode,
   Check,
@@ -20,6 +21,7 @@ import {
   ArrowRight,
   ShieldCheck,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 
 interface PairQrModalProps {
@@ -47,6 +49,7 @@ export const PairQrModal: React.FC<PairQrModalProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { openUpgradeModal } = useSubscription();
 
   const [tagInput, setTagInput] = useState(initialTagNumber || initialToken);
   const [selectedResourceId, setSelectedResourceId] = useState(initialResourceId);
@@ -636,9 +639,27 @@ export const PairQrModal: React.FC<PairQrModalProps> = ({
 
           {/* Submit Error */}
           {submitError && (
-            <div className="p-3 bg-danger/10 border border-danger/20 rounded-sm text-xs text-danger flex items-start gap-2 animate-fade-in">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{submitError}</span>
+            <div className="p-3.5 bg-danger/10 border border-danger/20 rounded-sm text-xs text-danger flex flex-col gap-2.5 animate-fade-in">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{submitError}</span>
+              </div>
+              {(submitError.toLowerCase().includes('limit') ||
+                submitError.toLowerCase().includes('plus') ||
+                submitError.toLowerCase().includes('basic')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    openUpgradeModal();
+                  }}
+                  className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 bg-ink text-surface rounded-xs font-semibold text-[11px] hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 fill-accent text-accent" />
+                  <span>Upgrade to Plus for up to 8 tags</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
 

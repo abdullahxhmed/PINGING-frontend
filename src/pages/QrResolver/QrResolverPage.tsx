@@ -17,12 +17,19 @@ export const QrResolverPage: React.FC = () => {
   const [resolveData, setResolveData] = useState<QrResolveResponse | null>(null);
   const [lookupData, setLookupData] = useState<QrTagLookupResponse | null>(null);
   const [isRevokedPath, setIsRevokedPath] = useState(false);
+  const [isSuspendedPath, setIsSuspendedPath] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = Boolean(authStorage.getAccessToken());
 
   useEffect(() => {
     // Check if directly loaded on a status path
+    if (location.pathname.includes('/tag/suspended') || location.pathname.includes('/tag-suspended')) {
+      setIsSuspendedPath(true);
+      setIsLoading(false);
+      return;
+    }
+
     if (location.pathname.includes('/tag/revoked') || location.pathname.includes('/tag-inactive')) {
       setIsRevokedPath(true);
       setIsLoading(false);
@@ -53,7 +60,20 @@ export const QrResolverPage: React.FC = () => {
           navigate(`/contact/${res.contactToken}?src=qr_scan`, { replace: true });
           return;
         }
+
+        // Case B: Suspended -> Show suspended status surface
+        if (res.action === 'SUSPENDED' || (res as any).status === 'SUSPENDED') {
+          setIsSuspendedPath(true);
+          return;
+        }
       } catch (err: any) {
+        // Check if error response indicates suspension
+        if (err?.data?.action === 'SUSPENDED' || err?.data?.status === 'SUSPENDED') {
+          if (!isMounted) return;
+          setIsSuspendedPath(true);
+          setResolveData(err.data);
+          return;
+        }
         // Fallback: try lookup endpoint if resolve fails
         try {
           const fallback = await qrApi.lookup(identifier);
@@ -90,6 +110,7 @@ export const QrResolverPage: React.FC = () => {
   const isAssigned = resolveData?.action === 'CONTACT' || lookupData?.isAssigned;
   const isUnassigned = resolveData?.action === 'PAIR' || (lookupData && !lookupData.isAssigned);
   const isRevoked = isRevokedPath || resolveData?.action === 'REVOKED' || lookupData?.status === 'REVOKED';
+  const isSuspended = isSuspendedPath || resolveData?.action === 'SUSPENDED' || (resolveData as any)?.status === 'SUSPENDED';
   const tagNumber = resolveData?.tagNumber || lookupData?.tagNumber || identifier;
 
   return (
@@ -109,6 +130,53 @@ export const QrResolverPage: React.FC = () => {
             <p className="text-xs text-muted font-mono">
               Verifying tag...
             </p>
+          </div>
+        ) : isSuspended ? (
+          /* Case: SUSPENDED TAG DUE TO PLAN LIMITS */
+          <div className="space-y-6">
+            <div>
+              <span className="font-mono text-[11px] font-semibold text-amber-600 tracking-widest uppercase block mb-2">
+                TAG SUSPENDED
+              </span>
+              <h1 className="font-display font-medium text-2xl sm:text-3xl md:text-4xl text-ink tracking-tight">
+                This tag is temporarily paused.
+              </h1>
+            </div>
+
+            <div className="space-y-3 text-sm md:text-base text-muted leading-relaxed max-w-lg">
+              <p>
+                This QR tag is currently suspended due to subscription plan limits. Its private contact forwarding service will be restored once the owner reactivates or upgrades their plan.
+              </p>
+            </div>
+
+            {tagNumber && (
+              <div className="pt-1">
+                <span className="font-mono text-xs text-muted/80 bg-surface-dark/5 px-2.5 py-1 rounded">
+                  Tag #{tagNumber}
+                </span>
+              </div>
+            )}
+
+            <div className="pt-6 border-t border-border/70 space-y-3">
+              <div>
+                <Link
+                  to={isAuthenticated ? '/dashboard' : `/login?redirect=${encodeURIComponent('/dashboard')}`}
+                  className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-ink hover:text-muted transition-colors"
+                >
+                  <span>Are you the owner? Reactivate tag in Dashboard</span>
+                  <span aria-hidden="true">&rarr;</span>
+                </Link>
+              </div>
+              <div className="flex items-center gap-3 text-xs md:text-sm text-muted pt-1">
+                <Link to="/contact" className="hover:text-ink transition-colors">
+                  Need help?
+                </Link>
+                <span className="text-border">&bull;</span>
+                <Link to="/" className="hover:text-ink transition-colors">
+                  How Kauntact works
+                </Link>
+              </div>
+            </div>
           </div>
         ) : isRevoked ? (
           /* Case: REVOKED OR INACTIVE TAG */

@@ -8,6 +8,8 @@ import type { Resource, ResourceType, QrTagLookupResponse } from '../../types/ap
 const StickerPairing = React.lazy(
   () => import('../../features/sticker-pairing/StickerPairing')
 );
+import { useSubscription } from '../../features/subscription';
+import { useToast } from '../ui/Toast';
 import {
   QrCode,
   ArrowRight,
@@ -64,11 +66,35 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
   hasExistingTags,
 }) => {
   const [view, setView] = useState<FlowView>('approach');
+  const { tags, subscription, isPlus, openUpgradeModal } = useSubscription();
+  const { toast } = useToast();
 
   // User's owned resources (initialized synchronously from props to eliminate text flash/jitter)
   const [ownedResources, setOwnedResources] = useState<Resource[]>(() => existingResources || []);
 
   const hasTags = hasExistingTags !== undefined ? hasExistingTags : ownedResources.length > 0;
+
+  // Check remaining tag quota before initiating or continuing any pairing action
+  const checkRemainingTags = (): boolean => {
+    const maxLimit = tags?.maxLimit ?? subscription?.maxActiveTags ?? (isPlus ? 8 : 2);
+    const activeCount = typeof tags?.activeCount === 'number'
+      ? Math.max(tags.activeCount, ownedResources.length)
+      : ownedResources.length;
+    const remainingTags = Math.max(0, maxLimit - activeCount);
+
+    if (remainingTags === 0) {
+      if (isPlus) {
+        toast.info('Maximum tag limit reached (8 tags on Kauntact Plus).');
+      } else {
+        toast.info('Tag limit reached. Upgrade to Kauntact Plus to add up to 8 tags.', {
+          actionLabel: 'View plan',
+          onClick: () => openUpgradeModal(),
+        });
+      }
+      return false;
+    }
+    return true;
+  };
 
   // Identification & Tag State
   const [detectedCode, setDetectedCode] = useState<string>('');
@@ -438,7 +464,10 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
 
             {/* Primary Action Card: Pair physical sticker */}
             <div
-              onClick={() => setView('scanner')}
+              onClick={() => {
+                if (!checkRemainingTags()) return;
+                setView('scanner');
+              }}
               className="p-6 bg-surface border border-ink/80 rounded-sm hover:border-ink transition-all cursor-pointer group shadow-xs"
             >
               <div className="flex items-start justify-between gap-4">
@@ -459,6 +488,7 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (!checkRemainingTags()) return;
                     setView('scanner');
                   }}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded-xs group-hover:opacity-90 transition-opacity shrink-0 cursor-pointer"
@@ -474,6 +504,7 @@ export const TagSetupFlow: React.FC<TagSetupFlowProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  if (!checkRemainingTags()) return;
                   setDetectedCode('');
                   setSubmitError(null);
                   setView('digital');

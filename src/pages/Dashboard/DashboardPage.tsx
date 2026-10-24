@@ -4,7 +4,8 @@ import { resourcesApi, resourceCache } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
 import { motion, AnimatePresence } from 'motion/react';
 import { ResourceRow, CreateResourceModal, EditResourceModal, PairQrModal, TagSetupFlow, MobileTagDetailView } from '../../components/resources';
-import { Button, DelayedSpinner } from '../../components/ui';
+import { Button, DelayedSpinner, useToast } from '../../components/ui';
+import { useSubscription } from '../../features/subscription';
 import { Plus, ShieldAlert, ArrowLeft } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -62,6 +63,9 @@ export const DashboardPage: React.FC = () => {
     };
   }, [fetchResources, cachedList]);
 
+  const { toast } = useToast();
+  const { tags, subscription, isPlus, openUpgradeModal, refetch: refetchSubscription } = useSubscription();
+
   const handleCreated = (newResource: Resource) => {
     const newId = newResource.id || (newResource as any)._id;
     setResources((prev) => {
@@ -74,6 +78,7 @@ export const DashboardPage: React.FC = () => {
     });
     setSelectedMobileIndex(0);
     setIsAddingTag(false);
+    refetchSubscription();
   };
 
   const handleUpdated = (updated: Resource) => {
@@ -96,6 +101,30 @@ export const DashboardPage: React.FC = () => {
       return next;
     });
     resourceCache.removeResource(id);
+    refetchSubscription();
+  };
+
+  // Synchronously calculate remaining tag quota before opening pairing flow
+  const handleAddTagClick = () => {
+    const maxLimit = tags?.maxLimit ?? subscription?.maxActiveTags ?? (isPlus ? 8 : 2);
+    const activeCount = typeof tags?.activeCount === 'number'
+      ? Math.max(tags.activeCount, resources.length)
+      : resources.length;
+    const remainingTags = Math.max(0, maxLimit - activeCount);
+
+    if (remainingTags === 0) {
+      if (isPlus) {
+        toast.info('Maximum tag limit reached (8 tags on Kauntact Plus).');
+      } else {
+        toast.info('Tag limit reached. Upgrade to Kauntact Plus to add up to 8 tags.', {
+          actionLabel: 'View plan',
+          onClick: () => openUpgradeModal(),
+        });
+      }
+      return;
+    }
+
+    setIsAddingTag(true);
   };
 
 
@@ -139,20 +168,19 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsAddingTag(false)}
-                className="inline-flex items-center gap-1.5 label text-xs font-semibold tracking-[0.1em] text-muted hover:text-ink uppercase transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.1em] text-muted hover:text-ink uppercase transition-colors cursor-pointer shrink-0 whitespace-nowrap"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
                 <span>CANCEL</span>
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => setIsAddingTag(true)}
-                className="inline-flex items-center gap-1.5 label text-xs font-semibold tracking-[0.1em] text-ink hover:text-muted uppercase transition-colors cursor-pointer group"
+                onClick={handleAddTagClick}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.1em] text-ink hover:text-muted uppercase transition-colors cursor-pointer shrink-0 whitespace-nowrap"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5 shrink-0" />
                 <span>ADD TAG</span>
-                <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
               </button>
             )}
           </div>
@@ -257,7 +285,7 @@ export const DashboardPage: React.FC = () => {
                   onSelectIndex={setSelectedMobileIndex}
                   onEdit={(r) => setEditingResource(r)}
                   onDelete={handleDelete}
-                  onAddTag={() => setIsAddingTag(true)}
+                  onAddTag={handleAddTagClick}
                 />
               </div>
 

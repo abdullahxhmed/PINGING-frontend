@@ -21,6 +21,18 @@ import type {
   GenerateQrResponse,
   ResourceCallsResponse,
   ResourceAnalyticsResponse,
+  SubscriptionPack,
+  SubscriptionPacksResponse,
+  UserSubscriptionMeData,
+  UserSubscriptionMeResponse,
+  SelectActiveTagsPayload,
+  SelectActiveTagsResponse,
+  CreatePurchasePayload,
+  CreatePurchaseResponse,
+  ActivateSubscriptionPayload,
+  ActivateSubscriptionResponse,
+  PurchaseRecord,
+  SubscriptionPurchasesResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -165,7 +177,7 @@ export async function request<T = any>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    const message = errorData.message || response.statusText || 'An error occurred';
+    const message = errorData.error || errorData.message || response.statusText || 'An error occurred';
     throw new ApiError(message, response.status, errorData);
   }
 
@@ -452,6 +464,74 @@ export const qrApi = {
     return api.post<GenerateQrResponse>('/api/qr/generate', payload);
   },
 };
+
+export const subscriptionApi = {
+  /**
+   * Returns server-authoritative product catalog with prices in paise, tag quotas, and feature descriptions.
+   * GET /api/subscriptions/packs
+   * Access: Public (no auth required)
+   */
+  getPacks: async (): Promise<SubscriptionPack[]> => {
+    const res = await api.get<SubscriptionPacksResponse>('/api/subscriptions/packs');
+    return res?.data?.packs || [];
+  },
+
+  /**
+   * Fetches current user's subscription tier, active/suspended tags, and whether tag selection is required after demotion.
+   * GET /api/subscriptions/me
+   * Access: Authenticated (Bearer JWT required)
+   */
+  getMe: async (): Promise<UserSubscriptionMeData> => {
+    const res = await api.get<UserSubscriptionMeResponse>('/api/subscriptions/me');
+    return res.data;
+  },
+
+  /**
+   * Demoted users (from Plus to Basic) call this to choose which 2 tags remain ASSIGNED.
+   * All unselected tags are moved to SUSPENDED.
+   * POST /api/subscriptions/select-active-tags
+   * Access: Authenticated
+   */
+  selectActiveTags: async (
+    payload: string[] | SelectActiveTagsPayload
+  ): Promise<SelectActiveTagsResponse['data']> => {
+    const body = Array.isArray(payload) ? { activeTagIds: payload } : payload;
+    const res = await api.post<SelectActiveTagsResponse>('/api/subscriptions/select-active-tags', body);
+    return res.data;
+  },
+
+  /**
+   * Creates a PENDING purchase record using server-configured pricing.
+   * POST /api/subscriptions/purchase
+   * Access: Authenticated
+   */
+  createPurchase: async (payload: CreatePurchasePayload): Promise<CreatePurchaseResponse['data']> => {
+    const res = await api.post<CreatePurchaseResponse>('/api/subscriptions/purchase', payload);
+    return res.data;
+  },
+
+  /**
+   * Confirms payment and activates 12-month Plus subscription (or extends current expiry by 12 months),
+   * and restores any SUSPENDED tags back to ASSIGNED up to 8.
+   * POST /api/subscriptions/activate
+   * Access: Authenticated
+   */
+  activate: async (payload: ActivateSubscriptionPayload): Promise<ActivateSubscriptionResponse['data']> => {
+    const res = await api.post<ActivateSubscriptionResponse>('/api/subscriptions/activate', payload);
+    return res.data;
+  },
+
+  /**
+   * Lists user's past purchase orders with product details.
+   * GET /api/subscriptions/purchases
+   * Access: Authenticated
+   */
+  getPurchases: async (): Promise<PurchaseRecord[]> => {
+    const res = await api.get<SubscriptionPurchasesResponse>('/api/subscriptions/purchases');
+    return res?.data?.purchases || [];
+  },
+};
+
 
 /**
  * Resolves the public contact token from a resource object.

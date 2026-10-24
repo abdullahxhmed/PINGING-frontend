@@ -82,6 +82,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authStorage.setCurrentUser(userObj);
     setUser(userObj);
 
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('has_wiggled_plus');
+    }
+
     return userObj;
   };
 
@@ -187,6 +191,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       authStorage.clear();
       setUser(null);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('has_wiggled_plus');
+      }
     }
   };
 

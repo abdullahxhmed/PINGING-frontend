@@ -199,8 +199,8 @@ export const DEFAULT_STORE_CART: StoreCartState = {
   sets: {},
   addons: {},
   setTones: {
-    essential: 'dark',
-    'curated-kit': 'dark',
+    essential: 'light',
+    'curated-kit': 'light',
   },
 };
 
@@ -221,7 +221,7 @@ export function calculateCart(cart: StoreCartState): CartCalculation {
         if (targetId === 'curated-kit') hasCuratedKit = true;
         const safeQty = Math.max(1, Math.min(20, qty));
         totalTags += setProd.tagsCount * safeQty;
-        const tone = cart.setTones?.[targetId] || cart.setTones?.[id] || 'dark';
+        const tone = cart.setTones?.[targetId] || cart.setTones?.[id] || 'light';
         const displayImg = setProd.images ? setProd.images[tone] : setProd.image;
         const toneLabel = tone === 'light' ? 'Light' : 'Dark';
         items.push({
@@ -333,7 +333,7 @@ export function getCartFromStorage(): StoreCartState {
     return {
       sets: parsed.sets || {},
       addons: parsed.addons || {},
-      setTones: parsed.setTones || { essential: 'dark', 'curated-kit': 'dark' },
+      setTones: parsed.setTones || { essential: 'light', 'curated-kit': 'light' },
     };
   } catch {
     return DEFAULT_STORE_CART;

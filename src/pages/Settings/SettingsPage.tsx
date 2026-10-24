@@ -23,14 +23,16 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { DelayedSpinner, Modal, useToast } from '../../components/ui';
-import { PingInSvgLogo } from '../../components/brand/PingInLogo';
+import { PingInSvgLogo, PlusLogo } from '../../components/brand/PingInLogo';
 import { PairQrModal, UnpairQrModal } from '../../components/resources';
 import { useAuth } from '../../features/auth/AuthContext';
+import { useSubscription } from '../../features/subscription';
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { updateUser } = useAuth();
+  const { subscription, isPlus, openUpgradeModal } = useSubscription();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -591,7 +593,57 @@ export const SettingsPage: React.FC = () => {
               </div>
             </section>
 
-            {/* 3. PRIVATE CALLING (Renamed from Private Relay & Moved to the bottom!) */}
+            {/* 3. SUBSCRIPTION */}
+            <section className="space-y-4 pt-8 border-t border-border font-sans">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="font-display font-medium text-xl sm:text-2xl text-ink tracking-tight">
+                  Subscription
+                </h2>
+
+                {isPlus ? (
+                  <button
+                    type="button"
+                    onClick={() => openUpgradeModal('PLUS_RENEWAL')}
+                    className="text-xs sm:text-sm font-semibold text-ink hover:text-muted transition-colors cursor-pointer"
+                  >
+                    Renew plan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openUpgradeModal('PACK_499')}
+                    className="text-xs sm:text-sm font-semibold text-ink hover:text-muted transition-colors cursor-pointer"
+                  >
+                    Upgrade to Plus
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3 font-sans">
+                {/* Plan Tier Row */}
+                <div className="flex items-center justify-between gap-4 py-2">
+                  <span className="text-sm sm:text-base text-muted font-medium">Plan</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base sm:text-lg font-medium text-ink text-right">
+                      {isPlus ? 'Kauntact Plus' : 'Basic'}
+                    </span>
+                    {isPlus && <PlusLogo height={18} width={18} />}
+                  </div>
+                </div>
+
+                {/* Status / Expiry Row */}
+                <div className="flex items-center justify-between gap-4 py-2 border-t border-border/50">
+                  <span className="text-sm sm:text-base text-muted font-medium">Status</span>
+                  <span className="text-base sm:text-lg font-medium text-ink text-right">
+                    {isPlus
+                      ? `${subscription?.daysRemaining ?? 365} days remaining`
+                      : 'Free tier'}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* 4. PRIVATE CALLING (Renamed from Private Relay & Moved to the bottom!) */}
             <section className="space-y-4 pt-8 border-t border-border">
               <h2 className="font-display font-medium text-xl sm:text-2xl text-ink tracking-tight">
                 Private calling

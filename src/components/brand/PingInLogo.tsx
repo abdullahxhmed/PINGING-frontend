@@ -29,6 +29,7 @@ export const PingInLogo: React.FC<PingInLogoProps> = ({
 export { KauntactLogo, KauntactSvgLogo } from './KauntactLogo';
 export { KauntactFavicon } from './KauntactFavicon';
 export { PingInSvgLogo } from './PingInSvgLogo';
+export { PlusLogo } from './PlusLogo';
 export { FindatLogo, FindatSvgLogo } from './FindatLogo';
 export const ParkPingLogo = PingInLogo;
 export default PingInLogo;

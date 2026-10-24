@@ -8,12 +8,10 @@ import {
   Input,
   PhoneInput,
   validatePhoneNumber,
-  Divider,
-  ConnectionMotif,
   useToast,
 } from '../../components/ui';
 import { ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
+import { KauntactLogo } from '../../components/brand/PingInLogo';
 
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
@@ -202,13 +200,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   const delayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setHasError(false);
-    setErrorMessage(null);
-  }, [step, mode, loginMethod]);
 
   /**
    * Starts the 60-second cooldown timer exactly 2 seconds AFTER receiving 200 OK.
@@ -301,8 +292,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
 
   // Switch between Login and Signup modes
   const switchToMode = (newMode: 'login' | 'signup') => {
-    setHasError(false);
-    setErrorMessage(null);
     setStep('DETAILS');
     setOtp('');
     setLoginMethod('password');
@@ -319,36 +308,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
     e.preventDefault();
 
     if (mode === 'signup' && !name.trim()) {
-      setHasError(true);
-      const msg = 'Please enter your full name';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error('Please enter your full name');
       return;
     }
 
     const validation = validatePhoneNumber(mobileNumber);
     if (!validation.isValid) {
-      setHasError(true);
-      const msg = validation.error || 'Please enter a valid 10-digit mobile number';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error(validation.error || 'Please enter a valid 10-digit mobile number');
       return;
     }
 
     // Password validation for signup or password login
     if ((mode === 'signup' || (mode === 'login' && loginMethod === 'password')) && !password) {
-      setHasError(true);
-      const msg = 'Please enter your password';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error('Please enter your password');
       return;
     }
 
     if (mode === 'signup' && password.length < 6) {
-      setHasError(true);
-      const msg = 'Password must be at least 6 characters';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
@@ -364,10 +341,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       existingRate.lockoutEnd &&
       now < existingRate.lockoutEnd
     ) {
-      setHasError(true);
-      const msg = 'Maximum attempts reached. Please request after 1 hr.';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error('Maximum attempts reached. Please request after 1 hr.');
       return;
     }
 
@@ -383,8 +357,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
     }
 
     setIsLoading(true);
-    setHasError(false);
-    setErrorMessage(null);
 
     try {
       if (mode === 'signup') {
@@ -407,15 +379,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         setStep('OTP');
       }
     } catch (err: any) {
-      setHasError(true);
       const context =
         mode === 'signup'
           ? 'signup'
           : loginMethod === 'password'
-          ? 'login-password'
-          : 'login-otp';
+            ? 'login-password'
+            : 'login-otp';
       const friendlyMessage = translateAuthError(err, context);
-      setErrorMessage(friendlyMessage);
       toast.error(friendlyMessage);
     } finally {
       setIsLoading(false);
@@ -430,16 +400,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp.trim()) {
-      setHasError(true);
-      const msg = 'Please enter the 6-digit code sent to your phone';
-      setErrorMessage(msg);
-      toast.error(msg);
+      toast.error('Please enter the 6-digit code sent to your phone');
       return;
     }
 
     setIsLoading(true);
-    setHasError(false);
-    setErrorMessage(null);
 
     try {
       if (mode === 'signup') {
@@ -455,9 +420,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       }
       navigate(from, { replace: true });
     } catch (err: any) {
-      setHasError(true);
       const friendlyMessage = translateAuthError(err, 'otp-verify');
-      setErrorMessage(friendlyMessage);
       toast.error(friendlyMessage);
     } finally {
       setIsLoading(false);
@@ -492,7 +455,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
       triggerOtpCooldown(cleanPhone);
     } catch (err: any) {
       const friendlyMessage = translateAuthError(err, mode === 'signup' ? 'signup' : 'login-otp');
-      setErrorMessage(friendlyMessage);
       toast.error(friendlyMessage);
     } finally {
       setIsLoading(false);
@@ -500,356 +462,300 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between p-6 sm:p-10 lg:p-12 select-none font-sans">
-      <div className="max-w-6xl mx-auto w-full flex flex-col justify-between flex-1">
-        {/* Top Bar: Brand Identity & Metadata */}
-        <header>
-          <div className="flex items-center justify-between pb-5">
-            <Link to="/" className="flex items-center gap-2 group -ml-1 sm:ml-0" aria-label="Kauntact Home">
-              <PingInLogo height={16} />
-            </Link>
-            <div className="flex items-center gap-3">
-              {/* <span className="label text-[10px] text-muted tracking-widest uppercase">
-                2026
-              </span> */}
-            </div>
-          </div>
-          <Divider />
-        </header>
+    <div className="min-h-screen bg-bg text-ink flex flex-col justify-between font-sans selection:bg-ink selection:text-surface select-none">
+      {/* Navbar: Brand on left, <- Home on right */}
+      <header className="w-full border-b border-border bg-bg/90 backdrop-blur-md sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-6 sm:px-10 h-14 sm:h-16 flex items-center justify-between">
+          <Link
+            to="/"
+            aria-label="Kauntact Home"
+            className="flex items-center gap-2 hover:opacity-85 transition-opacity"
+          >
+            <KauntactLogo height={18} />
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-muted hover:text-ink uppercase tracking-wider transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Home</span>
+          </Link>
+        </div>
+      </header>
 
-        {/* Main Balanced Two-Zone Canvas */}
-        <main className="my-auto py-10 lg:py-14 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Left Zone: Static Anchored Brand Statement */}
-          <div className="lg:col-span-7 space-y-6 pr-0 lg:pr-6">
-            <h1 className="font-display font-medium text-4xl sm:text-6xl lg:text-7xl leading-[1.1] text-ink uppercase">
-              TAG <span className="inline-block ml-2 sm:ml-1">IT</span><br />
-              SCAN <span className="inline-block ml-2 sm:ml-1">IT</span><br />
-              PING <span className="inline-block ml-2 sm:ml-1">IT.</span>
+      {/* Main Canvas — Cardless */}
+      <main className="my-auto py-10 sm:py-16 px-6 sm:px-10 flex flex-col items-center justify-center w-full">
+        <div className="w-full max-w-[360px] sm:max-w-[380px] mx-auto" key={step}>
+          {/* Headline & Subtext (Centered) */}
+          <div className="space-y-2 mb-8 text-center">
+            <h1 className="font-display font-medium text-4xl sm:text-5xl text-ink uppercase tracking-tight leading-none">
+              {step === 'OTP'
+                ? 'VERIFY CODE.'
+                : mode === 'signup'
+                  ? 'GET STARTED.'
+                  : 'SIGN IN.'}
             </h1>
-            <div className="pt-1 pb-1">
-              <ConnectionMotif className="w-24 sm:w-32" active />
-            </div>
-            <p className="body text-muted max-w-md text-base sm:text-lg leading-relaxed">
-              A direct, private way to reach vehicle owners without sharing phone numbers.
+            <p className="font-sans text-xs sm:text-sm text-muted max-w-[320px] mx-auto leading-relaxed">
+              {step === 'OTP'
+                ? `Enter the 6-digit passcode sent to +91 ${mobileNumber}.`
+                : mode === 'signup'
+                  ? 'Set up your stickers and private relay in under a minute.'
+                  : loginMethod === 'password'
+                    ? 'Good to see you! Hop in.'
+                    : 'No password needed. We’ll send a quick 6-digit code.'}
             </p>
           </div>
 
-          {/* Right Zone: Graceful Interaction Pane */}
-          <div className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto">
-            <div key={step}>
-            {/* Header with Title and Dynamic Subtext */}
-            <div className="mb-7 animate-fall">
-              <div className="border-b-2 border-ink inline-block pb-1.5 transition-all duration-300">
-                <h2 className="label text-xs tracking-[0.14em] font-semibold text-ink uppercase">
-                  {step === 'OTP'
-                    ? mode === 'signup'
-                      ? 'VERIFY PHONE'
-                      : 'VERIFY CODE'
-                    : mode === 'signup'
-                    ? 'CREATE ACCOUNT'
-                    : loginMethod === 'password'
-                    ? 'SIGN IN'
-                    : 'SIGN IN WITH OTP'}
-                </h2>
+          {step === 'DETAILS' ? (
+            <form onSubmit={handleDetailsSubmit} className="space-y-4 text-left">
+              {/* Full Name Field: Smoothly expands in signup, collapses in login */}
+              <div
+                className={`overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${mode === 'signup'
+                    ? 'max-h-24 opacity-100 translate-y-0 mb-4'
+                    : 'max-h-0 opacity-0 -translate-y-2 mb-0 pointer-events-none'
+                  }`}
+                style={{
+                  transitionProperty: 'max-height, opacity, transform, margin-bottom',
+                }}
+              >
+                <Input
+                  label="Full name"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  tabIndex={mode === 'signup' ? 0 : -1}
+                />
               </div>
-              <p className="body-sm text-muted mt-2 min-h-[38px] transition-all duration-300 leading-relaxed">
-                {step === 'OTP'
-                  ? `Enter the 6-digit code sent to +91 ${mobileNumber}`
-                  : mode === 'signup'
-                  ? 'Register your profile and set a password to manage private contact links.'
-                  : loginMethod === 'password'
-                  ? 'Enter your mobile number and password to access your account.'
-                  : 'Enter your mobile number to receive a one-time passcode.'}
-              </p>
-            </div>
 
-            {/* Error Banner when present */}
-            {errorMessage && (
-              <div className="mb-4 p-3 rounded-sm border border-danger/40 bg-danger/10 text-danger text-xs font-sans leading-relaxed animate-fall">
-                {errorMessage}
+              {/* Mobile Phone Number */}
+              <div className="animate-fall-d1">
+                <PhoneInput
+                  label="Mobile number"
+                  value={mobileNumber}
+                  onChange={(val) => setMobileNumber(val)}
+                  autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768 && mode === 'login'}
+                />
               </div>
-            )}
 
-            {step === 'DETAILS' ? (
-              <form onSubmit={handleDetailsSubmit} className="space-y-4">
-                {/* Full Name Field: Smoothly expands in signup, collapses in login */}
-                <div
-                  className={`overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              {/* Password Field: Displayed on Signup AND on Password Login */}
+              <div
+                className={`overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${mode === 'signup' || (mode === 'login' && loginMethod === 'password')
+                    ? 'max-h-28 opacity-100 translate-y-0'
+                    : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
+                  }`}
+                style={{
+                  transitionProperty: 'max-height, opacity, transform',
+                }}
+              >
+                <Input
+                  label={mode === 'signup' ? 'Create password' : 'Password'}
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  helperText={
                     mode === 'signup'
-                      ? 'max-h-24 opacity-100 translate-y-0 mb-4'
-                      : 'max-h-0 opacity-0 -translate-y-2 mb-0 pointer-events-none'
-                  }`}
-                  style={{
-                    transitionProperty: 'max-height, opacity, transform, margin-bottom',
-                  }}
+                      ? 'Must be at least 6 characters'
+                      : undefined
+                  }
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-muted hover:text-ink transition-colors cursor-pointer p-1"
+                      tabIndex={-1}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  }
+                />
+              </div>
+
+              {/* Login Method Toggle: Switch between Password and OTP */}
+              {mode === 'login' && (
+                <div className="flex justify-end pt-0.5">
+                  {loginMethod === 'password' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('otp');
+                      }}
+                      className="text-xs font-sans text-muted hover:text-ink underline underline-offset-4 transition-colors cursor-pointer"
+                    >
+                      Log in with OTP instead
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('password');
+                      }}
+                      className="text-xs font-sans text-muted hover:text-ink underline underline-offset-4 transition-colors cursor-pointer"
+                    >
+                      Log in with password instead
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Submit Action Button */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full !h-12 text-xs font-mono tracking-wider uppercase font-semibold !bg-ink !text-surface hover:opacity-90 transition-opacity rounded-sm cursor-pointer"
+                  isLoading={isLoading}
+                  rightIcon={<ArrowRight className="h-4 w-4" />}
                 >
-                  <Input
-                    label="Full name"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      if (hasError) {
-                        setHasError(false);
-                        setErrorMessage(null);
-                      }
-                    }}
-                    tabIndex={mode === 'signup' ? 0 : -1}
-                  />
-                </div>
-
-                {/* Mobile Phone Number */}
-                <div className="animate-fall-d1">
-                  <PhoneInput
-                    label="Mobile number"
-                    value={mobileNumber}
-                    onChange={(val) => {
-                      setMobileNumber(val);
-                      if (hasError) {
-                        setHasError(false);
-                        setErrorMessage(null);
-                      }
-                    }}
-                    error={hasError && !mobileNumber ? ' ' : undefined}
-                    autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768 && mode === 'login'}
-                  />
-                </div>
-
-                {/* Password Field: Displayed on Signup AND on Password Login */}
-                <div
-                  className={`overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    mode === 'signup' || (mode === 'login' && loginMethod === 'password')
-                      ? 'max-h-28 opacity-100 translate-y-0'
-                      : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
-                  }`}
-                  style={{
-                    transitionProperty: 'max-height, opacity, transform',
-                  }}
-                >
-                  <Input
-                    label={mode === 'signup' ? 'Create password' : 'Password'}
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (hasError) {
-                        setHasError(false);
-                        setErrorMessage(null);
-                      }
-                    }}
-                    helperText={
-                      mode === 'signup'
-                        ? 'Must be at least 6 characters'
-                        : undefined
-                    }
-                    rightIcon={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-muted hover:text-ink transition-colors cursor-pointer p-1"
-                        tabIndex={-1}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    }
-                  />
-                </div>
-
-                {/* Login Method Toggle: Switch between Password and OTP */}
-                {mode === 'login' && (
-                  <div className="flex justify-end pt-0.5">
-                    {loginMethod === 'password' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLoginMethod('otp');
-                          setHasError(false);
-                          setErrorMessage(null);
-                        }}
-                        className="text-xs font-sans text-muted hover:text-ink underline transition-colors cursor-pointer"
-                      >
-                        Log in with OTP instead
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLoginMethod('password');
-                          setHasError(false);
-                          setErrorMessage(null);
-                        }}
-                        className="text-xs font-sans text-muted hover:text-ink underline transition-colors cursor-pointer"
-                      >
-                        Log in with password instead
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Submit Action Button */}
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    className="w-full !h-12 text-sm tracking-wider uppercase font-semibold"
-                    isLoading={isLoading}
-                    rightIcon={<ArrowRight className="h-4 w-4" />}
-                  >
-                    {mode === 'signup'
-                      ? 'CONTINUE'
-                      : loginMethod === 'password'
+                  {mode === 'signup'
+                    ? 'GET STARTED'
+                    : loginMethod === 'password'
                       ? 'SIGN IN'
                       : 'SEND CODE'}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              /* OTP VERIFICATION STEP */
-              <form onSubmit={handleVerifyOtp} className="space-y-5">
-                {/* User Credentials Summary (for signup: includes name & mobile) */}
-                <div className="p-3.5 rounded-sm border border-border bg-surface/60 flex items-center justify-between text-xs animate-fall">
-                  <div>
-                    {mode === 'signup' && name ? (
-                      <div className="font-semibold text-ink text-sm mb-0.5">
-                        {name}
-                      </div>
-                    ) : null}
-                    <div className="text-muted font-sans font-medium">
-                      +91 {mobileNumber}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('DETAILS');
-                      setOtp('');
-                      setHasError(false);
-                      setErrorMessage(null);
-                    }}
-                    className="text-xs font-semibold text-ink hover:text-muted underline cursor-pointer"
-                  >
-                    Change
-                  </button>
-                </div>
+                </Button>
+              </div>
 
-                {/* 6-digit Code Input */}
-                <div className="animate-fall-d1">
-                  <label className="block text-xs font-medium text-muted mb-2">
-                    Verification code
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="000000"
-                    value={otp}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      setOtp(raw);
-                      if (hasError) {
-                        setHasError(false);
-                        setErrorMessage(null);
-                      }
-                    }}
-                    error={hasError ? ' ' : undefined}
-                    maxLength={6}
-                    className="text-center font-sans font-medium text-2xl tracking-[0.3em] !h-14"
-                    autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768}
-                  />
-                </div>
-
-                {/* Submit Verification */}
-                <div className="animate-fall-d2">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    className="w-full !h-12 text-sm tracking-wider uppercase font-semibold"
-                    isLoading={isLoading}
-                    rightIcon={<ArrowRight className="h-4 w-4" />}
-                  >
-                    {mode === 'signup' ? 'VERIFY & REGISTER' : 'VERIFY & SIGN IN'}
-                  </Button>
-                </div>
-
-                {/* Secondary Actions */}
-                <div className="flex items-center justify-between pt-1 animate-fall-d3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('DETAILS');
-                      setOtp('');
-                      setHasError(false);
-                      setErrorMessage(null);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink cursor-pointer transition-colors"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    Back to details
-                  </button>
-
-                  {otpAttempts >= MAX_OTP_ATTEMPTS && otpCooldown === 0 && !isDelayingTimer ? (
-                    <span className="text-xs font-medium text-muted select-none">
-                      Request after 1 hr
-                    </span>
-                  ) : isDelayingTimer || otpCooldown > 0 ? (
-                    <span className="text-xs text-muted select-none">
-                      Resend code in {otpCooldown > 0 ? `${otpCooldown}s` : '60s'}
-                    </span>
+              {/* Text link below Sign In / Continue button */}
+              <div className="pt-4 text-center">
+                <p className="text-xs font-sans text-muted">
+                  {mode === 'signup' ? (
+                    <>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchToMode('login')}
+                        className="font-medium text-ink underline underline-offset-4 hover:text-muted transition-colors cursor-pointer"
+                      >
+                        Sign in →
+                      </button>
+                    </>
                   ) : (
+                    <>
+                      Don&apos;t have an account yet?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchToMode('signup')}
+                        className="font-medium text-ink underline underline-offset-4 hover:text-muted transition-colors cursor-pointer"
+                      >
+                        Get started →
+                      </button>
+                    </>
+                  )}
+                </p>
+              </div>
+            </form>
+          ) : (
+            /* OTP VERIFICATION STEP — Cardless, Symmetrical, Editorial */
+            <form onSubmit={handleVerifyOtp} className="space-y-5">
+              {/* Clean inline number summary (cardless) */}
+              <div className="text-center pb-1">
+                <span className="text-xs font-mono font-medium text-muted">
+                  +91 {mobileNumber}
+                </span>
+                <span className="mx-2 text-muted/40">•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('DETAILS');
+                    setOtp('');
+                  }}
+                  className="text-xs font-sans text-ink underline underline-offset-2 hover:text-muted cursor-pointer transition-colors"
+                >
+                  Edit
+                </button>
+              </div>
+
+              {/* 6-digit Code Input */}
+              <div className="animate-fall-d1 text-center">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted mb-2 text-center">
+                  6-DIGIT PASSCODE
+                </label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setOtp(raw);
+                  }}
+                  maxLength={6}
+                  className="text-center font-mono font-medium text-2xl tracking-[0.35em] !h-14 !rounded-sm"
+                  autoFocus={typeof window !== 'undefined' && window.innerWidth >= 768}
+                />
+              </div>
+
+              {/* Submit Verification Button */}
+              <div className="pt-1">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full !h-12 text-xs font-mono tracking-wider uppercase font-semibold !bg-ink !text-surface hover:opacity-90 transition-opacity rounded-sm cursor-pointer"
+                  isLoading={isLoading}
+                  rightIcon={<ArrowRight className="h-4 w-4" />}
+                >
+                  {mode === 'signup' ? 'VERIFY & REGISTER' : 'VERIFY & ENTER'}
+                </Button>
+              </div>
+
+              {/* Symmetrical Secondary Actions */}
+              <div className="pt-3 flex flex-col items-center gap-3 text-center">
+                {otpAttempts >= MAX_OTP_ATTEMPTS && otpCooldown === 0 && !isDelayingTimer ? (
+                  <span className="text-xs font-mono text-muted select-none">
+                    Maximum attempts reached. Please request after 1 hr.
+                  </span>
+                ) : isDelayingTimer || otpCooldown > 0 ? (
+                  <span className="text-xs font-mono text-muted select-none">
+                    Resend code in {otpCooldown > 0 ? `${otpCooldown}s` : '60s'}
+                  </span>
+                ) : (
+                  <p className="text-xs font-sans text-muted">
+                    Didn&apos;t receive it?{' '}
                     <button
                       type="button"
                       onClick={handleResendOtp}
                       disabled={isLoading}
-                      className="text-xs font-semibold text-ink underline hover:text-muted cursor-pointer transition-colors"
+                      className="font-medium text-ink underline underline-offset-4 hover:text-muted cursor-pointer transition-colors"
                     >
-                      Resend code
+                      Resend code →
                     </button>
-                  )}
-                </div>
-              </form>
-            )}
+                  </p>
+                )}
 
-            {/* Bottom Form Switcher between Sign In and Sign Up */}
-            {step === 'DETAILS' && (
-              <div className="mt-8">
-                <Divider className="mb-5" />
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted">
-                    {mode === 'signup' ? 'Already registered?' : 'No account yet?'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => switchToMode(mode === 'signup' ? 'login' : 'signup')}
-                    className="font-semibold text-ink hover:text-muted uppercase tracking-wider underline transition-colors cursor-pointer"
-                  >
-                    {mode === 'signup' ? 'SIGN IN →' : 'CREATE AN ACCOUNT →'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('DETAILS');
+                    setOtp('');
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink cursor-pointer transition-colors font-mono uppercase tracking-wider"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>Back to {mode === 'signup' ? 'Details' : 'Sign in'}</span>
+                </button>
               </div>
-            )}
-          </div>
+            </form>
+          )}
         </div>
       </main>
 
-      {/* Bottom Bar: Protocol & Privacy Metadata */}
-      <footer>
-        <Divider className="mb-5" />
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[11px] font-sans text-muted tracking-wider">
-          <div className="flex items-center gap-2.5">
-            ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
-            <span className="text-border-strong">•</span>
-            <span>PRIVACY FIRST COMMUNICATION</span>
-          </div>
-          {/* <span>© {new Date().getFullYear()} KAUNTACT</span> */}
+      {/* Bottom Bar: Clean Protocol & Privacy Metadata */}
+      <footer className="w-full max-w-4xl mx-auto py-4 text-center">
+        <div className="flex items-center justify-center gap-2 text-[11px] font-mono font-medium text-muted uppercase tracking-wider">
+          <span>© {new Date().getFullYear()} KAUNTACT</span>
+          <span>•</span>
+          <span>PRIVACY FIRST IDENTITY &amp; CONTACT</span>
         </div>
       </footer>
-      </div>
     </div>
   );
 };
 
 export default AuthPage;
+
+

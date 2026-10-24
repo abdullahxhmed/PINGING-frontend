@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Navbar } from './Navbar';
 import { Container } from './Container';
+import { PlusSideDrawerTab } from './PlusSideDrawerTab';
 
 import { PingInSvgLogo } from '../brand/PingInLogo';
 
@@ -12,8 +13,9 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-[100dvh] bg-bg flex flex-col text-ink">
+    <div className="min-h-[100dvh] bg-bg flex flex-col text-ink relative">
       <Navbar />
+      <PlusSideDrawerTab />
       <main className="flex-1 py-6 sm:py-8">
         <Container>
           <motion.div

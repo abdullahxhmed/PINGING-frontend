@@ -132,12 +132,11 @@ export const StorefrontPage: React.FC = () => {
   // Cart state persisted to storage
   const [cart, setCart] = useState<StoreCartState>(() => getCartFromStorage());
 
-  // Finish tone state for the pack cards (dark vs light) dynamically initialized from primary packs
+  // Finish tone state for the pack cards (renders in light mode by default on page load)
   const [packTones, setPackTones] = useState<Record<string, 'dark' | 'light'>>(() => {
-    const c = getCartFromStorage();
     const init: Record<string, 'dark' | 'light'> = {};
     PRIMARY_PACK_IDS.forEach((id) => {
-      init[id] = c.setTones?.[id] || 'dark';
+      init[id] = 'light';
     });
     return init;
   });
@@ -274,7 +273,7 @@ export const StorefrontPage: React.FC = () => {
                 <StorePackCard
                   key={packId}
                   product={product}
-                  tone={packTones[packId] || 'dark'}
+                  tone={packTones[packId] || 'light'}
                   onToneChange={(tone) => handleToneChange(packId, tone)}
                   quantity={cart.sets[packId] || 0}
                   onQuantityChange={(delta) => setSetQty(packId, delta)}

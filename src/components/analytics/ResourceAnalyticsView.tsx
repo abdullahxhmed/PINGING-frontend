@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ResourceAnalyticsResponse } from '../../types/api';
 import { resourcesApi } from '../../lib/api';
+import { useSubscription } from '../../features/subscription';
 import {
   PhoneCall,
   QrCode,
@@ -16,6 +17,9 @@ import {
   Percent,
   CheckCircle2,
   Users,
+  Lock,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 interface ResourceAnalyticsViewProps {
@@ -31,6 +35,7 @@ export const ResourceAnalyticsView: React.FC<ResourceAnalyticsViewProps> = ({
   tagNumber,
   isCompact = false,
 }) => {
+  const { openUpgradeModal } = useSubscription();
   const [data, setData] = useState<ResourceAnalyticsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -179,6 +184,66 @@ export const ResourceAnalyticsView: React.FC<ResourceAnalyticsViewProps> = ({
   }
 
   if (error) {
+    const isPlusLocked =
+      error.toLowerCase().includes('plus') ||
+      error.toLowerCase().includes('exclusive') ||
+      error.toLowerCase().includes('subscription');
+
+    if (isPlusLocked) {
+      return (
+        <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-6 sm:p-8 text-center">
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-72 h-36 bg-accent/20 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col items-center max-w-md mx-auto space-y-4">
+            <div className="w-12 h-12 rounded-full bg-accent/25 border border-accent/60 flex items-center justify-center text-ink shadow-sm">
+              <Lock className="w-6 h-6 stroke-[2.2] text-ink" />
+            </div>
+
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/40 text-[11px] font-bold text-ink uppercase tracking-wider mb-2">
+                <Sparkles className="w-3 h-3 fill-ink" />
+                <span>Plus Feature</span>
+              </div>
+              <h3 className="heading-md text-ink text-xl font-bold">
+                Unlock Visitor Scan & Traffic Analytics
+              </h3>
+              <p className="body-sm text-muted mt-1.5 leading-relaxed">
+                {error}
+              </p>
+            </div>
+
+            <div className="w-full grid grid-cols-2 gap-2 text-left text-xs bg-bg/80 border border-border/80 rounded-lg p-3 my-2">
+              <div className="flex items-center gap-2 text-ink">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                <span>Real-time QR scan alerts</span>
+              </div>
+              <div className="flex items-center gap-2 text-ink">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                <span>24h Peak scan heatmap</span>
+              </div>
+              <div className="flex items-center gap-2 text-ink">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                <span>Mobile vs Desktop share</span>
+              </div>
+              <div className="flex items-center gap-2 text-ink">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                <span>Up to 8 active tags quota</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openUpgradeModal()}
+              className="btn-primary w-full sm:w-auto px-6 py-2.5 rounded-[var(--radius-sm)] font-semibold text-xs flex items-center justify-center gap-2 bg-ink text-surface hover:bg-ink/90 shadow-md cursor-pointer transition-all"
+            >
+              <span>Upgrade to Plus — From ₹179/yr</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-xl border border-danger/30 bg-danger/5 p-6 text-center space-y-3">
         <p className="text-xs text-danger font-medium">{error}</p>

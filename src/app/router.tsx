@@ -19,6 +19,7 @@ import { AdminDashboardPage } from '../pages/Admin/AdminDashboardPage';
 import { AdminUsersPage } from '../pages/Admin/AdminUsersPage';
 import { AdminQrInventoryPage } from '../pages/Admin/AdminQrInventoryPage';
 import { AdminCommunicationsPage } from '../pages/Admin/AdminCommunicationsPage';
+import { PlusPlanPage } from '../pages/Plus/PlusPlanPage';
 // import { KeychainPage } from '../pages/Keychain/KeychainPage';
 
 export const router = createBrowserRouter([
@@ -31,11 +32,21 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
 
-  // Kauntact Storefront & Purchase Flow (Public, No Login Required)
-  {
-    path: '/shop',
-    element: <StorefrontPage />,
-  },
+      // Kauntact Plus 12-Month Plan Page
+      {
+        path: '/plus',
+        element: <PlusPlanPage />,
+      },
+      {
+        path: '/plans',
+        element: <PlusPlanPage />,
+      },
+
+      // Kauntact Storefront & Purchase Flow (Public, No Login Required)
+      {
+        path: '/shop',
+        element: <StorefrontPage />,
+      },
   {
     path: '/store',
     element: <StorefrontPage />,
@@ -131,6 +142,14 @@ export const router = createBrowserRouter([
   },
 
   // Tag Status Surfaces
+  {
+    path: '/tag/suspended',
+    element: <QrResolverPage />,
+  },
+  {
+    path: '/tag-suspended',
+    element: <QrResolverPage />,
+  },
   {
     path: '/tag/revoked',
     element: <QrResolverPage />,
