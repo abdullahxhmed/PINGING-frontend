@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TargetCursor } from '../ui/TargetCursor';
 import { PingInSvgLogo } from '../brand/PingInLogo';
 import { PingInQrCode } from '../qr/PingInQrCode';
-import { getPublicDomain } from '../../lib/api';
 import {
   Phone,
   CheckCircle2,

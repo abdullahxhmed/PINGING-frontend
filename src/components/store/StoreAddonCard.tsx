@@ -15,7 +15,7 @@ export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
   onQuantityChange,
 }) => {
   const [isActive, setIsActive] = useState<boolean>(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetTimer = () => {
     if (timerRef.current) {
