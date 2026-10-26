@@ -10,9 +10,7 @@ import {
   ExternalLink,
   History,
   CheckCircle2,
-  AlertTriangle,
   XCircle,
-  HelpCircle,
   Search,
   Package,
   Layers,
@@ -22,7 +20,6 @@ import {
   Trash2,
   X,
   Check,
-  Tag,
   Sun,
   Moon,
 } from 'lucide-react';

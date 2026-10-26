@@ -1176,7 +1176,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
             className="w-full h-full object-cover"
             loading="lazy"
             onError={(e) => {
-              (e.target as HTMLElement).src = DEFAULT_PRODUCT_IMAGE;
+              (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
             }}
           />
         </div>
@@ -1564,7 +1564,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                     alt={nextTargetReq.componentName}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLElement).src = DEFAULT_PRODUCT_IMAGE;
+                      (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                     }}
                   />
                 </div>
@@ -1658,7 +1658,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                           alt={req.componentName}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLElement).src = DEFAULT_PRODUCT_IMAGE;
+                            (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                           }}
                         />
                       </div>
@@ -1734,7 +1734,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                     alt={nextTargetReq.componentName}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLElement).src = DEFAULT_PRODUCT_IMAGE;
+                      (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                     }}
                   />
                 </div>
