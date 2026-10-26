@@ -215,11 +215,11 @@ export const AdminStickerModal: React.FC<AdminStickerModalProps> = ({
         />
       </div>
 
-      <div className="w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl bg-surface md:border md:border-border md:rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl bg-surface md:border md:border-border rounded-xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="px-4 sm:px-6 py-3 border-b border-border flex items-center justify-between bg-surface shrink-0 z-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div>
-            <h3 className="font-display text-sm sm:text-base font-semibold text-ink leading-tight">
+            <h3 className="text-sm sm:text-base font-semibold text-ink leading-tight">
               Sticker Preview
             </h3>
             <p className="font-mono text-[11px] sm:text-xs text-muted">

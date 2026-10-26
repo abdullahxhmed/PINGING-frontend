@@ -2,17 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Minus } from 'lucide-react';
 import type { AddonItem } from '../../features/store/catalog';
+import { DEFAULT_PRODUCT_IMAGE } from '../../features/store/catalog';
 
 export interface StoreAddonCardProps {
   addon: AddonItem;
   quantity: number;
   onQuantityChange: (delta: number) => void;
+  canAddMore?: boolean;
 }
 
 export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
   addon,
   quantity,
   onQuantityChange,
+  canAddMore = true,
 }) => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,12 +55,15 @@ export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
       onClick={handleCardClick}
       className="group relative aspect-square bg-[#101010] overflow-hidden cursor-pointer select-none transition-all duration-300"
     >
-      {/* Edge-to-edge Photo */}
+      {/* Edge-to-edge Photo displaying exact slotted variant artwork */}
       <img
-        src={addon.image}
+        src={addon.image || DEFAULT_PRODUCT_IMAGE}
         alt={addon.name}
         className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
         loading="lazy"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+        }}
       />
 
       {/* Subtle baseline vignette for text readability */}
@@ -122,17 +128,28 @@ export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
               className="self-end"
             >
               {quantity === 0 ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onQuantityChange(1);
-                    resetTimer();
-                  }}
-                  className="px-2 py-1 text-white hover:text-white/80 active:scale-90 font-mono text-xs sm:text-sm font-semibold tracking-wider flex items-center gap-1 transition-all cursor-pointer drop-shadow-md"
-                >
-                  <span>+ Add</span>
-                </button>
+                canAddMore === false ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-2 py-1 text-white/50 font-mono text-xs font-semibold tracking-wider flex items-center gap-1 cursor-not-allowed opacity-50 drop-shadow-md"
+                    title="Maximum limit of 5 items per order reached"
+                  >
+                    <span>Max reached</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuantityChange(1);
+                      resetTimer();
+                    }}
+                    className="px-2 py-1 text-white hover:text-white/80 active:scale-90 font-mono text-xs sm:text-sm font-semibold tracking-wider flex items-center gap-1 transition-all cursor-pointer drop-shadow-md"
+                  >
+                    <span>+ Add</span>
+                  </button>
+                )
               ) : (
                 <div
                   onClick={(e) => {
@@ -158,12 +175,20 @@ export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
                   </span>
                   <button
                     type="button"
+                    disabled={canAddMore === false}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onQuantityChange(1);
-                      resetTimer();
+                      if (canAddMore !== false) {
+                        onQuantityChange(1);
+                        resetTimer();
+                      }
                     }}
-                    className="w-7 h-7 flex items-center justify-center text-white hover:text-white/75 active:scale-80 transition-transform cursor-pointer"
+                    className={`w-7 h-7 flex items-center justify-center transition-transform ${
+                      canAddMore === false
+                        ? 'opacity-30 cursor-not-allowed text-white/40'
+                        : 'text-white hover:text-white/75 active:scale-80 cursor-pointer'
+                    }`}
+                    title={canAddMore === false ? 'Maximum limit of 5 items per order reached' : `Increase ${addon.name}`}
                     aria-label={`Increase ${addon.name}`}
                   >
                     <Plus className="w-4 h-4 stroke-[2.5]" />

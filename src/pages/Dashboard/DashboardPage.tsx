@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
 import { resourcesApi, resourceCache } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
@@ -6,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ResourceRow, CreateResourceModal, EditResourceModal, PairQrModal, TagSetupFlow, MobileTagDetailView } from '../../components/resources';
 import { Button, DelayedSpinner, useToast } from '../../components/ui';
 import { useSubscription } from '../../features/subscription';
-import { Plus, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Plus, ShieldAlert, ArrowLeft, Sparkles } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const isReload = useMemo(() => resourceCache.isPageReload(), []);
@@ -186,6 +187,29 @@ export const DashboardPage: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Guest Order Claim & Plus Activation Banner */}
+      {sessionStorage.getItem('pending_claim_order') && (
+        <div className="my-4 p-4 rounded-xl bg-surface border border-accent/40 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-accent shrink-0" />
+            <div>
+              <p className="font-semibold text-ink">
+                Unclaimed Order #{sessionStorage.getItem('pending_claim_order')}
+              </p>
+              <p className="text-muted text-[11px] mt-0.5">
+                Claim this purchase to activate your included 12-Month Plus subscription.
+              </p>
+            </div>
+          </div>
+          <Link
+            to={`/order/${encodeURIComponent(sessionStorage.getItem('pending_claim_order') || '')}`}
+            className="px-3.5 py-1.5 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded hover:opacity-90 transition-opacity shrink-0 text-center"
+          >
+            Claim Plus Plan
+          </Link>
+        </div>
+      )}
 
       {/* Main Content Area - Immediate Access to Resources */}
       {isLoading ? (

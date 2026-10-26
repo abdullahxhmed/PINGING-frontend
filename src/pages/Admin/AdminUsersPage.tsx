@@ -100,33 +100,33 @@ export const AdminUsersPage: React.FC = () => {
   return (
     <AdminLayout>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">
             Users
           </h1>
-          <p className="text-xs text-muted mt-1">
+          <p className="text-xs text-muted mt-0.5 font-satoshi font-medium">
             {(total ?? 0).toLocaleString()} accounts · Directory and resource ownership
           </p>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* Search Box */}
           <div className="relative">
-            <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by name or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-2 bg-surface border border-border rounded text-xs text-ink placeholder:text-muted font-mono focus:outline-none focus:border-ink w-full sm:w-64"
+              className="pl-9 pr-8 py-1.5 bg-surface border border-border rounded text-xs text-ink placeholder:text-muted font-satoshi font-medium focus:outline-none focus:border-ink w-full sm:w-60"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink text-xs"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink text-xs cursor-pointer"
               >
                 ×
               </button>
@@ -140,10 +140,8 @@ export const AdminUsersPage: React.FC = () => {
               setActiveOnly(!activeOnly);
               setPage(1);
             }}
-            className={`px-3 py-2 rounded border text-xs font-semibold uppercase tracking-wider transition-colors inline-flex items-center gap-1.5 ${
-              activeOnly
-                ? 'bg-ink text-surface border-ink'
-                : 'bg-surface border-border text-muted hover:text-ink hover:border-border-strong'
+            className={`btn btn-secondary !min-h-[32px] !py-0 !px-3 text-xs inline-flex items-center gap-1.5 cursor-pointer ${
+              activeOnly ? '!bg-ink !text-surface !border-ink' : ''
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${activeOnly ? 'bg-accent' : 'bg-muted'}`} />
@@ -153,42 +151,114 @@ export const AdminUsersPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="my-6 p-4 rounded bg-danger/10 border border-danger/20 text-xs text-danger font-medium flex items-center justify-between">
+        <div className="my-4 p-3 border-y border-red-500/30 text-xs text-danger font-medium flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => fetchUsers()} className="underline font-bold uppercase tracking-wider">
+          <button onClick={() => fetchUsers()} className="underline font-bold uppercase tracking-wider text-[11px] cursor-pointer">
             Retry
           </button>
         </div>
       )}
 
-      {/* Main Table */}
-      <div className="mt-8 bg-surface border border-border rounded-lg overflow-hidden">
+      {/* ── Mobile View: Clean Separator-Line List ── */}
+      <div className="block md:hidden mt-4">
+        {isLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink border-t-transparent mb-2" />
+            <p className="font-satoshi text-xs text-muted">Searching Directory...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="py-10 text-center text-xs text-muted border-y border-border">
+            No users matched the criteria.
+          </div>
+        ) : (
+          <div className="divide-y divide-border border-y border-border">
+            {users.map((u) => (
+              <div
+                key={u.id}
+                onClick={() => handleOpenDetail(u.id)}
+                className="py-3 space-y-1.5 cursor-pointer group hover:bg-surface/40 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-ink">{u.name}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[10px] font-satoshi font-medium uppercase ${
+                        u.role === 'ADMIN'
+                          ? 'bg-ink text-surface'
+                          : 'border border-border text-muted'
+                      }`}
+                    >
+                      {u.role || 'USER'}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-satoshi font-medium ${
+                      u.active ? 'text-success' : 'text-danger'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${u.active ? 'bg-emerald-600' : 'bg-red-500'}`} />
+                    <span>{u.active ? 'Active' : 'Inactive'}</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted">
+                  <span className="font-satoshi font-medium text-ink flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-muted" />
+                    <span>{u.mobileNumber}</span>
+                  </span>
+                  <span className="font-satoshi font-medium text-[11px]">
+                    {u.resourceCount ?? 0} assets
+                  </span>
+                </div>
+
+                <div className="pt-1 flex items-center justify-between">
+                  <span className="text-[10px] text-muted font-satoshi font-medium">
+                    Joined: {new Date(u.createdAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDetail(u.id)}
+                    className="group inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface hover:bg-ink border border-ink/20 hover:border-ink text-ink hover:text-surface text-xs font-medium tracking-tight shadow-2xs hover:shadow-xs active:scale-[0.96] transition-all duration-150 cursor-pointer"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-ink group-hover:bg-accent transition-colors" />
+                    <span>View User</span>
+                    <ChevronRight className="w-3 h-3 text-muted group-hover:text-surface group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop View: Clean Line Table ── */}
+      <div className="hidden md:block mt-6 border-y border-border overflow-x-auto">
         {isLoading ? (
           <div className="py-24 flex flex-col items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
-            <p className="font-mono text-xs text-muted tracking-widest uppercase">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-ink border-t-transparent mb-3" />
+            <p className="font-satoshi text-xs text-muted tracking-wider uppercase">
               Searching Directory...
             </p>
           </div>
         ) : users.length === 0 ? (
-          <div className="py-16 text-center text-xs text-muted font-mono">
+          <div className="py-16 text-center text-xs text-muted font-satoshi">
             No users matched the criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-bg/50 text-muted font-mono uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-5 font-medium">User / Contact</th>
-                  <th className="py-3 px-5 font-medium">Role</th>
-                  <th className="py-3 px-5 font-medium">Status</th>
-                  <th className="py-3 px-5 font-medium">Resources</th>
-                  <th className="py-3 px-5 font-medium">Call Endpoint</th>
-                  <th className="py-3 px-5 font-medium">Joined</th>
-                  <th className="py-3 px-5 font-medium text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-muted font-satoshi uppercase tracking-wider text-[10px]">
+                <th className="py-2.5 px-4 font-medium">User / Contact</th>
+                <th className="py-2.5 px-4 font-medium">Role</th>
+                <th className="py-2.5 px-4 font-medium">Status</th>
+                <th className="py-2.5 px-4 font-medium">Resources</th>
+                <th className="py-2.5 px-4 font-medium">Call Endpoint</th>
+                <th className="py-2.5 px-4 font-medium">Joined</th>
+                <th className="py-2.5 px-4 font-medium text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-bg/40 transition-colors">
                     <td className="py-4 px-5">
@@ -247,17 +317,18 @@ export const AdminUsersPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenDetail(u.id)}
-                        className="px-3 py-1 bg-surface border border-border hover:border-ink rounded text-xs font-semibold uppercase tracking-wider text-ink transition-colors cursor-pointer"
+                        className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-ink border border-ink/20 hover:border-ink text-ink hover:text-surface text-xs font-medium tracking-tight shadow-2xs hover:shadow-xs active:scale-[0.96] transition-all duration-150 cursor-pointer"
                       >
-                        View
+                        <span className="w-1.5 h-1.5 rounded-full bg-ink group-hover:bg-accent transition-colors" />
+                        <span>View</span>
+                        <ChevronRight className="w-3 h-3 text-muted group-hover:text-surface group-hover:translate-x-0.5 transition-all" />
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
 
         {/* Pagination Bar */}
         {totalPages > 1 && (
@@ -291,13 +362,13 @@ export const AdminUsersPage: React.FC = () => {
 
       {/* User Detail Modal */}
       {selectedUserId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs">
-          <div className="w-full max-w-2xl bg-surface border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-ink/40 backdrop-blur-xs">
+          <div className="w-full max-w-2xl bg-surface border border-border rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-bg/40">
               <div className="flex items-center gap-2.5">
                 <Users className="w-4 h-4 text-ink" />
-                <h3 className="font-display text-lg font-medium uppercase text-ink">
+                <h3 className="text-base sm:text-lg font-semibold text-ink">
                   User Details
                 </h3>
               </div>

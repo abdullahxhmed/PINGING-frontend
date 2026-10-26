@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useLocation, ScrollRestoration } from 'react-router-dom';
+import { motion, useReducedMotion } from 'motion/react';
 
 /**
  * RootLayout: Guarantees that every navigation (link click, button press, or route change)
@@ -7,6 +8,7 @@ import { Outlet, useLocation, ScrollRestoration } from 'react-router-dom';
  */
 export const RootLayout: React.FC = () => {
   const { pathname, search, hash } = useLocation();
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (hash) {
@@ -43,7 +45,15 @@ export const RootLayout: React.FC = () => {
   return (
     <>
       <ScrollRestoration />
-      <Outlet />
+      <motion.div
+        key={pathname}
+        initial={{ opacity: shouldReduceMotion ? 1 : 0.8 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className="min-h-screen flex flex-col"
+      >
+        <Outlet />
+      </motion.div>
     </>
   );
 };

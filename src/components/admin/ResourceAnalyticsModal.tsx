@@ -24,7 +24,7 @@ export const ResourceAnalyticsModal: React.FC<ResourceAnalyticsModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs animate-fade-in">
       <div
-        className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in"
+        className="bg-surface border border-border rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -35,7 +35,7 @@ export const ResourceAnalyticsModal: React.FC<ResourceAnalyticsModalProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-display text-base font-semibold text-ink truncate">
+                <h3 className="text-base font-semibold text-ink truncate">
                   {resourceName ? `${resourceName} Analytics` : 'Resource Scan Analytics'}
                 </h3>
                 {tagNumber && (

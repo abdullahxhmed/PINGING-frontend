@@ -26,12 +26,12 @@ export const StoreFooter: React.FC = () => {
             <ul className="space-y-1.5 text-xs">
               <li>
                 <Link to="/shop" className="hover:text-ink transition-colors">
-                  Pair (₹179 + delivery)
+                  Essential Starter Pack
                 </Link>
               </li>
               <li>
                 <Link to="/shop" className="hover:text-ink transition-colors">
-                  Complete set (₹499 delivered)
+                  Curated Kit Complete Set
                 </Link>
               </li>
               <li>

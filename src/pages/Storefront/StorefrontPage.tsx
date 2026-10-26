@@ -8,14 +8,14 @@ import {
   StoreAddonCard,
 } from '../../components/store';
 import {
-  SETS,
-  ADDONS,
-  PRIMARY_PACK_IDS,
+  getPrimaryPacks,
   type StoreCartState,
   calculateCart,
   saveCartToStorage,
   getCartFromStorage,
+  MAX_ITEMS_PER_ORDER,
 } from '../../features/store/catalog';
+import { useStoreCatalog } from '../../features/store/useStoreCatalog';
 import {
   ArrowRight,
   ChevronDown,
@@ -129,26 +129,20 @@ const STORE_FAQS = [
 export const StorefrontPage: React.FC = () => {
   const navigate = useNavigate();
 
+  // Dynamic live catalog driven strictly from backend
+  const { sets, addons } = useStoreCatalog();
+
   // Cart state persisted to storage
   const [cart, setCart] = useState<StoreCartState>(() => getCartFromStorage());
 
+  // Dynamic primary packs list derived from backend catalog
+  const primaryPacks = React.useMemo(() => getPrimaryPacks(sets), [sets]);
+
   // Finish tone state for the pack cards (renders in light mode by default on page load)
-  const [packTones, setPackTones] = useState<Record<string, 'dark' | 'light'>>(() => {
-    const init: Record<string, 'dark' | 'light'> = {};
-    PRIMARY_PACK_IDS.forEach((id) => {
-      init[id] = 'light';
-    });
-    return init;
-  });
+  const [packTones, setPackTones] = useState<Record<string, 'dark' | 'light'>>({});
 
   // Flipped state for the pack cards (front vs back) dynamically initialized
-  const [flipped, setFlipped] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    PRIMARY_PACK_IDS.forEach((id) => {
-      init[id] = false;
-    });
-    return init;
-  });
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
 
   // Quirky animation trigger key
   const [lastAddedKey, setLastAddedKey] = useState<number>(0);
@@ -163,34 +157,62 @@ export const StorefrontPage: React.FC = () => {
   // Dynamically preload pack images and addon images for instant finish switching without 1s lag
   useEffect(() => {
     const toPreload: string[] = [];
-    PRIMARY_PACK_IDS.forEach((id) => {
-      const p = SETS[id];
+    primaryPacks.forEach((p) => {
       if (p?.images) {
-        toPreload.push(p.images.dark, p.images.light);
+        if (p.images.dark) toPreload.push(p.images.dark);
+        if (p.images.light) toPreload.push(p.images.light);
       }
     });
-    Object.values(ADDONS).forEach((a) => {
+    Object.values(addons).forEach((a) => {
       if (a.image) toPreload.push(a.image);
     });
     toPreload.forEach((src) => {
-      const img = new Image();
-      img.src = src;
+      if (src && !src.startsWith('data:')) {
+        const img = new Image();
+        img.src = src;
+      }
     });
-  }, []);
+  }, [primaryPacks, addons]);
 
-  const cartCalc = calculateCart(cart);
+  const cartCalc = calculateCart(cart, sets, addons);
+  const canAddMore = cartCalc.itemCount < MAX_ITEMS_PER_ORDER;
 
   const toggleFlip = (id: string) => {
     setFlipped((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const setSetQty = (id: string, delta: number) => {
+    const product = sets[id];
+    const maxStock =
+      product?.availableQuantity !== undefined
+        ? Math.min(MAX_ITEMS_PER_ORDER, Math.max(0, product.availableQuantity))
+        : MAX_ITEMS_PER_ORDER;
+    const isSoldOut =
+      product?.inStock === false ||
+      (product?.availableQuantity !== undefined && product.availableQuantity <= 0);
+
+    if (delta > 0 && (isSoldOut || cartCalc.itemCount >= MAX_ITEMS_PER_ORDER)) {
+      return;
+    }
+
     if (delta > 0) {
       setLastAddedKey(Date.now());
     }
+
     setCart((prev) => {
+      const totalItems =
+        Object.values(prev.sets || {}).reduce((a, b) => a + b, 0) +
+        Object.values(prev.addons || {}).reduce((a, b) => a + b, 0);
+
+      if (delta > 0 && totalItems >= MAX_ITEMS_PER_ORDER) {
+        return prev;
+      }
+
       const current = prev.sets[id] || 0;
-      const next = Math.max(0, Math.min(20, current + delta));
+      if (delta > 0 && current >= maxStock) {
+        return prev;
+      }
+      const next = Math.max(0, Math.min(maxStock, current + delta));
       const updated = { ...prev.sets };
       if (next === 0) {
         delete updated[id];
@@ -202,12 +224,28 @@ export const StorefrontPage: React.FC = () => {
   };
 
   const setAddonQty = (id: string, delta: number) => {
+    if (delta > 0 && cartCalc.itemCount >= MAX_ITEMS_PER_ORDER) {
+      return;
+    }
+
     if (delta > 0) {
       setLastAddedKey(Date.now());
     }
+
     setCart((prev) => {
+      const totalItems =
+        Object.values(prev.sets || {}).reduce((a, b) => a + b, 0) +
+        Object.values(prev.addons || {}).reduce((a, b) => a + b, 0);
+
+      if (delta > 0 && totalItems >= MAX_ITEMS_PER_ORDER) {
+        return prev;
+      }
+
       const current = prev.addons[id] || 0;
-      const next = Math.max(0, Math.min(20, current + delta));
+      if (delta > 0 && current >= MAX_ITEMS_PER_ORDER) {
+        return prev;
+      }
+      const next = Math.max(0, Math.min(MAX_ITEMS_PER_ORDER, current + delta));
       const updated = { ...prev.addons };
       if (next === 0) {
         delete updated[id];
@@ -259,30 +297,50 @@ export const StorefrontPage: React.FC = () => {
         </section>
 
         {/* ── 2. SELECT A PACK: ESSENTIAL & CURATED KIT (MODULAR) ────────── */}
-        <section className="py-6 space-y-4">
-          <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
-            SELECT A PACK
-          </p>
+        <section
+          id="shop-packs-section"
+          data-section="shop_page_1st_section"
+          className="py-6 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">
+              SELECT A PACK
+            </p>
+          </div>
 
           <div className="space-y-4">
-            {PRIMARY_PACK_IDS.map((packId) => {
-              const product = SETS[packId];
-              if (!product) return null;
+            {primaryPacks.length === 0 ? (
+              <div className="py-10 px-4 rounded-xl border border-dashed border-border text-center space-y-1.5 bg-surface/50">
+                <p className="font-mono text-xs uppercase tracking-wider text-muted font-semibold">
+                  No Featured Packs Slotted
+                </p>
+                <p className="text-xs text-muted max-w-xs mx-auto">
+                  Storefront packs are being configured in the admin placement console.
+                </p>
+              </div>
+            ) : (
+              primaryPacks.map((product) => {
+                const packId = product.id;
+                const tone = packTones[packId] || 'light';
+                const isCardFlipped = Boolean(flipped[packId]);
+                const cardQty = cart.sets[packId] || 0;
 
-              return (
-                <StorePackCard
-                  key={packId}
-                  product={product}
-                  tone={packTones[packId] || 'light'}
-                  onToneChange={(tone) => handleToneChange(packId, tone)}
-                  quantity={cart.sets[packId] || 0}
-                  onQuantityChange={(delta) => setSetQty(packId, delta)}
-                  isFlipped={Boolean(flipped[packId])}
-                  onToggleFlip={() => toggleFlip(packId)}
-                  isFeatured={Boolean(product.featured)}
-                />
-              );
-            })}
+                return (
+                  <StorePackCard
+                    key={packId}
+                    product={product}
+                    tone={tone}
+                    onToneChange={(newTone) => handleToneChange(packId, newTone)}
+                    quantity={cardQty}
+                    onQuantityChange={(delta) => setSetQty(packId, delta)}
+                    isFlipped={isCardFlipped}
+                    onToggleFlip={() => toggleFlip(packId)}
+                    isFeatured={Boolean(product.featured)}
+                    canAddMore={canAddMore}
+                  />
+                );
+              })
+            )}
           </div>
         </section>
 
@@ -304,16 +362,25 @@ export const StorefrontPage: React.FC = () => {
           </div>
 
           {/* Edge-to-edge Seamless Photo Grid with Clean Break Lines */}
-          <div className="-mx-4 sm:-mx-5 grid grid-cols-2 gap-[1px] bg-border border-y border-border">
-            {Object.values(ADDONS).map((addon) => (
-              <StoreAddonCard
-                key={addon.id}
-                addon={addon}
-                quantity={cart.addons[addon.id] || 0}
-                onQuantityChange={(delta) => setAddonQty(addon.id, delta)}
-              />
-            ))}
-          </div>
+          {Object.keys(addons).length === 0 ? (
+            <div className="py-8 px-4 rounded-xl border border-dashed border-border text-center space-y-1 bg-surface/50">
+              <p className="text-xs text-muted font-medium">
+                No individual items currently in catalog.
+              </p>
+            </div>
+          ) : (
+            <div className="-mx-4 sm:-mx-5 grid grid-cols-2 gap-[1px] bg-border border-y border-border">
+              {Object.values(addons).map((addon) => (
+                <StoreAddonCard
+                  key={addon.id}
+                  addon={addon}
+                  quantity={cart.addons[addon.id] || 0}
+                  onQuantityChange={(delta) => setAddonQty(addon.id, delta)}
+                  canAddMore={canAddMore}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── 4. PLAN COMPARISON: BASIC VS PLUS (COMPACT TABLE) ───────────── */}

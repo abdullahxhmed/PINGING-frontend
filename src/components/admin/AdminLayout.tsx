@@ -39,8 +39,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const navItems = [
     { label: 'Overview', to: '/admin', exact: true },
+    { label: 'Orders', to: '/admin/orders' },
+    { label: 'Fulfillment', to: '/admin/fulfillment' },
+    { label: 'Inventory & Production', to: '/admin/inventory' },
+    { label: 'Products & Catalog', to: '/admin/catalog' },
     { label: 'Users', to: '/admin/users' },
-    { label: 'QR Inventory', to: '/admin/inventory' },
     { label: 'Communications', to: '/admin/communications' },
   ];
 

@@ -14,6 +14,7 @@ export interface StorePackCardProps {
   isFlipped: boolean;
   onToggleFlip: () => void;
   isFeatured?: boolean;
+  canAddMore?: boolean;
 }
 
 export const StorePackCard: React.FC<StorePackCardProps> = ({
@@ -25,11 +26,23 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
   isFlipped,
   onToggleFlip,
   isFeatured = false,
+  canAddMore = true,
 }) => {
   const isDark = tone === 'dark';
+  const isSoldOut =
+    product.inStock === false ||
+    (product.availableQuantity !== undefined && product.availableQuantity <= 0);
+  const maxStock =
+    product.availableQuantity !== undefined ? Math.min(5, Math.max(0, product.availableQuantity)) : 5;
+  const isMaxReached = quantity >= maxStock || canAddMore === false;
 
   return (
-    <div style={{ perspective: '1200px' }} className="w-full">
+    <div
+      style={{ perspective: '1200px' }}
+      className="w-full"
+      data-product-id={product.productId || product.id}
+      data-variant-id={product.variantId}
+    >
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
@@ -84,6 +97,17 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
                 >
                   ₹{product.price}
                 </span>
+                {isSoldOut ? (
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-red-500 font-semibold mt-0.5">
+                    Sold Out
+                  </span>
+                ) : product.availableQuantity !== undefined &&
+                  product.availableQuantity < 4 &&
+                  product.availableQuantity > 0 ? (
+                  <span className="block text-[10px] font-mono uppercase tracking-wider text-amber-500 font-medium mt-0.5">
+                    Only {product.availableQuantity} left
+                  </span>
+                ) : null}
               </div>
             </div>
 
@@ -97,6 +121,7 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
 
             {/* Modular Cross-Fading Artwork */}
             <ProductArtwork
+              productId={product.productId || product.id}
               images={product.images}
               alt={product.name}
               tone={tone}
@@ -124,26 +149,49 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
           {/* Action Slot: Add / Stepper + Know More Flip Button */}
           <div className="pt-2 flex items-center gap-2.5">
             <div className="flex-1">
-              {quantity === 0 ? (
-                <motion.button
+              {isSoldOut ? (
+                <button
                   type="button"
-                  whileTap={{ scale: 0.94 }}
-                  whileHover={{ scale: 1.01 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                  onClick={() => onQuantityChange(1)}
-                  className={`w-full min-h-[44px] px-4 text-[13px] font-medium tracking-tight rounded-md cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs transition-all ${
-                    isDark
-                      ? 'bg-[#f5f4ee] hover:bg-white text-[#11110f]'
-                      : 'bg-[#11110f] hover:bg-[#201f1c] text-[#f5f4ee]'
+                  disabled
+                  className={`w-full min-h-[44px] px-4 text-[13px] font-medium tracking-tight rounded-md cursor-not-allowed flex items-center justify-center gap-1.5 shadow-2xs opacity-60 ${
+                    isDark ? 'bg-white/10 text-white/50' : 'bg-black/10 text-ink/50'
                   }`}
                 >
-                  <span>Add to cart</span>
-                  <Plus
-                    className={`w-3.5 h-3.5 ${
-                      isDark ? 'text-[#11110f]' : 'text-[#f5f4ee]'
+                  <span>Sold out</span>
+                </button>
+              ) : quantity === 0 ? (
+                canAddMore === false ? (
+                  <button
+                    type="button"
+                    disabled
+                    className={`w-full min-h-[44px] px-4 text-[12px] font-medium tracking-tight rounded-md cursor-not-allowed flex items-center justify-center gap-1.5 shadow-2xs opacity-50 ${
+                      isDark ? 'bg-white/10 text-white/50' : 'bg-black/10 text-ink/50'
                     }`}
-                  />
-                </motion.button>
+                    title="Maximum limit of 5 items per order reached"
+                  >
+                    <span>Max 5 items reached</span>
+                  </button>
+                ) : (
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.94 }}
+                    whileHover={{ scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                    onClick={() => onQuantityChange(1)}
+                    className={`w-full min-h-[44px] px-4 text-[13px] font-medium tracking-tight rounded-md cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs transition-all ${
+                      isDark
+                        ? 'bg-[#f5f4ee] hover:bg-white text-[#11110f]'
+                        : 'bg-[#11110f] hover:bg-[#201f1c] text-[#f5f4ee]'
+                    }`}
+                  >
+                    <span>Add to cart</span>
+                    <Plus
+                      className={`w-3.5 h-3.5 ${
+                        isDark ? 'text-[#11110f]' : 'text-[#f5f4ee]'
+                      }`}
+                    />
+                  </motion.button>
+                )
               ) : (
                 <div
                   className={`min-h-[44px] flex items-center justify-between border rounded-md px-2 shadow-2xs transition-colors ${
@@ -171,12 +219,18 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
                   </span>
                   <motion.button
                     type="button"
-                    whileTap={{ scale: 0.8 }}
+                    disabled={isMaxReached}
+                    whileTap={!isMaxReached ? { scale: 0.8 } : undefined}
                     transition={{ type: 'spring', stiffness: 600, damping: 20 }}
-                    onClick={() => onQuantityChange(1)}
-                    className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors cursor-pointer ${
-                      isDark ? 'text-white hover:bg-white/10' : 'text-ink hover:bg-surface'
+                    onClick={() => !isMaxReached && onQuantityChange(1)}
+                    className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${
+                      isMaxReached
+                        ? 'opacity-25 cursor-not-allowed text-muted'
+                        : isDark
+                        ? 'text-white hover:bg-white/10 cursor-pointer'
+                        : 'text-ink hover:bg-surface cursor-pointer'
                     }`}
+                    title={isMaxReached ? `Maximum available stock (${maxStock}) reached` : `Increase ${product.name} quantity`}
                     aria-label={`Increase ${product.name} quantity`}
                   >
                     <Plus className="w-4 h-4" />

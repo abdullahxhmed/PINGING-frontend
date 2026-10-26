@@ -1,5 +1,10 @@
+import type { BackendCatalogProduct, BackendCatalogVariantComponent } from '../../types/orders';
+
+export const DEFAULT_PRODUCT_IMAGE =
+  "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%20fill%3D%22none%22%3E%3Crect%20width%3D%22400%22%20height%3D%22225%22%20fill%3D%22%231c1c1a%22%2F%3E%3Crect%20x%3D%22170%22%20y%3D%2270%22%20width%3D%2260%22%20height%3D%2260%22%20rx%3D%226%22%20stroke%3D%22%23444440%22%20stroke-width%3D%221.5%22%20stroke-dasharray%3D%224%204%22%2F%3E%3Cpath%20d%3D%22M190%20100h20M200%2090v20%22%20stroke%3D%22%23666660%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%22155%22%20text-anchor%3D%22middle%22%20fill%3D%22%23888880%22%20font-family%3D%22monospace%22%20font-size%3D%2211%22%3ENo%20Artwork%20Configured%3C%2Ftext%3E%3C%2Fsvg%3E";
+
 export interface SetProduct {
-  id: 'essential' | 'curated-kit' | 'pair' | 'complete-set';
+  id: string;
   name: string;
   tagline: string;
   price: number;
@@ -19,72 +24,14 @@ export interface SetProduct {
     description: string;
     features: string[];
   };
+  variantId?: string;
+  productId?: string;
+  sku?: string;
+  inStock?: boolean;
+  availableQuantity?: number;
 }
 
-export const SETS: Record<string, SetProduct> = {
-  essential: {
-    id: 'essential',
-    name: 'Essential',
-    tagline: '2 vehicle stickers + 12 months of Plus',
-    price: 179,
-    shippingFee: 40,
-    image: '/stickerImages/darkDuo.PNG',
-    images: {
-      dark: '/stickerImages/darkDuo.PNG',
-      light: '/stickerImages/lightDuo.PNG',
-    },
-    contents: ['2 vehicle stickers', 'Includes 12 months of Plus'],
-    tagsCount: 2,
-    plusMonths: 12,
-    details: {
-      origin: 'Ships from Hyderabad via express courier.',
-      shipping: 'Dispatches within 24–48 hours from Hyderabad. Delivery calculated at checkout.',
-      description: 'Two weatherproof matte vinyl stickers engineered for vehicle windshields or exterior bodywork.',
-      features: [
-        'UV and waterproof vinyl for exterior automotive exposure',
-        'Direct caller voice relay without revealing your number',
-        'Includes 12 months of Plus (up to 8 active tags & alerts)',
-        'Your first 2 tags keep working for calls with no expiry',
-      ],
-    },
-  },
-  'curated-kit': {
-    id: 'curated-kit',
-    name: 'Curated kit',
-    tagline: '2 vehicle stickers + 1 keychain + 1 general-purpose sticker + 12 months of Plus',
-    price: 499,
-    shippingFee: 0,
-    featured: true,
-    image: '/stickerImages/darkSet.PNG',
-    images: {
-      dark: '/stickerImages/darkSet.PNG',
-      light: '/stickerImages/lightSet.PNG',
-    },
-    contents: [
-      '2 vehicle stickers',
-      '1 QR keychain tag',
-      '1 general-purpose sticker',
-      'Includes 12 months of Plus',
-    ],
-    tagsCount: 4,
-    plusMonths: 12,
-    details: {
-      origin: 'Ships from Hyderabad via express courier.',
-      shipping: 'Dispatches within 24–48 hours from Hyderabad. Delivery calculated at checkout.',
-      description: 'Comprehensive 4-piece tag pack for your car, motorcycle, keychain, and daily belongings.',
-      features: [
-        '2 automotive stickers + 1 CNC anodized aluminum keychain + 1 compact sticker',
-        'Laser-etched and weather-sealed finishes for long durability',
-        'Includes 12 months of Plus service across all tags',
-        'Independent tag management and private masked voice calls',
-      ],
-    },
-  },
-};
-
-// Aliases for backwards compatibility
-SETS.pair = SETS.essential;
-SETS['complete-set'] = SETS['curated-kit'];
+export const SETS: Record<string, SetProduct> = {};
 
 export const PRIMARY_PACK_IDS = ['essential', 'curated-kit'] as const;
 export type PrimaryPackId = typeof PRIMARY_PACK_IDS[number];
@@ -99,75 +46,514 @@ export interface AddonItem {
   price: number;
   image: string;
   tagsCount: number;
+  productId?: string;
+  variantId?: string;
+  sku?: string;
+  inStock?: boolean;
 }
 
-export const ADDONS: Record<string, AddonItem> = {
-  'dark-sticker-pair': {
-    id: 'dark-sticker-pair',
-    name: 'Sticker pair',
-    subtitle: 'For light-coloured surfaces',
-    tone: 'dark',
-    swatchHex: '#151513',
-    price: 99,
-    image: '/stickerImages/kauntactDark.png',
-    tagsCount: 2,
-  },
-  'light-sticker-pair': {
-    id: 'light-sticker-pair',
-    name: 'Sticker pair',
-    subtitle: 'For tinted glass or dark surfaces',
-    tone: 'light',
-    swatchHex: '#edece6',
-    swatchBorderHex: '#aaa79c',
-    price: 99,
-    image: '/stickerImages/kauntactLight.png',
-    tagsCount: 2,
-  },
-  'dark-keychain': {
-    id: 'dark-keychain',
-    name: 'Keychain',
-    subtitle: 'Matte anodized tag for keys and luggage',
-    tone: 'dark',
-    swatchHex: '#151513',
-    price: 179,
-    image: '/stickerImages/darkKeychain.PNG',
-    tagsCount: 1,
-  },
-  'light-keychain': {
-    id: 'light-keychain',
-    name: 'Keychain',
-    subtitle: 'Silver aluminum tag for daily carry',
-    tone: 'light',
-    swatchHex: '#d8d5cc',
-    price: 179,
-    image: '/stickerImages/lightKeychain.PNG',
-    tagsCount: 1,
-  },
-  'dark-mini': {
-    id: 'dark-mini',
-    name: 'Small stickers (2-pack)',
-    subtitle: 'For helmets, laptops and compact gear',
-    tone: 'dark',
-    swatchHex: '#151513',
-    price: 79,
-    image: '/stickerImages/darkMini.PNG',
-    tagsCount: 2,
-  },
-  'light-mini': {
-    id: 'light-mini',
-    name: 'Small stickers (2-pack)',
-    subtitle: 'For tinted glass, laptops and dark gear',
-    tone: 'light',
-    swatchHex: '#edece6',
-    swatchBorderHex: '#aaa79c',
-    price: 79,
-    image: '/stickerImages/lightMini.PNG',
-    tagsCount: 2,
-  },
-};
+export const ADDONS: Record<string, AddonItem> = {};
+
+// In-memory live references for dynamic updates (strictly populated from backend)
+let liveSets: Record<string, SetProduct> = {};
+let liveAddons: Record<string, AddonItem> = {};
+let liveProducts: BackendCatalogProduct[] = [];
+
+/**
+ * Helper to count serialized physical QR tags from product components
+ */
+function extractTagCount(components?: BackendCatalogVariantComponent[] | string): number {
+  if (!components) return 0;
+  const list: BackendCatalogVariantComponent[] =
+    typeof components === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(components);
+          } catch {
+            return [];
+          }
+        })()
+      : components;
+
+  return list
+    .filter((c) => c.componentType === 'SERIALIZED_QR_TAG')
+    .reduce((sum, c) => sum + (c.quantity || 1), 0);
+}
+
+/**
+ * Helper to extract plus duration months
+ */
+function extractPlusMonths(components?: BackendCatalogVariantComponent[] | string): number {
+  if (!components) return 0;
+  const list: BackendCatalogVariantComponent[] =
+    typeof components === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(components);
+          } catch {
+            return [];
+          }
+        })()
+      : components;
+
+  return list
+    .filter((c) => c.componentType === 'DIGITAL_ENTITLEMENT')
+    .reduce((max, c) => Math.max(max, c.plusDurationMonths || 12), 0);
+}
+
+function buildDynamicSetProduct(
+  prod: BackendCatalogProduct,
+  variant: any
+): SetProduct {
+  const priceInRupees = Math.round((variant?.price ?? prod.basePrice) / 100);
+  const tagCount = extractTagCount(variant?.components) || prod.tagsCount || 1;
+  const plusMonths = extractPlusMonths(variant?.components) || prod.plusMonths || 12;
+  const inStock = variant?.inStock ?? prod.inStock ?? true;
+  const availableQuantity = variant?.availableQuantity ?? (inStock ? 99 : 0);
+
+  // Derive contents purely from variant components or fallback to product description
+  let contents: string[] = [];
+  if (variant?.components) {
+    const list =
+      typeof variant.components === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(variant.components);
+            } catch {
+              return [];
+            }
+          })()
+        : variant.components;
+
+    if (Array.isArray(list) && list.length > 0) {
+      contents = list
+        .filter((c: any) => c.componentType !== 'BULK_STOCK')
+        .map((c: any) => {
+          if (c.componentType === 'DIGITAL_ENTITLEMENT') {
+            return `Includes ${c.plusDurationMonths || 12} months of Plus`;
+          }
+          return `${c.quantity || 1}x ${c.name || 'QR Tag'}`;
+        });
+    }
+  }
+
+  if (contents.length === 0 && prod.description) {
+    contents = [prod.description];
+  }
+
+  // Variant-first image resolution: variant image is authoritative, fallback to product image
+  const darkVariant = prod.variants?.find(
+    (v) => v.name?.toLowerCase().includes('dark') || v.sku?.toLowerCase().includes('drk')
+  );
+  const lightVariant = prod.variants?.find(
+    (v) => v.name?.toLowerCase().includes('light') || v.sku?.toLowerCase().includes('lit')
+  );
+
+  const darkImg =
+    darkVariant?.imageUrl ||
+    variant?.imageUrl ||
+    prod.imageUrl ||
+    DEFAULT_PRODUCT_IMAGE;
+
+  const lightImg =
+    lightVariant?.imageUrl ||
+    variant?.imageUrl ||
+    prod.imageUrl ||
+    DEFAULT_PRODUCT_IMAGE;
+
+  return {
+    id: prod.id,
+    name: prod.name,
+    tagline: prod.description || `${prod.name} (${prod.sku})`,
+    price: priceInRupees,
+    shippingFee: priceInRupees >= 499 ? 0 : 40,
+    featured: Boolean(prod.isFeatured),
+    image: darkImg,
+    images: {
+      dark: darkImg,
+      light: lightImg,
+    },
+    contents,
+    tagsCount: tagCount,
+    plusMonths: plusMonths,
+    details: {
+      origin: 'Ships from Hyderabad via express courier.',
+      shipping: 'Dispatches within 24–48 hours from Hyderabad. Delivery calculated at checkout.',
+      description: prod.description || `${prod.name} with complete Kauntact QR integration.`,
+      features: [
+        'Weather-sealed finishes for long exterior durability',
+        'Direct caller voice relay without revealing your personal number',
+        `Includes ${plusMonths} months of Plus subscription service`,
+        'Private masked calls and instant digital emergency alerts',
+      ],
+    },
+    variantId: variant?.id,
+    productId: prod.id,
+    sku: variant?.sku || prod.sku,
+    inStock,
+    availableQuantity,
+  };
+}
+
+let livePrimaryPacks: SetProduct[] = [];
+
+/**
+ * Transforms backend products (from GET /api/catalog) into dynamic SetProduct items.
+ * Strictly driven by backend catalog products and slot configuration.
+ */
+export function hydrateSetsFromBackend(
+  products: BackendCatalogProduct[],
+  slots?: Record<string, BackendCatalogProduct>,
+  activeSlots?: any[]
+): Record<string, SetProduct> {
+  const result: Record<string, SetProduct> = {};
+
+  if (!Array.isArray(products) || products.length === 0) {
+    liveSets = {};
+    livePrimaryPacks = [];
+    return {};
+  }
+
+  // 1. Build and index all products so product ID, slug, cart IDs and checkout mapping always resolve
+  const productMap = new Map<string, BackendCatalogProduct>();
+  products.forEach((prod) => {
+    productMap.set(prod.id, prod);
+    const variant = prod.variants?.[0];
+    const pack = buildDynamicSetProduct(prod, variant);
+    result[prod.id] = pack;
+    if (prod.slug) {
+      result[prod.slug] = pack;
+    }
+  });
+
+  const packsList: SetProduct[] = [];
+
+  // 2. If backend storefront slots are provided, slotted bundle packs take priority
+  if (slots && typeof slots === 'object' && Object.keys(slots).length > 0) {
+    let packPrefixes: string[] = [];
+
+    if (Array.isArray(activeSlots) && activeSlots.length > 0) {
+      const bundleSlots = activeSlots
+        .filter(
+          (s: any) =>
+            (s.slotType === 'BUNDLE' ||
+              s.slotKey.startsWith('bundle') ||
+              s.slotKey.startsWith('section_1_pack')) &&
+            s.active !== false
+        )
+        .sort((a: any, b: any) => (a.displayOrder ?? 99) - (b.displayOrder ?? 99));
+
+      packPrefixes = Array.from(
+        new Set(
+          bundleSlots.map((s: any) => s.slotKey.replace(/(_dark|_light|_drk|_lit)$/i, ''))
+        )
+      );
+    } else {
+      const bundleSlotKeys = Object.keys(slots)
+        .filter((k) => k.startsWith('bundle') || k.startsWith('section_1_pack'))
+        .sort((a, b) => {
+          const numA = parseInt(a.replace(/\D/g, '') || '0', 10);
+          const numB = parseInt(b.replace(/\D/g, '') || '0', 10);
+          return numA - numB;
+        });
+
+      packPrefixes = Array.from(
+        new Set(
+          bundleSlotKeys.map((k) => k.replace(/(_dark|_light|_drk|_lit)$/i, ''))
+        )
+      );
+    }
+
+    packPrefixes.forEach((prefix) => {
+      const darkKey = `${prefix}_dark`;
+      const lightKey = `${prefix}_light`;
+
+      const darkSlotProd = slots[darkKey];
+      const lightSlotProd = slots[lightKey];
+      const baseSlotProd = slots[prefix];
+
+      const darkCandidate =
+        darkSlotProd ||
+        (baseSlotProd?.sku?.toLowerCase().includes('drk') || baseSlotProd?.name?.toLowerCase().includes('dark')
+          ? baseSlotProd
+          : null);
+
+      const lightCandidate =
+        lightSlotProd ||
+        (baseSlotProd?.sku?.toLowerCase().includes('drk') || baseSlotProd?.name?.toLowerCase().includes('dark')
+          ? null
+          : baseSlotProd);
+
+      // Prefer light candidate for default storefront preview presentation
+      const primaryCandidate = lightCandidate || darkCandidate || baseSlotProd;
+      if (!primaryCandidate) return;
+
+      const matchedPrimary = productMap.get(primaryCandidate.id) || primaryCandidate;
+      const matchedDark = darkCandidate ? (productMap.get(darkCandidate.id) || darkCandidate) : null;
+      const matchedLight = lightCandidate ? (productMap.get(lightCandidate.id) || lightCandidate) : null;
+
+      const pack = buildDynamicSetProduct(matchedPrimary, matchedPrimary.variants?.[0]);
+
+      if (matchedDark?.imageUrl) {
+        pack.images.dark = matchedDark.imageUrl;
+      }
+      if (matchedLight?.imageUrl) {
+        pack.images.light = matchedLight.imageUrl;
+      }
+
+      // Clean display name if it had 'Light' or 'Dark' suffix
+      const cleanName = matchedPrimary.name.replace(/\s+(light|dark)(\s+kit|\s+pack)?/i, '').trim();
+      if (cleanName) {
+        pack.name = cleanName;
+      }
+
+      // Attach finish product IDs and exact variant IDs for finish-accurate checkout
+      const resolveVariantForProduct = (prod?: BackendCatalogProduct | null, tone?: 'dark' | 'light') => {
+        if (!prod || !prod.variants || prod.variants.length === 0) return undefined;
+        if (tone === 'dark') {
+          const darkV = prod.variants.find(
+            (v) => v.name?.toLowerCase().includes('dark') || v.sku?.toLowerCase().includes('drk')
+          );
+          if (darkV) return darkV.id;
+        } else if (tone === 'light') {
+          const lightV = prod.variants.find(
+            (v) => v.name?.toLowerCase().includes('light') || v.sku?.toLowerCase().includes('lit')
+          );
+          if (lightV) return lightV.id;
+        }
+        return prod.variants[0]?.id;
+      };
+
+      (pack as any).finishProducts = {
+        dark: matchedDark?.id || matchedPrimary.id,
+        light: matchedLight?.id || matchedPrimary.id,
+      };
+
+      (pack as any).finishVariants = {
+        dark:
+          resolveVariantForProduct(matchedDark, 'dark') ||
+          resolveVariantForProduct(matchedPrimary, 'dark') ||
+          pack.variantId,
+        light:
+          resolveVariantForProduct(matchedLight, 'light') ||
+          resolveVariantForProduct(matchedPrimary, 'light') ||
+          pack.variantId,
+      };
+
+      result[pack.id] = pack;
+      if (matchedPrimary.slug) {
+        result[matchedPrimary.slug] = pack;
+      }
+      if (matchedDark?.id) {
+        result[matchedDark.id] = pack;
+      }
+      if (matchedLight?.id) {
+        result[matchedLight.id] = pack;
+      }
+
+      packsList.push(pack);
+    });
+  }
+
+  // Fallback: active physical packs ordered by displayOrder if no bundle slots matched
+  if (packsList.length === 0) {
+    const activePhysicalPacks = products
+      .filter((p) => p.active !== false && (p.type === 'PHYSICAL_TAG_PACK' || p.type === 'COMBO_PACK'))
+      .sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999));
+
+    activePhysicalPacks.forEach((prod) => {
+      const variant = prod.variants?.[0];
+      const pack = buildDynamicSetProduct(prod, variant);
+      packsList.push(pack);
+    });
+  }
+
+  liveSets = result;
+  livePrimaryPacks = packsList;
+  return result;
+}
+
+/**
+ * Returns the primary packs for storefront display directly from active backend physical tag packs.
+ */
+export function getPrimaryPacks(setsCatalog?: Record<string, SetProduct>): SetProduct[] {
+  if (livePrimaryPacks && livePrimaryPacks.length > 0) {
+    return livePrimaryPacks;
+  }
+  const currentSets = setsCatalog || liveSets;
+  const packs: SetProduct[] = [];
+  const seen = new Set<string>();
+
+  for (const key of Object.keys(currentSets)) {
+    const item = currentSets[key];
+    const uniqueId = item?.productId || item?.id;
+    if (item && uniqueId && !seen.has(uniqueId)) {
+      seen.add(uniqueId);
+      packs.push(item);
+    }
+  }
+  return packs;
+}
+
+/**
+ * Hydrates add-ons dynamically from catalog products and configured storefront slots.
+ * Slotted items in activeSlots take full precedence to match the admin configurator layout exactly.
+ */
+export function hydrateAddonsFromBackend(
+  products: BackendCatalogProduct[],
+  slots?: Record<string, any>,
+  activeSlots?: any[]
+): Record<string, AddonItem> {
+  const result: Record<string, AddonItem> = {};
+
+  if (!Array.isArray(products) || products.length === 0) {
+    liveAddons = {};
+    return {};
+  }
+
+  // 1. If storefront slots are available, prioritize slotted individual items
+  const indSlots = (activeSlots || [])
+    .filter(
+      (s: any) =>
+        (s.slotType === 'INDIVIDUAL' || s.slotKey.startsWith('individual')) &&
+        s.active !== false &&
+        s.productId &&
+        slots?.[s.slotKey]
+    )
+    .sort((a: any, b: any) => (a.displayOrder ?? 99) - (b.displayOrder ?? 99));
+
+  if (indSlots.length > 0) {
+    for (const s of indSlots) {
+      const slotted = slots![s.slotKey];
+      const boundVariant =
+        s.variant ||
+        slotted.selectedVariant ||
+        slotted.variants?.find((v: any) => v.id === s.variantId);
+      const variantKey = s.variantId || boundVariant?.id || slotted.id;
+
+      const priceInPaise = boundVariant?.price ?? slotted.basePrice ?? 9900;
+      const priceInRupees = Math.round(priceInPaise / 100);
+      const inStock = boundVariant?.inStock ?? slotted.inStock ?? true;
+      const tagCount = extractTagCount(boundVariant?.components) || slotted.tagsCount || 1;
+      const candidateImg = slotted.selectedVariant?.imageUrl || slotted.imageUrl || boundVariant?.imageUrl;
+      const variantImg =
+        candidateImg &&
+        (candidateImg.startsWith('http://') ||
+          candidateImg.startsWith('https://') ||
+          candidateImg.startsWith('data:'))
+          ? candidateImg
+          : DEFAULT_PRODUCT_IMAGE;
+
+      const rawName = boundVariant?.name
+        ? `${slotted.name.replace(/\s*\([^)]*\)/g, '').trim()} (${boundVariant.name})`
+        : slotted.name;
+
+      const isLight =
+        rawName.toLowerCase().includes('light') ||
+        (boundVariant?.sku && boundVariant.sku.toLowerCase().includes('lit')) ||
+        (slotted.sku && slotted.sku.toLowerCase().includes('lit'));
+      const tone: 'dark' | 'light' = isLight ? 'light' : 'dark';
+
+      result[variantKey] = {
+        id: variantKey,
+        name: rawName,
+        subtitle: boundVariant?.name ? `${boundVariant.name} finish` : slotted.description || rawName,
+        tone,
+        swatchHex: tone === 'light' ? '#edece6' : '#151513',
+        swatchBorderHex: tone === 'light' ? '#aaa79c' : undefined,
+        price: priceInRupees,
+        image: variantImg,
+        tagsCount: tagCount,
+        productId: slotted.productId || slotted.id,
+        variantId: s.variantId || boundVariant?.id,
+        sku: boundVariant?.sku || slotted.sku,
+        inStock,
+      };
+    }
+
+    liveAddons = result;
+    return result;
+  }
+
+  // Fallback: standard unslotted hydration across all active non-bundle products
+  for (const prod of products) {
+    if (prod.active === false) continue;
+    if (prod.type === 'PHYSICAL_TAG_PACK' || prod.type === 'COMBO_PACK') continue;
+
+    const variants = prod.variants && prod.variants.length > 0 ? prod.variants : [undefined];
+
+    for (const variant of variants) {
+      const variantKey = variant ? variant.id : prod.id;
+      const priceInPaise = variant?.price ?? prod.basePrice;
+      const priceInRupees = Math.round(priceInPaise / 100);
+      const inStock = variant?.inStock ?? prod.inStock ?? true;
+      const tagCount = extractTagCount(variant?.components) || prod.tagsCount || 1;
+      const variantImg = variant?.imageUrl || prod.imageUrl || DEFAULT_PRODUCT_IMAGE;
+
+      const isLight =
+        variant?.name?.toLowerCase().includes('light') ||
+        variant?.sku?.toLowerCase().includes('lit') ||
+        variant?.sku?.toLowerCase().includes('light');
+      const tone: 'dark' | 'light' = isLight ? 'light' : 'dark';
+
+      const displayName =
+        variants.length > 1 && variant?.name
+          ? `${prod.name} (${variant.name})`
+          : prod.name;
+      const displaySubtitle =
+        variants.length > 1 && variant?.name
+          ? `${variant.name} finish`
+          : prod.description || prod.name;
+
+      result[variantKey] = {
+        id: variantKey,
+        name: displayName,
+        subtitle: displaySubtitle,
+        tone,
+        swatchHex: tone === 'light' ? '#edece6' : '#151513',
+        swatchBorderHex: tone === 'light' ? '#aaa79c' : undefined,
+        price: priceInRupees,
+        image: variantImg,
+        tagsCount: tagCount,
+        productId: prod.id,
+        variantId: variant?.id,
+        sku: variant?.sku || prod.sku,
+        inStock,
+      };
+    }
+  }
+
+  liveAddons = result;
+  return result;
+}
+
+export function updateLiveCatalog(
+  products: BackendCatalogProduct[],
+  slots?: Record<string, BackendCatalogProduct>,
+  activeSlots?: any[]
+): Record<string, SetProduct> {
+  liveProducts = Array.isArray(products) ? products : [];
+  hydrateAddonsFromBackend(products, slots, activeSlots);
+  return hydrateSetsFromBackend(products, slots, activeSlots);
+}
+
+export function getLiveSets(): Record<string, SetProduct> {
+  return liveSets;
+}
+
+export function getLiveAddons(): Record<string, AddonItem> {
+  return liveAddons;
+}
+
+export function getLiveProducts(): BackendCatalogProduct[] {
+  return liveProducts;
+}
 
 export interface CartItemDetail {
-  id: string;
+  id: string; // The cart key (targetId)
+  productId?: string;
+  variantId?: string;
+  tone?: 'dark' | 'light';
   name: string;
   subtitle: string;
   unitPrice: number;
@@ -195,38 +581,50 @@ export interface StoreCartState {
   setTones?: Record<string, 'dark' | 'light'>;
 }
 
+export const MAX_ITEMS_PER_ORDER = 5;
+
 export const DEFAULT_STORE_CART: StoreCartState = {
   sets: {},
   addons: {},
-  setTones: {
-    essential: 'light',
-    'curated-kit': 'light',
-  },
+  setTones: {},
 };
 
-export function calculateCart(cart: StoreCartState): CartCalculation {
+export function calculateCart(
+  cart: StoreCartState,
+  customSets?: Record<string, SetProduct>,
+  customAddons?: Record<string, AddonItem>
+): CartCalculation {
+  const setsCatalog = customSets || liveSets || SETS;
+  const addonsCatalog = customAddons || liveAddons || ADDONS;
+
   const items: CartItemDetail[] = [];
   let totalTags = 0;
-  let hasCuratedKit = false;
   let hasSets = false;
 
-  // Process Sets (Essential or Curated kit)
-  Object.entries(cart.sets || {}).forEach(([id, qty]) => {
+  // Process Sets (custom packs by ID or slug)
+  Object.entries(cart.sets || {}).forEach(([targetId, qty]) => {
     if (qty > 0) {
-      const targetId =
-        id === 'pair' || id === 'sticker-set' ? 'essential' : id === 'complete-set' ? 'curated-kit' : id;
-      const setProd = SETS[targetId];
+      const setProd = setsCatalog[targetId];
       if (setProd) {
         hasSets = true;
-        if (targetId === 'curated-kit') hasCuratedKit = true;
         const safeQty = Math.max(1, Math.min(20, qty));
         totalTags += setProd.tagsCount * safeQty;
-        const tone = cart.setTones?.[targetId] || cart.setTones?.[id] || 'light';
+        const tone = cart.setTones?.[targetId] || 'light';
         const displayImg = setProd.images ? setProd.images[tone] : setProd.image;
         const toneLabel = tone === 'light' ? 'Light' : 'Dark';
+        const cleanSetName = setProd.name
+          .replace(/\s*\((light|dark)\)/i, '')
+          .replace(/\s+(light|dark)(\s+kit|\s+pack)?/i, '')
+          .trim();
+        const formattedSetName = `${cleanSetName || setProd.name} (${toneLabel})`;
+        const activeProductId = (setProd as any).finishProducts?.[tone] || setProd.productId || setProd.id;
+        const activeVariantId = (setProd as any).finishVariants?.[tone] || setProd.variantId;
         items.push({
-          id: setProd.id,
-          name: `${setProd.name} (${toneLabel})`,
+          id: targetId,
+          productId: activeProductId,
+          variantId: activeVariantId,
+          tone,
+          name: formattedSetName,
           subtitle: setProd.tagline,
           unitPrice: setProd.price,
           quantity: safeQty,
@@ -240,24 +638,24 @@ export function calculateCart(cart: StoreCartState): CartCalculation {
   });
 
   // Process Add-ons
-  Object.entries(cart.addons || {}).forEach(([id, qty]) => {
+  Object.entries(cart.addons || {}).forEach(([targetId, qty]) => {
     if (qty > 0) {
-      const targetId =
-        id === 'dark-sticker'
-          ? 'dark-sticker-pair'
-          : id === 'light-sticker'
-          ? 'light-sticker-pair'
-          : id === 'small-stickers'
-          ? 'dark-mini'
-          : id;
-      const addon = ADDONS[targetId];
+      const addon = addonsCatalog[targetId];
       if (addon) {
         const safeQty = Math.max(1, Math.min(20, qty));
         totalTags += addon.tagsCount * safeQty;
         const toneLabel = addon.tone === 'light' ? 'Light' : 'Dark';
+        const formattedAddonName =
+          addon.name.toLowerCase().includes(`(${toneLabel.toLowerCase()})`) ||
+          addon.name.toLowerCase().endsWith(toneLabel.toLowerCase())
+            ? addon.name
+            : `${addon.name} (${toneLabel})`;
         items.push({
           id: addon.id,
-          name: `${addon.name} (${toneLabel})`,
+          productId: addon.productId,
+          variantId: addon.variantId,
+          tone: addon.tone,
+          name: formattedAddonName,
           subtitle: addon.subtitle,
           unitPrice: addon.price,
           quantity: safeQty,
@@ -273,8 +671,8 @@ export function calculateCart(cart: StoreCartState): CartCalculation {
   const itemCount = items.reduce((sum, it) => sum + it.quantity, 0);
   const subtotal = items.reduce((sum, it) => sum + it.totalPrice, 0);
 
-  // Delivery rule: Free if Curated kit is in cart or subtotal >= 499. Otherwise ₹40 (or ₹0 if empty).
-  const isShippingFree = hasCuratedKit || subtotal >= 499 || subtotal === 0;
+  // Delivery rule: Free if subtotal >= 499 (or subtotal === 0). Otherwise ₹40 standard delivery.
+  const isShippingFree = subtotal >= 499 || subtotal === 0;
   const shippingFee = isShippingFree || subtotal === 0 ? 0 : 40;
   const total = subtotal + shippingFee;
 
@@ -333,7 +731,7 @@ export function getCartFromStorage(): StoreCartState {
     return {
       sets: parsed.sets || {},
       addons: parsed.addons || {},
-      setTones: parsed.setTones || { essential: 'light', 'curated-kit': 'light' },
+      setTones: parsed.setTones || {},
     };
   } catch {
     return DEFAULT_STORE_CART;
@@ -398,3 +796,50 @@ export const INDIAN_STATES = [
   'Chandigarh',
   'Puducherry',
 ];
+
+/**
+ * Resolves a product thumbnail image given an item title or variant name.
+ * Uses explicit image URL if valid, or matches against live dynamic catalog.
+ */
+export function getProductThumbnail(name?: string, fallbackImage?: string): string {
+  if (
+    fallbackImage &&
+    (fallbackImage.startsWith('http://') ||
+      fallbackImage.startsWith('https://') ||
+      fallbackImage.startsWith('data:'))
+  ) {
+    return fallbackImage;
+  }
+
+  if (name) {
+    const clean = name.toLowerCase().trim();
+
+    // 1. Check live add-ons by exact or partial name/finish
+    for (const addon of Object.values(liveAddons || {})) {
+      const aName = addon.name.toLowerCase();
+      if (aName === clean || clean.includes(aName) || aName.includes(clean)) {
+        if (addon.image && (addon.image.startsWith('http') || addon.image.startsWith('data:'))) {
+          return addon.image;
+        }
+      }
+    }
+
+    // 2. Check live sets by name and tone
+    for (const pack of Object.values(liveSets || {})) {
+      const pName = pack.name.toLowerCase();
+      if (clean.includes(pName) || pName.includes(clean)) {
+        const isDark = clean.includes('dark') || clean.includes('drk');
+        const img = isDark ? pack.images?.dark : pack.images?.light;
+        if (img && (img.startsWith('http') || img.startsWith('data:'))) {
+          return img;
+        }
+        if (pack.image && (pack.image.startsWith('http') || pack.image.startsWith('data:'))) {
+          return pack.image;
+        }
+      }
+    }
+  }
+
+  return DEFAULT_PRODUCT_IMAGE;
+}
+

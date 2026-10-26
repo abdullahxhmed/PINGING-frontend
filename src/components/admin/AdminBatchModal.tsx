@@ -77,12 +77,12 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs">
-      <div className="w-full max-w-xl bg-surface border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-xl bg-surface border border-border rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-bg/40">
           <div className="flex items-center gap-2.5">
             <Layers className="w-4 h-4 text-ink" />
-            <h3 className="font-display text-base font-semibold text-ink">
+            <h3 className="text-base font-semibold text-ink">
               Generate QR Batch
             </h3>
           </div>
@@ -108,14 +108,14 @@ export const AdminBatchModal: React.FC<AdminBatchModalProps> = ({
               <div className="p-4 bg-bg border border-border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-display text-xl font-semibold text-ink">
+                    <span className="font-satoshi text-xl font-medium text-ink">
                       {result.items.length} Tags Generated
                     </span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-success/20 text-success font-bold">
                       Ready
                     </span>
                   </div>
-                  <p className="font-mono text-xs text-muted mt-0.5">
+                  <p className="font-satoshi font-medium text-xs text-muted mt-0.5">
                     Batch: {result.batchId}
                   </p>
                 </div>

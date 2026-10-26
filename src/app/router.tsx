@@ -4,6 +4,7 @@ import { HomePage } from '../pages/Home/HomePage';
 import { StorefrontPage } from '../pages/Storefront/StorefrontPage';
 import { CheckoutPage } from '../pages/Checkout/CheckoutPage';
 import { OrderConfirmationPage } from '../pages/Checkout/OrderConfirmationPage';
+import { OrderTrackingPage } from '../pages/Tracking/OrderTrackingPage';
 import { AuthPage } from '../pages/Auth/AuthPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { ResourceDetailsPage } from '../pages/ResourceDetails/ResourceDetailsPage';
@@ -18,6 +19,13 @@ import { AdminLoginPage } from '../pages/Admin/AdminLoginPage';
 import { AdminDashboardPage } from '../pages/Admin/AdminDashboardPage';
 import { AdminUsersPage } from '../pages/Admin/AdminUsersPage';
 import { AdminQrInventoryPage } from '../pages/Admin/AdminQrInventoryPage';
+import { AdminCatalogPage } from '../pages/Admin/AdminCatalogPage';
+import { AdminProductDetailPage } from '../pages/Admin/AdminProductDetailPage';
+import { AdminCreateProductPage } from '../pages/Admin/AdminCreateProductPage';
+import { AdminCreateBundlePage } from '../pages/Admin/AdminCreateBundlePage';
+import { AdminStorefrontSlotsPage } from '../pages/Admin/AdminStorefrontSlotsPage';
+import { AdminOrdersPage } from '../pages/Admin/AdminOrdersPage';
+import { AdminFulfillmentPage } from '../pages/Admin/AdminFulfillmentPage';
 import { AdminCommunicationsPage } from '../pages/Admin/AdminCommunicationsPage';
 import { PlusPlanPage } from '../pages/Plus/PlusPlanPage';
 // import { KeychainPage } from '../pages/Keychain/KeychainPage';
@@ -58,6 +66,18 @@ export const router = createBrowserRouter([
   {
     path: '/order/:orderId',
     element: <OrderConfirmationPage />,
+  },
+  {
+    path: '/order/:orderId/track',
+    element: <OrderTrackingPage />,
+  },
+  {
+    path: '/track',
+    element: <OrderTrackingPage />,
+  },
+  {
+    path: '/track/:identifier',
+    element: <OrderTrackingPage />,
   },
 
   // Keychain Studio (unmounted for now)
@@ -211,12 +231,76 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/admin/orders',
+    element: (
+      <AdminGuard>
+        <AdminOrdersPage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/fulfillment',
+    element: (
+      <AdminGuard>
+        <AdminFulfillmentPage />
+      </AdminGuard>
+    ),
+  },
+  {
     path: '/admin/users',
     element: (
       <AdminGuard>
         <AdminUsersPage />
       </AdminGuard>
     ),
+  },
+  {
+    path: '/admin/catalog',
+    element: (
+      <AdminGuard>
+        <AdminCatalogPage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/catalog/products/new',
+    element: (
+      <AdminGuard>
+        <AdminCreateProductPage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/catalog/bundles/new',
+    element: (
+      <AdminGuard>
+        <AdminCreateBundlePage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/catalog/products/:id',
+    element: (
+      <AdminGuard>
+        <AdminProductDetailPage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/catalog/storefront',
+    element: (
+      <AdminGuard>
+        <AdminStorefrontSlotsPage />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin/catalog/slots',
+    element: <Navigate to="/admin/catalog/storefront" replace />,
+  },
+  {
+    path: '/admin/products',
+    element: <Navigate to="/admin/catalog" replace />,
   },
   {
     path: '/admin/inventory',

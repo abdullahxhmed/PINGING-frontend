@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { StoreHeader, StoreFooter } from '../../components/store';
@@ -11,6 +11,7 @@ import {
   INDIAN_STATES,
   type OrderRecord,
   type ShippingAddress,
+  MAX_ITEMS_PER_ORDER,
 } from '../../features/store/catalog';
 import {
   ShieldCheck,
@@ -19,36 +20,136 @@ import {
   AlertCircle,
   Minus,
   Plus,
+  Loader2,
 } from 'lucide-react';
+import { startCheckoutFlow, getOrderStatus } from '../../services/checkout';
+import { useStoreCatalog } from '../../features/store/useStoreCatalog';
+
+const CHECKOUT_DRAFT_KEY = 'kauntact_checkout_draft';
+const ACTIVE_PAYMENT_KEY = 'kauntact_active_payment';
+
+interface CheckoutDraft {
+  fullName: string;
+  mobileNumber: string;
+  email: string;
+  addressLine: string;
+  locality: string;
+  city: string;
+  state: string;
+  pincode: string;
+  termsAgreed: boolean;
+}
+
+const getStoredDraft = (): Partial<CheckoutDraft> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY) || localStorage.getItem(CHECKOUT_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const getInitialActivePayment = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_PAYMENT_KEY) || localStorage.getItem(ACTIVE_PAYMENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.orderNumber && Date.now() - (parsed.timestamp || 0) < 30 * 60 * 1000) {
+      return parsed.orderNumber;
+    }
+    sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+    localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+  } catch {}
+  return null;
+};
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromOrigin = (location.state as { from?: string } | null)?.from;
 
+  // Real-time backend catalog
+  const { sets, addons, products: backendCatalog } = useStoreCatalog();
+
   // Load cart from storage
   const [cart, setCart] = useState<StoreCartState>(() => getCartFromStorage());
 
-  // Form Fields
-  const [fullName, setFullName] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [addressLine, setAddressLine] = useState('');
-  const [locality, setLocality] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('Maharashtra');
-  const [pincode, setPincode] = useState('');
-  const [termsAgreed, setTermsAgreed] = useState(false);
+  // Form Fields - Auto-restored from storage so tab switches / refreshes never wipe customer input
+  const draft = getStoredDraft();
+  const [fullName, setFullName] = useState(draft.fullName || '');
+  const [mobileNumber, setMobileNumber] = useState(draft.mobileNumber || '');
+  const [email, setEmail] = useState(draft.email || '');
+  const [addressLine, setAddressLine] = useState(draft.addressLine || '');
+  const [locality, setLocality] = useState(draft.locality || '');
+  const [city, setCity] = useState(draft.city || '');
+  const [state, setState] = useState(draft.state || 'Maharashtra');
+  const [pincode, setPincode] = useState(draft.pincode || '');
+  const [termsAgreed, setTermsAgreed] = useState(draft.termsAgreed ?? false);
+
+  const [progressStatus, setProgressStatus] = useState<string | null>(null);
+
+  // In-flight payment recovery state (if user left app for UPI and returned)
+  const [activePaymentOrder, setActivePaymentOrder] = useState<string | null>(getInitialActivePayment);
+  const [isVerifyingActivePayment, setIsVerifyingActivePayment] = useState<boolean>(() => activePaymentOrder !== null);
+
+  // Auto-persist form fields on change so details are NEVER lost on app switch or refresh
+  useEffect(() => {
+    const data: CheckoutDraft = {
+      fullName,
+      mobileNumber,
+      email,
+      addressLine,
+      locality,
+      city,
+      state,
+      pincode,
+      termsAgreed,
+    };
+    try {
+      const serialized = JSON.stringify(data);
+      sessionStorage.setItem(CHECKOUT_DRAFT_KEY, serialized);
+      localStorage.setItem(CHECKOUT_DRAFT_KEY, serialized);
+    } catch {}
+  }, [fullName, mobileNumber, email, addressLine, locality, city, state, pincode, termsAgreed]);
+
+  // When returning to checkout, check if an in-flight payment was made in UPI app
+  useEffect(() => {
+    if (!activePaymentOrder) return;
+
+    getOrderStatus(activePaymentOrder)
+      .then((statusData) => {
+        if (statusData.status === 'PAID' || statusData.paymentStatus === 'CAPTURED') {
+          // Successfully paid in external UPI/banking app!
+          sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+          localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+          sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+          localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+          saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
+          navigate(`/order/${activePaymentOrder}`, { state: { from: 'bottom' } });
+        } else {
+          setIsVerifyingActivePayment(false);
+        }
+      })
+      .catch(() => {
+        setIsVerifyingActivePayment(false);
+      });
+  }, [activePaymentOrder, navigate]);
 
   // Validation & Error Handling
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const cartCalc = calculateCart(cart);
+  const cartCalc = calculateCart(cart, sets, addons);
 
   const updateSetQty = (id: string, delta: number) => {
+    if (delta > 0 && cartCalc.itemCount >= MAX_ITEMS_PER_ORDER) {
+      return;
+    }
     setCart((prev) => {
       const current = prev.sets[id] || 0;
-      const next = Math.max(0, Math.min(20, current + delta));
+      const next = Math.max(0, Math.min(MAX_ITEMS_PER_ORDER, current + delta));
       const updatedSets = { ...prev.sets };
       if (next === 0) {
         delete updatedSets[id];
@@ -62,9 +163,12 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const updateAddonQty = (id: string, delta: number) => {
+    if (delta > 0 && cartCalc.itemCount >= MAX_ITEMS_PER_ORDER) {
+      return;
+    }
     setCart((prev) => {
       const current = prev.addons[id] || 0;
-      const next = Math.max(0, Math.min(20, current + delta));
+      const next = Math.max(0, Math.min(MAX_ITEMS_PER_ORDER, current + delta));
       const updatedAddons = { ...prev.addons };
       if (next === 0) {
         delete updatedAddons[id];
@@ -82,6 +186,8 @@ export const CheckoutPage: React.FC = () => {
 
     if (cartCalc.itemCount === 0) {
       errs.cart = 'Your cart is empty. Please add items from the store.';
+    } else if (cartCalc.itemCount > MAX_ITEMS_PER_ORDER) {
+      errs.cart = `Maximum of ${MAX_ITEMS_PER_ORDER} items allowed per order. Please adjust your cart.`;
     }
 
     if (!fullName.trim() || fullName.trim().length < 2) {
@@ -110,6 +216,10 @@ export const CheckoutPage: React.FC = () => {
       errs.pincode = 'Please enter a valid 6-digit postal PIN code.';
     }
 
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Please enter a valid email address.';
+    }
+
     if (!termsAgreed) {
       errs.terms = 'Please accept the terms of service and order fulfillment agreement.';
     }
@@ -118,7 +228,7 @@ export const CheckoutPage: React.FC = () => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
       window.scrollTo({ top: 120, behavior: 'smooth' });
@@ -126,39 +236,122 @@ export const CheckoutPage: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    setProgressStatus('Initiating stock reservation...');
 
-    const orderId = `KT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const cleanMobile = mobileNumber.replace(/\D/g, '');
+    const cleanPin = pincode.replace(/\D/g, '');
+
+    // Resolve exact checkout items from cart with accurate variant and product IDs
+    const checkoutItems = cartCalc.items
+      .filter((it) => it.quantity > 0 && it.variantId)
+      .map((it) => ({
+        variantId: it.variantId!,
+        quantity: it.quantity,
+        productId: it.productId,
+      }));
+
+    if (checkoutItems.length === 0) {
+      setIsSubmitting(false);
+      setProgressStatus(null);
+      setErrors({
+        submit: 'Unable to resolve the product variant ID for items in your cart. Please try re-adding items from the store.',
+      });
+      return;
+    }
 
     const customer: ShippingAddress = {
       fullName: fullName.trim(),
-      mobileNumber: mobileNumber.replace(/\D/g, ''),
+      mobileNumber: cleanMobile,
       addressLine: addressLine.trim(),
       locality: locality.trim(),
       city: city.trim(),
       state: state.trim(),
-      pincode: pincode.replace(/\D/g, ''),
+      pincode: cleanPin,
     };
 
-    const newOrder: OrderRecord = {
-      orderId,
-      items: cartCalc.items,
-      itemCount: cartCalc.itemCount,
-      totalTags: cartCalc.totalTags,
-      subtotal: cartCalc.subtotal,
-      shippingFee: cartCalc.shippingFee,
-      total: cartCalc.total,
-      customer,
-      status: 'PAYMENT_PENDING',
-      paymentGatewayStatus: 'UNCONFIGURED',
-      createdAt: new Date().toISOString(),
-    };
+    // Pre-check stock across all cart variants
+    for (const item of checkoutItems) {
+      const matchedVariant = backendCatalog
+        .flatMap((p) => p.variants || [])
+        .find((v) => v.id === item.variantId);
 
-    saveOrderToStorage(newOrder);
+      if (matchedVariant) {
+        if (
+          matchedVariant.inStock === false ||
+          (matchedVariant.availableQuantity !== undefined && matchedVariant.availableQuantity <= 0)
+        ) {
+          setIsSubmitting(false);
+          setErrors({ submit: `Sorry, ${matchedVariant.name || 'an item in your cart'} is currently sold out.` });
+          return;
+        }
+        if (
+          matchedVariant.availableQuantity !== undefined &&
+          item.quantity > matchedVariant.availableQuantity
+        ) {
+          setIsSubmitting(false);
+          setErrors({
+            submit: `Only ${matchedVariant.availableQuantity} units available for ${matchedVariant.name}. Please adjust your cart quantity.`,
+          });
+          return;
+        }
+      }
+    }
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate(`/order/${orderId}`, { state: { from: 'bottom' } });
-    }, 400);
+    await startCheckoutFlow(
+      {
+        items: checkoutItems,
+        variantId: checkoutItems[0].variantId,
+        quantity: checkoutItems[0].quantity,
+        customerEmail: email.trim() || undefined,
+        customerPhone: cleanMobile,
+        shippingAddress: {
+          fullName: fullName.trim(),
+          phoneNumber: cleanMobile,
+          addressLine1: addressLine.trim(),
+          addressLine2: locality.trim() || undefined,
+          city: city.trim(),
+          state: state.trim(),
+          postalCode: cleanPin,
+          country: 'IN',
+        },
+      },
+      (orderNumber) => {
+        // Record completed order in storage for immediate offline/guest availability
+        const confirmedOrder: OrderRecord = {
+          orderId: orderNumber,
+          items: cartCalc.items,
+          itemCount: cartCalc.itemCount,
+          totalTags: cartCalc.totalTags,
+          subtotal: cartCalc.subtotal,
+          shippingFee: cartCalc.shippingFee,
+          total: cartCalc.total,
+          customer,
+          status: 'CONFIRMED',
+          paymentGatewayStatus: 'PAID',
+          createdAt: new Date().toISOString(),
+        };
+
+        saveOrderToStorage(confirmedOrder);
+        sessionStorage.setItem('pending_claim_order', orderNumber);
+        saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
+        try {
+          sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+          localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+          sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+          localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+        } catch {}
+        setIsSubmitting(false);
+        navigate(`/order/${orderNumber}`, { state: { from: 'bottom' } });
+      },
+      (errorMsg) => {
+        setIsSubmitting(false);
+        setProgressStatus(null);
+        setErrors({ submit: errorMsg });
+      },
+      (progressMsg) => {
+        setProgressStatus(progressMsg);
+      }
+    );
   };
 
   // Component-relative emergence animation physics
@@ -230,6 +423,61 @@ export const CheckoutPage: React.FC = () => {
           </div>
         )}
 
+        {/* In-Flight Payment Recovery Banner */}
+        {activePaymentOrder && (
+          <div className="mb-6 p-4 rounded-lg bg-surface border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <Loader2 className={`w-4 h-4 text-ink shrink-0 ${isVerifyingActivePayment ? 'animate-spin' : ''}`} />
+              <div>
+                <p className="font-semibold text-ink">
+                  {isVerifyingActivePayment ? 'Verifying payment with banking network...' : `Payment in progress for Order ${activePaymentOrder}`}
+                </p>
+                <p className="text-muted mt-0.5">
+                  If you approved payment in your UPI or banking app, click below to verify. Your details are saved.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                disabled={isVerifyingActivePayment}
+                onClick={() => {
+                  setIsVerifyingActivePayment(true);
+                  getOrderStatus(activePaymentOrder)
+                    .then((statusData) => {
+                      if (statusData.status === 'PAID' || statusData.paymentStatus === 'CAPTURED') {
+                        sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+                        localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+                        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+                        localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+                        saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
+                        navigate(`/order/${activePaymentOrder}`, { state: { from: 'bottom' } });
+                      } else {
+                        setIsVerifyingActivePayment(false);
+                        setErrors({ submit: 'Payment not yet confirmed by the bank. If money was debited, it will confirm in a few moments.' });
+                      }
+                    })
+                    .catch(() => setIsVerifyingActivePayment(false));
+                }}
+                className="px-3 py-1.5 font-semibold bg-ink text-[#F4F3EE] rounded-sm hover:opacity-90 transition-opacity"
+              >
+                Check Payment
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePaymentOrder(null);
+                  sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+                  localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+                }}
+                className="px-2 py-1.5 text-muted hover:text-ink transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           {/* ── LEFT COLUMN: Shipping Form (7 cols) ── */}
           <div className="md:col-span-7 bg-surface border border-border rounded-lg p-5 sm:p-6">
@@ -287,6 +535,28 @@ export const CheckoutPage: React.FC = () => {
                   />
                 </div>
                 {errors.mobileNumber && <p className="text-danger mt-1">{errors.mobileNumber}</p>}
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label htmlFor="email" className="block uppercase tracking-wider font-medium text-ink mb-1">
+                  Email Address <span className="text-muted font-normal">(for receipt & Plus claim)</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                  }}
+                  placeholder="e.g. rahul@example.com"
+                  className={`w-full px-3 py-2.5 text-sm bg-bg border rounded-md focus:outline-none transition-colors ${
+                    errors.email ? 'border-danger focus:border-danger' : 'border-border focus:border-ink'
+                  }`}
+                />
+                {errors.email && <p className="text-danger mt-1">{errors.email}</p>}
               </div>
 
               {/* Address Line */}
@@ -431,26 +701,26 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Payment Gateway Status Notice */}
-              <div className="rounded-md bg-bg border border-border p-3 text-[12px] text-muted flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-muted shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-medium text-ink">Payment Gateway Status: </span>
-                  Payment gateway is currently in test mode. Submitting records your order reference for
-                  courier fulfillment without live card charges.
+              {errors.submit && (
+                <div className="p-3 rounded-md bg-danger/10 border border-danger/20 text-danger text-xs leading-relaxed flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{errors.submit}</span>
                 </div>
-              </div>
+              )}
 
-              {/* Primary Action Button (sentence case: Checkout · ₹X) */}
+              {/* Secure Checkout Button */}
               <button
                 type="submit"
                 disabled={isSubmitting || cartCalc.itemCount === 0}
-                className="w-full min-h-[44px] py-3 px-4 bg-ink text-surface text-sm font-medium rounded-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                className="w-full min-h-[44px] py-3 px-4 bg-ink text-surface text-sm font-medium rounded-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span>Registering Order...</span>
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                    <span>{progressStatus || 'Connecting to payment gateway...'}</span>
+                  </span>
                 ) : (
-                  <span>Checkout · ₹{cartCalc.total}</span>
+                  <span>Pay ₹{cartCalc.total} via Razorpay</span>
                 )}
               </button>
             </form>
@@ -478,7 +748,7 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <div className="divide-y divide-border">
                   {cartCalc.items.map((it) => (
-                    <div key={it.id} className="py-3 flex gap-3 items-center">
+                    <div key={`${it.id}-${it.tone || 'def'}`} className="py-3 flex gap-3 items-center">
                       {it.image && (
                         <div className="w-14 h-14 rounded overflow-hidden border border-border bg-bg shrink-0">
                           <img

@@ -30,23 +30,23 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ cartCount, lastAddedKe
           <PingInLogo height={18} className="w-auto h-[18px] sm:h-[19px]" />
         </Link>
 
-        {/* Desktop Nav (Unified with HomePage) */}
+        {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8 text-xs font-sans font-medium tracking-wider uppercase text-muted">
-          <a href="/#the-problem" className="hover:text-ink transition-colors">
-            The Problem
-          </a>
-          <a href="/#use-cases" className="hover:text-ink transition-colors">
-            Use Cases
-          </a>
+          <Link to="/" className="hover:text-ink transition-colors">
+            Home
+          </Link>
           <Link
             to="/shop"
             className={`transition-colors ${isStoreHome ? 'text-ink font-semibold' : 'hover:text-ink'}`}
           >
             Shop
           </Link>
-          <a href="/#faq" className="hover:text-ink transition-colors">
-            FAQ
-          </a>
+          <Link to="/track" className="hover:text-ink transition-colors">
+            Track Order
+          </Link>
+          <Link to="/contact" className="hover:text-ink transition-colors">
+            Support
+          </Link>
         </nav>
 
         {/* Right Action: Cart + User Auth + Mobile Toggle */}
@@ -140,22 +140,23 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ cartCount, lastAddedKe
             )}
           </div>
 
-          {/* Animated Mobile Hamburger Button (Exact match with HomePage) */}
+          {/* Animated Menu Toggle Button (Transitions to X on open) */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="sm:hidden w-10 h-10 -mr-2 flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg text-ink hover:bg-black/5 active:scale-95 focus:outline-none transition-all cursor-pointer"
-            aria-label="Toggle navigation menu"
+            className="w-10 h-10 -mr-2 flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg text-ink hover:bg-black/5 active:scale-95 focus-visible:ring-2 focus-visible:ring-ink focus:outline-none transition-all cursor-pointer"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
+            aria-controls="falling-nav-menu"
           >
             <span
               className={`w-5 h-[1.5px] bg-ink rounded-full transition-transform duration-300 ease-out origin-center ${
-                mobileMenuOpen ? 'rotate-45 translate-y-[4.5px]' : ''
+                mobileMenuOpen ? 'rotate-45 translate-y-[3.75px]' : ''
               }`}
             />
             <span
               className={`w-5 h-[1.5px] bg-ink rounded-full transition-transform duration-300 ease-out origin-center ${
-                mobileMenuOpen ? '-rotate-45 -translate-y-[4.5px]' : ''
+                mobileMenuOpen ? '-rotate-45 -translate-y-[3.75px]' : ''
               }`}
             />
           </button>
