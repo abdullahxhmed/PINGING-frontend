@@ -22,7 +22,7 @@ import {
   Plus,
   Loader2,
 } from 'lucide-react';
-import { startCheckoutFlow, getOrderStatus } from '../../services/checkout';
+import { startCheckoutFlow, getOrderStatus, pollOrderStatus } from '../../services/checkout';
 import { useStoreCatalog } from '../../features/store/useStoreCatalog';
 
 const CHECKOUT_DRAFT_KEY = 'kauntact_checkout_draft';
@@ -114,27 +114,34 @@ export const CheckoutPage: React.FC = () => {
     } catch {}
   }, [fullName, mobileNumber, email, addressLine, locality, city, state, pincode, termsAgreed]);
 
-  // When returning to checkout, check if an in-flight payment was made in UPI app
+  // When returning to checkout or reloading right after payment, verify and auto-resume
   useEffect(() => {
     if (!activePaymentOrder) return;
 
-    getOrderStatus(activePaymentOrder)
-      .then((statusData) => {
-        if (statusData.status === 'PAID' || statusData.paymentStatus === 'CAPTURED') {
-          // Successfully paid in external UPI/banking app!
-          sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
-          localStorage.removeItem(ACTIVE_PAYMENT_KEY);
-          sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
-          localStorage.removeItem(CHECKOUT_DRAFT_KEY);
-          saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
-          navigate(`/order/${activePaymentOrder}`, { state: { from: 'bottom' } });
-        } else {
+    let isCancelled = false;
+    setIsVerifyingActivePayment(true);
+
+    pollOrderStatus(
+      activePaymentOrder,
+      (confirmedOrder) => {
+        if (isCancelled) return;
+        sessionStorage.removeItem(ACTIVE_PAYMENT_KEY);
+        localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+        localStorage.removeItem(CHECKOUT_DRAFT_KEY);
+        saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
+        navigate(`/order/${confirmedOrder}`, { state: { from: 'bottom' } });
+      },
+      () => {
+        if (!isCancelled) {
           setIsVerifyingActivePayment(false);
         }
-      })
-      .catch(() => {
-        setIsVerifyingActivePayment(false);
-      });
+      }
+    );
+
+    return () => {
+      isCancelled = true;
+    };
   }, [activePaymentOrder, navigate]);
 
   // Validation & Error Handling

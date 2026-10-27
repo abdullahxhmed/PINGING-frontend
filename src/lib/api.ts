@@ -1,5 +1,6 @@
 import { authStorage } from './auth';
 import { resourceCache } from './resourceCache';
+import { cachedRequest, invalidateRequestCache } from './requestCache';
 import type {
   AuthResponse,
   ContactLink,
@@ -176,6 +177,13 @@ export async function request<T = any>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && endpoint.includes('/auth/me')) {
+      authStorage.clear();
+      invalidateRequestCache();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:expired'));
+      }
+    }
     const errorData = await response.json().catch(() => ({}));
     const message = errorData.error || errorData.message || response.statusText || 'An error occurred';
     throw new ApiError(message, response.status, errorData);
@@ -264,32 +272,44 @@ export const authApi = {
   refresh: (refreshToken?: string) =>
     api.post<{ accessToken: string }>('/api/auth/refresh', refreshToken ? { refreshToken } : {}),
 
-  getMe: async () => {
-    try {
-      const res: any = await api.get<UserProfile | { user: UserProfile }>('/api/auth/me');
-      return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
-    } catch (err: any) {
-      if (err.statusCode === 404) {
+  getMe: async (force = false) => {
+    return cachedRequest(
+      'auth:me',
+      async () => {
         try {
-          const res: any = await api.get<UserProfile | { user: UserProfile }>('/auth/me');
+          const res: any = await api.get<UserProfile | { user: UserProfile }>('/api/auth/me');
           return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
-        } catch {
-          // fallback
+        } catch (err: any) {
+          if (err.statusCode === 404) {
+            try {
+              const res: any = await api.get<UserProfile | { user: UserProfile }>('/auth/me');
+              return (res?.user || res?.data?.user || res?.data || res) as UserProfile;
+            } catch {
+              // fallback
+            }
+          }
+          throw err;
         }
-      }
-      throw err;
-    }
+      },
+      { ttlMs: 60 * 1000, force } // 60s memory cache & in-flight deduplication
+    );
   },
 
-  logout: () =>
-    api.post<{ message: string }>('/api/auth/logout'),
+  logout: () => {
+    invalidateRequestCache();
+    return api.post<{ message: string }>('/api/auth/logout');
+  },
 
   updateProfile: async (payload: { name: string }) => {
     try {
-      return await api.patch<{ message: string; user?: UserProfile }>('/api/users/me', payload);
+      const res = await api.patch<{ message: string; user?: UserProfile }>('/api/users/me', payload);
+      invalidateRequestCache('auth:me');
+      return res;
     } catch (err: any) {
       if (err.statusCode === 404) {
-        return await api.patch<{ message: string; user?: UserProfile }>('/api/auth/me', payload);
+        const res = await api.patch<{ message: string; user?: UserProfile }>('/api/auth/me', payload);
+        invalidateRequestCache('auth:me');
+        return res;
       }
       throw err;
     }
@@ -312,21 +332,36 @@ export const authApi = {
 };
 
 export const resourcesApi = {
-  list: () => api.get<Resource[]>('/api/resources'),
+  list: (force = false) =>
+    cachedRequest(
+      'resources:list',
+      async () => {
+        const res = await api.get<Resource[]>('/api/resources');
+        const list = Array.isArray(res) ? res : [];
+        resourceCache.setResourcesList(list);
+        return list;
+      },
+      { ttlMs: 30 * 1000, force }
+    ),
 
   getById: (id: string) => api.get<Resource>(`/api/resources/${id}`),
 
   create: (payload: CreateResourcePayload | string) => {
+    invalidateRequestCache('resources:');
     const body = typeof payload === 'string' ? { name: payload } : payload;
     return api.post<Resource>('/api/resources', body);
   },
 
   update: (id: string, payload: UpdateResourcePayload | string) => {
+    invalidateRequestCache('resources:');
     const body = typeof payload === 'string' ? { name: payload } : payload;
     return api.patch<Resource>(`/api/resources/${id}`, body);
   },
 
-  delete: (id: string) => api.delete<void>(`/api/resources/${id}`),
+  delete: (id: string) => {
+    invalidateRequestCache('resources:');
+    return api.delete<void>(`/api/resources/${id}`);
+  },
 
   createContactLink: (resourceId: string) =>
     api.post<ContactLink>(`/api/resources/${resourceId}/contact-link`),
@@ -471,9 +506,15 @@ export const subscriptionApi = {
    * GET /api/subscriptions/packs
    * Access: Public (no auth required)
    */
-  getPacks: async (): Promise<SubscriptionPack[]> => {
-    const res = await api.get<SubscriptionPacksResponse>('/api/subscriptions/packs');
-    return res?.data?.packs || [];
+  getPacks: async (force = false): Promise<SubscriptionPack[]> => {
+    return cachedRequest(
+      'subscription:packs',
+      async () => {
+        const res = await api.get<SubscriptionPacksResponse>('/api/subscriptions/packs');
+        return res?.data?.packs || [];
+      },
+      { ttlMs: 5 * 60 * 1000, force } // 5 minutes TTL
+    );
   },
 
   /**
@@ -481,9 +522,15 @@ export const subscriptionApi = {
    * GET /api/subscriptions/me
    * Access: Authenticated (Bearer JWT required)
    */
-  getMe: async (): Promise<UserSubscriptionMeData> => {
-    const res = await api.get<UserSubscriptionMeResponse>('/api/subscriptions/me');
-    return res.data;
+  getMe: async (force = false): Promise<UserSubscriptionMeData> => {
+    return cachedRequest(
+      'subscription:me',
+      async () => {
+        const res = await api.get<UserSubscriptionMeResponse>('/api/subscriptions/me');
+        return res.data;
+      },
+      { ttlMs: 60 * 1000, force } // 60s TTL
+    );
   },
 
   /**
@@ -495,6 +542,8 @@ export const subscriptionApi = {
   selectActiveTags: async (
     payload: string[] | SelectActiveTagsPayload
   ): Promise<SelectActiveTagsResponse['data']> => {
+    invalidateRequestCache('subscription:');
+    invalidateRequestCache('resources:');
     const body = Array.isArray(payload) ? { activeTagIds: payload } : payload;
     const res = await api.post<SelectActiveTagsResponse>('/api/subscriptions/select-active-tags', body);
     return res.data;
@@ -506,6 +555,7 @@ export const subscriptionApi = {
    * Access: Authenticated
    */
   createPurchase: async (payload: CreatePurchasePayload): Promise<CreatePurchaseResponse['data']> => {
+    invalidateRequestCache('subscription:');
     const res = await api.post<CreatePurchaseResponse>('/api/subscriptions/purchase', payload);
     return res.data;
   },
@@ -517,6 +567,8 @@ export const subscriptionApi = {
    * Access: Authenticated
    */
   activate: async (payload: ActivateSubscriptionPayload): Promise<ActivateSubscriptionResponse['data']> => {
+    invalidateRequestCache('subscription:');
+    invalidateRequestCache('resources:');
     const res = await api.post<ActivateSubscriptionResponse>('/api/subscriptions/activate', payload);
     return res.data;
   },
@@ -775,6 +827,7 @@ export function uncacheResourceTag(resourceId: string) {
   try {
     localStorage.removeItem(`kauntact_tag_${resourceId}`);
     resourceCache.invalidate();
+    invalidateRequestCache('resources:');
     window.dispatchEvent(new CustomEvent('resource:updated', { detail: { resourceId } }));
     window.dispatchEvent(new CustomEvent('tag:updated', { detail: { resourceId } }));
   } catch {
@@ -817,6 +870,8 @@ export function syncResourceTagUpdate(
 
     // Invalidate dashboard list cache so fresh server data is fetched
     resourceCache.invalidate();
+    invalidateRequestCache('resources:');
+    invalidateRequestCache('subscription:');
 
     // Broadcast across windows and tabs
     window.dispatchEvent(

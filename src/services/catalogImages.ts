@@ -12,6 +12,7 @@ interface CachedImageUrl {
 }
 
 const urlCache = new Map<string, CachedImageUrl>();
+const inFlightImageFetches = new Map<string, Promise<CatalogImageUrlResponse>>();
 
 /**
  * Normalizes an image reference or relative storage path into a fully qualified URL.
@@ -174,66 +175,76 @@ export async function fetchCatalogImageUrl(
     };
   }
 
-  // 1. Try single image endpoint: GET /api/catalog/images/:imageId/url
-  try {
-    const query = new URLSearchParams();
-    if (imageType) {
-      query.set('type', imageType);
-    }
-
-    const endpoint = `${BACKEND_URL}/api/catalog/images/${encodeURIComponent(imageId)}/url?${query.toString()}`;
-    const res = await fetch(endpoint, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (res.ok) {
-      const json: CatalogImageUrlResponse = await res.json();
-      const resolved = resolveImageSource(json.url);
-      const expiresAtMs = extractUrlExpiration(resolved, json.expiresAt) || now + 50 * 60 * 1000;
-
-      urlCache.set(cacheKey, {
-        url: resolved,
-        expiresAt: expiresAtMs,
-      });
-
-      return {
-        url: resolved,
-        expiresAt: json.expiresAt,
-      };
-    }
-  } catch {
-    // Single image endpoint unavailable, proceed to catalog refetch
+  // Deduplicate in-flight requests for the exact same image
+  const existingFetch = inFlightImageFetches.get(cacheKey);
+  if (existingFetch) {
+    return existingFetch;
   }
 
-  // 2. Fallback: Refetch catalog slots from server to get refreshed signed URLs
-  try {
-    const { data, slots } = await fetchPublicCatalogDetailed();
-    populateCatalogImageCache(data, slots);
+  const fetchPromise = (async () => {
+    try {
+      // 1. Try single image endpoint: GET /api/catalog/images/:imageId/url
+      try {
+        const query = new URLSearchParams();
+        if (imageType) {
+          query.set('type', imageType);
+        }
 
-    // Broadcast refresh event so all active components sync their state
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('catalog:updated'));
+        const endpoint = `${BACKEND_URL}/api/catalog/images/${encodeURIComponent(imageId)}/url?${query.toString()}`;
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (res.ok) {
+          const json: CatalogImageUrlResponse = await res.json();
+          const resolved = resolveImageSource(json.url);
+          const expiresAtMs = extractUrlExpiration(resolved, json.expiresAt) || now + 50 * 60 * 1000;
+
+          urlCache.set(cacheKey, {
+            url: resolved,
+            expiresAt: expiresAtMs,
+          });
+
+          return {
+            url: resolved,
+            expiresAt: json.expiresAt,
+          };
+        }
+      } catch {
+        // Single image endpoint unavailable, proceed to catalog refetch
+      }
+
+      // 2. Fallback: Refetch catalog slots from server to get refreshed signed URLs
+      try {
+        const { data, slots } = await fetchPublicCatalogDetailed(false);
+        populateCatalogImageCache(data, slots);
+
+        const recheck = urlCache.get(cacheKey);
+        if (recheck && recheck.expiresAt - now > 60 * 1000) {
+          return {
+            url: recheck.url,
+            expiresAt: new Date(recheck.expiresAt).toISOString(),
+          };
+        }
+      } catch (catalogErr) {
+        console.warn('[CatalogImages] Failed to refetch catalog for signed URL refresh:', catalogErr);
+      }
+
+      // If cached item exists even if expired, return it as last working fallback
+      if (cached?.url) {
+        return {
+          url: cached.url,
+          expiresAt: new Date(cached.expiresAt).toISOString(),
+        };
+      }
+
+      throw new Error(`Failed to refresh catalog image for ${imageId}`);
+    } finally {
+      inFlightImageFetches.delete(cacheKey);
     }
+  })();
 
-    const recheck = urlCache.get(cacheKey);
-    if (recheck && recheck.expiresAt - now > 60 * 1000) {
-      return {
-        url: recheck.url,
-        expiresAt: new Date(recheck.expiresAt).toISOString(),
-      };
-    }
-  } catch (catalogErr) {
-    console.warn('[CatalogImages] Failed to refetch catalog for signed URL refresh:', catalogErr);
-  }
-
-  // If cached item exists even if expired, return it as last working fallback
-  if (cached?.url) {
-    return {
-      url: cached.url,
-      expiresAt: new Date(cached.expiresAt).toISOString(),
-    };
-  }
-
-  throw new Error(`Failed to refresh catalog image for ${imageId}`);
+  inFlightImageFetches.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }

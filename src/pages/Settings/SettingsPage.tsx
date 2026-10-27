@@ -82,10 +82,10 @@ export const SettingsPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const fetchResources = useCallback(async () => {
+  const fetchResources = useCallback(async (force = false) => {
     setIsLoadingResources(true);
     try {
-      const data = await resourcesApi.list();
+      const data = await resourcesApi.list(force);
       setResources(Array.isArray(data) ? data : []);
     } catch {
       // Graceful fallback
@@ -97,11 +97,11 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchMe() {
+    async function fetchMe(force = false) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await authApi.getMe();
+        const data = await authApi.getMe(force);
         if (isMounted) {
           setProfile(data);
           setEditName(data?.name || '');
@@ -120,9 +120,13 @@ export const SettingsPage: React.FC = () => {
     fetchMe();
     fetchResources();
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleUpdate = () => {
-      fetchMe();
-      fetchResources();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchMe(true);
+        fetchResources(true);
+      }, 350);
     };
 
     window.addEventListener('resource:updated', handleUpdate);
@@ -130,6 +134,7 @@ export const SettingsPage: React.FC = () => {
 
     return () => {
       isMounted = false;
+      if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener('resource:updated', handleUpdate);
       window.removeEventListener('tag:updated', handleUpdate);
     };

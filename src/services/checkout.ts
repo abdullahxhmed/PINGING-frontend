@@ -1,6 +1,7 @@
 // src/services/checkout.ts
 import { loadRazorpayScript } from '../utils/loadRazorpay';
 import { authStorage } from '../lib/auth';
+import { cachedRequest } from '../lib/requestCache';
 import type {
   BackendCatalogProduct,
   InventoryAvailabilityData,
@@ -45,52 +46,58 @@ export const fetchPublicCatalog = async (): Promise<BackendCatalogProduct[]> => 
  * Phase 5: Fetch Products with Storefront Slot Mappings
  * Endpoint: GET /api/catalog/slots (fallback to /api/catalog)
  */
-export const fetchPublicCatalogDetailed = async (): Promise<PublicCatalogResponse> => {
-  try {
-    const slotsRes = await fetch(`${BACKEND_URL}/api/catalog/slots`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (slotsRes.ok) {
-      const json = await slotsRes.json();
-      const products = Array.isArray(json.products)
-        ? json.products
-        : Array.isArray(json.data)
-        ? json.data
-        : [];
-      const slots =
-        json.slots ||
-        (typeof json.data === 'object' && !Array.isArray(json.data) ? json.data : undefined);
-      const activeSlots = Array.isArray(json.activeSlots) ? json.activeSlots : undefined;
-      return { data: products, slots, activeSlots };
-    }
-  } catch {
-    // try fallback route
-  }
+export const fetchPublicCatalogDetailed = async (force = false): Promise<PublicCatalogResponse> => {
+  return cachedRequest(
+    'catalog:detailed',
+    async () => {
+      try {
+        const slotsRes = await fetch(`${BACKEND_URL}/api/catalog/slots`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (slotsRes.ok) {
+          const json = await slotsRes.json();
+          const products = Array.isArray(json.products)
+            ? json.products
+            : Array.isArray(json.data)
+            ? json.data
+            : [];
+          const slots =
+            json.slots ||
+            (typeof json.data === 'object' && !Array.isArray(json.data) ? json.data : undefined);
+          const activeSlots = Array.isArray(json.activeSlots) ? json.activeSlots : undefined;
+          return { data: products, slots, activeSlots };
+        }
+      } catch {
+        // try fallback route
+      }
 
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/catalog`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) {
-      const json = await res.json();
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/catalog`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const data = Array.isArray(json) ? json : json.data || [];
+          const slots = json.slots || undefined;
+          const activeSlots = json.activeSlots || undefined;
+          return { data, slots, activeSlots };
+        }
+      } catch {
+        // try fallback route
+      }
+
+      const fallbackRes = await fetch(`${BACKEND_URL}/api/catalog/products`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!fallbackRes.ok) {
+        throw new Error('Failed to fetch catalog from server');
+      }
+      const json = await fallbackRes.json();
       const data = Array.isArray(json) ? json : json.data || [];
-      const slots = json.slots || undefined;
-      const activeSlots = json.activeSlots || undefined;
-      return { data, slots, activeSlots };
-    }
-  } catch {
-    // try fallback route
-  }
-
-  const fallbackRes = await fetch(`${BACKEND_URL}/api/catalog/products`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!fallbackRes.ok) {
-    throw new Error('Failed to fetch catalog from server');
-  }
-  const json = await fallbackRes.json();
-  const data = Array.isArray(json) ? json : json.data || [];
-  return { data, slots: json.slots, activeSlots: json.activeSlots };
+      return { data, slots: json.slots, activeSlots: json.activeSlots };
+    },
+    { ttlMs: 60 * 1000, force }
+  );
 };
 
 /**
@@ -218,6 +225,37 @@ export const pollOrderStatus = async (
 };
 
 /**
+ * Direct Synchronous Payment Verification
+ * Endpoint: POST /api/orders/verify-payment
+ * Sends razorpay_payment_id, razorpay_order_id, razorpay_signature directly to backend
+ * for instant cryptographic HMAC verification (<150ms), eliminating webhook delay.
+ */
+export interface VerifyPaymentPayload {
+  orderNumber: string;
+  razorpayPaymentId: string;
+  razorpayOrderId: string;
+  razorpaySignature: string;
+}
+
+export const verifyPaymentDirect = async (
+  payload: VerifyPaymentPayload
+): Promise<boolean> => {
+  const res = await fetch(`${BACKEND_URL}/api/orders/verify-payment`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Signature verification failed');
+  }
+
+  const json = await res.json().catch(() => ({}));
+  return json.success !== false;
+};
+
+/**
  * Single fetch for Order Status (e.g. for OrderConfirmationPage)
  * Endpoint: GET /api/orders/:orderNumber/status
  */
@@ -326,9 +364,31 @@ export const startCheckoutFlow = async (
       theme: {
         color: '#0F172A',
       },
-      handler: function () {
+      handler: async function (response: any) {
         // Modal payment completed
-        // Poll order status endpoint until backend webhook confirms PAID
+        // 1. Instant Direct Verification: send cryptographic payment signature directly to backend
+        if (response?.razorpay_payment_id && response?.razorpay_signature) {
+          try {
+            onProgress?.('Confirming payment...');
+            await verifyPaymentDirect({
+              orderNumber,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id || razorpayOrderId,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            // Instant redirect (<200ms) bypassing webhook queue
+            wrappedOnSuccess(orderNumber);
+            return;
+          } catch (verifyErr) {
+            console.warn(
+              '[Checkout] Direct signature verification failed or pending backend deploy; falling back to webhook status polling:',
+              verifyErr
+            );
+          }
+        }
+
+        // 2. Fallback: Poll order status endpoint until backend webhook confirms PAID
         onProgress?.('Verifying payment with banking network...');
         pollOrderStatus(orderNumber, wrappedOnSuccess, onError);
       },

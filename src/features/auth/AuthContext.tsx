@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import type { User } from '../../types/api';
 import { authStorage } from '../../lib/auth';
 import { authApi } from '../../lib/api';
@@ -8,7 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: (force?: boolean) => Promise<void>;
   updateUser: (partial: Partial<User>) => void;
   login: (mobileNumber: string, otpOrPassword: string, isPassword?: boolean) => Promise<void>;
   loginWithPassword: (mobileNumber: string, password: string) => Promise<void>;
@@ -89,10 +89,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return userObj;
   };
 
-  const refreshUser = async () => {
+  const refreshUser = async (force = false) => {
     if (!authStorage.getAccessToken()) return;
     try {
-      const res: any = await authApi.getMe();
+      const res: any = await authApi.getMe(force);
       const profile = res?.user || res?.data?.user || res?.data || res;
       if (profile && (profile.id || profile.name || profile.role)) {
         setUser((prev) => {
@@ -109,10 +109,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return merged;
         });
       }
-    } catch (err) {
-      console.warn('Optional user profile refresh failed:', err);
+    } catch (err: any) {
+      if (err?.statusCode === 401) {
+        authStorage.clear();
+        setUser(null);
+      } else {
+        console.warn('Optional user profile refresh skipped:', err?.message || err);
+      }
     }
   };
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleAuthExpired = () => {
@@ -122,22 +129,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     window.addEventListener('auth:expired', handleAuthExpired);
     
-    // Refresh user role & profile on initial load
-    refreshUser();
+    // Refresh user role & profile on initial load using cached session
+    refreshUser(false);
 
-    const handleUpdate = () => {
-      refreshUser();
+    const handleDebouncedUpdate = () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        refreshUser(true);
+      }, 350);
     };
 
-    window.addEventListener('resource:updated', handleUpdate);
-    window.addEventListener('tag:updated', handleUpdate);
-    window.addEventListener('auth:refresh', handleUpdate);
+    window.addEventListener('resource:updated', handleDebouncedUpdate);
+    window.addEventListener('tag:updated', handleDebouncedUpdate);
+    window.addEventListener('auth:refresh', handleDebouncedUpdate);
 
     return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       window.removeEventListener('auth:expired', handleAuthExpired);
-      window.removeEventListener('resource:updated', handleUpdate);
-      window.removeEventListener('tag:updated', handleUpdate);
-      window.removeEventListener('auth:refresh', handleUpdate);
+      window.removeEventListener('resource:updated', handleDebouncedUpdate);
+      window.removeEventListener('tag:updated', handleDebouncedUpdate);
+      window.removeEventListener('auth:refresh', handleDebouncedUpdate);
     };
   }, []);
 

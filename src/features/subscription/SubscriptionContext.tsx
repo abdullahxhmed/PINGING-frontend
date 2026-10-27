@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type {
   UserSubscription,
   SubscriptionTagsState,
@@ -19,7 +19,7 @@ interface SubscriptionContextType {
   isPlus: boolean;
   isLoading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
+  refetch: (force?: boolean) => Promise<void>;
   // Modals state & controls
   isUpgradeModalOpen: boolean;
   selectedPackForUpgrade: PackType | null;
@@ -45,15 +45,18 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [selectedPackForUpgrade, setSelectedPackForUpgrade] = useState<PackType | null>(null);
   const [isTagSelectionModalOpen, setIsTagSelectionModalOpen] = useState(false);
 
-  const fetchSubscriptionData = useCallback(async () => {
+  const prevAuthRef = useRef<boolean>(isAuthenticated);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSubscriptionData = useCallback(async (force = false) => {
     const hasToken = Boolean(authStorage.getAccessToken());
 
     if (!hasToken) {
       setSubscription(null);
       setTags(null);
-      // Still fetch public catalog for shop/guest views
+      // Fetch public catalog for shop/guest views using cached packs
       try {
-        const packs = await subscriptionApi.getPacks();
+        const packs = await subscriptionApi.getPacks(force);
         if (Array.isArray(packs) && packs.length > 0) {
           setCatalog(packs);
         }
@@ -67,7 +70,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     setError(null);
 
     try {
-      const data: UserSubscriptionMeData = await subscriptionApi.getMe();
+      const data: UserSubscriptionMeData = await subscriptionApi.getMe(force);
       if (data) {
         setSubscription(data.subscription || null);
         setTags(data.tags || null);
@@ -94,20 +97,28 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, []);
 
   useEffect(() => {
-    fetchSubscriptionData();
+    // Only force-refetch if authentication state actually transitioned across sessions
+    const authChanged = prevAuthRef.current !== isAuthenticated;
+    prevAuthRef.current = isAuthenticated;
 
-    const handleSubscriptionUpdate = () => {
-      fetchSubscriptionData();
+    fetchSubscriptionData(authChanged);
+
+    const handleDebouncedUpdate = () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        fetchSubscriptionData(true);
+      }, 350);
     };
 
-    window.addEventListener('subscription:updated', handleSubscriptionUpdate);
-    window.addEventListener('auth:refresh', handleSubscriptionUpdate);
-    window.addEventListener('resource:updated', handleSubscriptionUpdate);
+    window.addEventListener('subscription:updated', handleDebouncedUpdate);
+    window.addEventListener('auth:refresh', handleDebouncedUpdate);
+    window.addEventListener('resource:updated', handleDebouncedUpdate);
 
     return () => {
-      window.removeEventListener('subscription:updated', handleSubscriptionUpdate);
-      window.removeEventListener('auth:refresh', handleSubscriptionUpdate);
-      window.removeEventListener('resource:updated', handleSubscriptionUpdate);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      window.removeEventListener('subscription:updated', handleDebouncedUpdate);
+      window.removeEventListener('auth:refresh', handleDebouncedUpdate);
+      window.removeEventListener('resource:updated', handleDebouncedUpdate);
     };
   }, [fetchSubscriptionData, isAuthenticated]);
 

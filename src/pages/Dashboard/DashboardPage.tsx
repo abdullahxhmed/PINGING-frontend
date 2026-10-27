@@ -51,14 +51,19 @@ export const DashboardPage: React.FC = () => {
     // but always fetch fresh server data so tag additions/updates/unpairings are never missed!
     fetchResources(!cachedList);
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleUpdate = () => {
-      fetchResources(false);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchResources(false);
+      }, 350);
     };
 
     window.addEventListener('resource:updated', handleUpdate);
     window.addEventListener('tag:updated', handleUpdate);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener('resource:updated', handleUpdate);
       window.removeEventListener('tag:updated', handleUpdate);
     };
