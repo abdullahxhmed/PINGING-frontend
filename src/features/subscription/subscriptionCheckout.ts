@@ -65,7 +65,7 @@ export async function initiateSubscriptionCheckout({
       key: keyId,
       amount: amount || pack.amountPaise,
       currency: currency || 'INR',
-      name: 'Parkping',
+      name: 'kauntact.in',
       description: returnedPack?.name || pack.name,
       order_id: razorpayOrderId,
       prefill: {

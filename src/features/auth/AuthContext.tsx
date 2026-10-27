@@ -204,6 +204,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('has_wiggled_plus');
+        sessionStorage.removeItem('pending_claim_order');
       }
     }
   };

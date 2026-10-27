@@ -8,7 +8,6 @@ import type {
 import {
   Search,
   RefreshCw,
-  CheckCircle2,
   AlertTriangle,
   X,
   Volume2,
@@ -247,14 +246,14 @@ export const AdminFulfillmentPage: React.FC = () => {
         </div>
 
         {/* ── 2. Compact Summary: Deliberate 2-col on narrow, 1-row on desktop ── */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-6 gap-y-1.5 py-1.5 text-xs text-muted font-satoshi border-b border-border">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-6 gap-y-1.5 py-1.5 text-xs text-muted border-b border-border">
           <div className="flex items-center gap-2">
             <span className="text-muted">Waiting to pack</span>
             <span className="font-mono text-ink font-semibold">{waitingToPackCount}</span>
           </div>
           <span className="text-border select-none hidden sm:inline">·</span>
           <div className="flex items-center gap-2">
-            <span className={packingCount > 0 ? 'text-blue-700 font-medium' : 'text-muted'}>Packing</span>
+            <span className="text-muted">Packing</span>
             <span className="font-mono text-ink font-semibold">{packingCount}</span>
           </div>
           <span className="text-border select-none hidden sm:inline">·</span>
@@ -267,11 +266,7 @@ export const AdminFulfillmentPage: React.FC = () => {
             type="button"
             onClick={() => setActiveQueueTab('EXCEPTIONS')}
             className={`flex items-center gap-2 text-left cursor-pointer transition-colors ${
-              exceptionsCount > 0
-                ? activeQueueTab === 'EXCEPTIONS'
-                  ? 'text-amber-900 font-bold'
-                  : 'text-amber-800 hover:text-amber-900 font-medium'
-                : 'text-muted hover:text-ink'
+              exceptionsCount > 0 ? 'text-ink font-medium' : 'text-muted hover:text-ink'
             }`}
           >
             <span>Exceptions</span>
@@ -333,8 +328,8 @@ export const AdminFulfillmentPage: React.FC = () => {
                 onClick={() => setActiveQueueTab('EXCEPTIONS')}
                 className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                   activeQueueTab === 'EXCEPTIONS'
-                    ? 'bg-amber-800 text-white'
-                    : 'text-amber-800 hover:text-amber-900'
+                    ? 'bg-ink text-surface'
+                    : 'text-muted hover:text-ink'
                 }`}
               >
                 Exceptions ({exceptionsCount})
@@ -433,7 +428,7 @@ export const AdminFulfillmentPage: React.FC = () => {
               return (
                 <div
                   key={order.id}
-                  className="p-3 sm:py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 hover:bg-neutral-50/60 transition-colors"
+                  className="p-3 sm:py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 hover:bg-bg/50 transition-colors"
                 >
                   {/* Left Block: 3 Structured Sections */}
                   <div className="space-y-1.5 min-w-0 flex-1">
@@ -448,7 +443,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                           title="Copy Order ID"
                         >
                           {copiedId === order.id ? (
-                            <Check className="w-3 h-3 text-emerald-600" />
+                            <Check className="w-3 h-3 text-ink" />
                           ) : (
                             <Copy className="w-3 h-3 text-muted/40 hover:text-ink" />
                           )}
@@ -457,17 +452,7 @@ export const AdminFulfillmentPage: React.FC = () => {
 
                       {/* Subtle Secondary Payment/Order State Badge */}
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                          isPaid
-                            ? 'bg-neutral-100 text-neutral-700 border border-neutral-200'
-                            : isPacking
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : isPacked
-                            ? 'bg-neutral-100 text-neutral-700 border border-neutral-200'
-                            : order.status === 'SHIPPED'
-                            ? 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                            : 'bg-amber-50 text-amber-800 border border-amber-200'
-                        }`}
+                        className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-bg text-muted border border-border"
                       >
                         {order.status === 'PAID' ? 'Paid' : order.status === 'PACKING' ? 'Packing' : order.status === 'PACKED' ? 'Packed' : order.status}
                       </span>
@@ -511,7 +496,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium cursor-pointer transition-colors text-center"
+                        className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded bg-ink hover:opacity-90 text-surface text-xs font-medium cursor-pointer transition-opacity text-center"
                       >
                         Resume packing →
                       </button>
@@ -527,7 +512,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-neutral-100 text-ink text-xs font-medium cursor-pointer transition-colors text-center"
+                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-bg text-ink text-xs font-medium cursor-pointer transition-colors text-center"
                       >
                         Create shipment →
                       </button>
@@ -535,7 +520,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-neutral-100 text-muted hover:text-ink text-xs font-medium cursor-pointer transition-colors text-center"
+                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-bg text-muted hover:text-ink text-xs font-medium cursor-pointer transition-colors text-center"
                       >
                         View manifest →
                       </button>
@@ -1164,7 +1149,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
     <div
       key={req.id}
       className={`px-3.5 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors ${
-        req.isComplete ? 'bg-emerald-50/40' : 'hover:bg-bg/40'
+        req.isComplete ? 'bg-bg/60' : 'hover:bg-bg/40'
       }`}
     >
       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -1187,7 +1172,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
             <span className="font-bold text-sm sm:text-base text-ink leading-tight truncate">
               {req.componentName}
             </span>
-            <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 shrink-0">
+            <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-bg text-muted border border-border shrink-0">
               {req.sku}
             </span>
           </div>
@@ -1207,29 +1192,21 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
       {/* Prominent Quantity & Number of Items to Scan */}
       <div className="shrink-0 text-right font-mono flex flex-col items-end gap-1.5 pl-2">
         <div className="flex items-baseline gap-0.5">
-          <span className="text-xs sm:text-sm font-semibold text-muted select-none">
-            ×
-          </span>
-          <span
-            className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
-              req.isComplete ? 'text-emerald-700' : 'text-ink'
-            }`}
-          >
+          <span className="text-xs sm:text-sm font-semibold text-muted select-none">×</span>
+          <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
             {req.requiredQty}
           </span>
-          <span className="text-[10px] uppercase font-bold text-muted ml-0.5 select-none">
-            Req
-          </span>
+          <span className="text-[10px] uppercase font-bold text-muted ml-0.5 select-none">Req</span>
         </div>
 
         {/* Prominent No. of Items to Scan Badge */}
         {req.isComplete ? (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded font-mono">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{req.confirmedQty}/{req.requiredQty} Verified</span>
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-ink bg-bg border border-border px-2 py-0.5 rounded font-mono">
+            <Check className="w-3 h-3 text-ink" />
+            <span>{req.confirmedQty}/{req.requiredQty} Done</span>
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-2.5 py-0.5 rounded font-mono shadow-2xs">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-ink bg-bg border border-border px-2.5 py-0.5 rounded font-mono">
             <span>Scan {req.remainingQty} more</span>
           </span>
         )}
@@ -1280,17 +1257,9 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                 className="p-0.5 text-muted hover:text-ink cursor-pointer"
                 title="Copy Order ID"
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-muted/50" />}
+                {copied ? <Check className="w-3 h-3 text-ink" /> : <Copy className="w-3 h-3 text-muted/50" />}
               </button>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                  isManifestFinalized || order.status === 'PACKED'
-                    ? 'bg-neutral-100 text-neutral-800 border border-neutral-200'
-                    : sessionId
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200'
-                }`}
-              >
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-bg text-muted border border-border">
                 {isManifestFinalized || order.status === 'PACKED'
                   ? 'Packed'
                   : sessionId
@@ -1321,7 +1290,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
             <button
               type="button"
               onClick={() => setCancelModalOpen(true)}
-              className="text-red-600 hover:text-red-700 hover:underline text-xs font-medium cursor-pointer inline-flex items-center gap-1 font-satoshi"
+              className="text-danger hover:opacity-80 hover:underline text-xs font-medium cursor-pointer inline-flex items-center gap-1"
               title="Cancel packing session"
             >
               <RotateCcw className="w-3 h-3" />
@@ -1341,20 +1310,18 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
             {remainingCount > 0 ? (
               <span className="text-[11px] text-muted font-mono">({remainingCount} to scan)</span>
             ) : (
-              <span className="text-[11px] text-emerald-700 font-semibold font-mono">All verified</span>
+              <span className="text-[11px] text-ink font-semibold font-mono">All verified</span>
             )}
           </div>
           <span className="font-mono text-xs font-bold text-ink">{percentComplete}%</span>
         </div>
-        <div className="w-full h-1.5 bg-neutral-200/90 rounded-full overflow-hidden relative">
+        <div className="w-full h-1.5 bg-border/40 rounded-full overflow-hidden relative">
           <div
             style={{ width: `${percentComplete}%` }}
-            className={`h-full transition-all duration-300 ${
-              isComplete ? 'bg-emerald-600' : 'bg-ink'
-            }`}
+            className="h-full bg-ink transition-all duration-300"
           />
           {isAllocating && (
-            <div className="absolute inset-0 bg-blue-500/30 animate-pulse" />
+            <div className="absolute inset-0 bg-ink/20 animate-pulse" />
           )}
         </div>
       </div>
@@ -1428,7 +1395,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                   className="px-3.5 sm:px-4 py-1.5 flex items-center justify-between text-xs"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-ink shrink-0" />
                     <span className="font-bold text-ink truncate select-all">{tag.tagNumber}</span>
                     <span className="text-[10px] text-muted">({tag.sku || 'TAG-STD'})</span>
                   </div>
@@ -1466,8 +1433,8 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
             </button>
           ) : isManifestFinalized || order.status === 'PACKED' ? (
             <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 text-emerald-700 text-xs font-semibold">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-2 text-ink text-xs font-semibold">
+                <ShieldCheck className="w-4 h-4 text-ink shrink-0" />
                 <span>Manifest sealed. All physical tags verified.</span>
               </div>
               <button
@@ -1483,7 +1450,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
               type="button"
               onClick={handleFinalize}
               disabled={isFinalizing}
-              className="w-full py-2.5 sm:py-3 px-4 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-xs"
+              className="w-full py-2.5 sm:py-3 px-4 rounded bg-ink hover:opacity-90 text-surface font-semibold text-xs sm:text-sm cursor-pointer transition-all flex items-center justify-center gap-2 shadow-xs"
             >
               {isFinalizing ? (
                 <>
@@ -1528,7 +1495,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
               </button>
 
               {/* Total Confirmed & Remaining Progress Pill */}
-              <div className="font-mono text-xs px-3 py-1 rounded bg-neutral-100 text-neutral-800 border border-neutral-200 font-bold text-center truncate">
+              <div className="font-mono text-xs px-3 py-1 rounded bg-bg text-ink border border-border font-bold text-center truncate">
                 {totalConfirmed} of {totalRequired} confirmed ({remainingCount} left)
               </div>
 
@@ -1542,12 +1509,10 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
               </button>
             </div>
             {/* Real-time progress line */}
-            <div className="w-full h-1 bg-neutral-200 overflow-hidden">
+            <div className="w-full h-1 bg-border/40 overflow-hidden">
               <div
                 style={{ width: `${percentComplete}%` }}
-                className={`h-full transition-all duration-300 ${
-                  isComplete ? 'bg-emerald-600' : 'bg-ink'
-                }`}
+                className="h-full bg-ink transition-all duration-300"
               />
             </div>
           </header>
@@ -1575,7 +1540,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                     <span className="font-mono text-[10px] uppercase font-bold text-muted tracking-wider">
                       Current Item to Scan
                     </span>
-                    <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 border border-neutral-200 shrink-0">
+                    <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-bg text-muted border border-border shrink-0">
                       {nextTargetReq.sku}
                     </span>
                   </div>
@@ -1605,7 +1570,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                   <span className="text-[10px] uppercase font-bold text-muted">
                     Scanned
                   </span>
-                  <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-neutral-800 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded mt-1">
+                  <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-ink bg-bg border border-border px-2 py-0.5 rounded mt-1">
                     {nextTargetReq.remainingQty} to scan
                   </span>
                 </div>
@@ -1646,9 +1611,9 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                       key={req.id}
                       className={`flex items-center gap-2 px-2.5 py-1.5 rounded border text-xs font-mono shrink-0 transition-all ${
                         req.isComplete
-                          ? 'bg-emerald-50/60 border-emerald-300 text-emerald-900'
+                          ? 'bg-bg border-border-strong text-ink'
                           : isCurrent
-                          ? 'bg-surface border-ink text-ink ring-1 ring-ink/30 shadow-2xs'
+                          ? 'bg-surface border-ink text-ink ring-1 ring-ink/20 shadow-2xs'
                           : 'bg-surface border-border text-muted'
                       }`}
                     >
@@ -1668,7 +1633,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                             {req.componentName}
                           </span>
                           {req.isComplete && (
-                            <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5] shrink-0" />
+                            <Check className="w-3.5 h-3.5 text-ink stroke-[2.5] shrink-0" />
                           )}
                         </div>
                         <div className="text-[10px] text-muted">
@@ -1693,7 +1658,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                <div className="w-8 h-8 rounded bg-bg border border-border flex items-center justify-center text-ink shrink-0">
                   <QrCode className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -1727,7 +1692,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
 
             {/* Target Item Allocation Preview */}
             {nextTargetReq && (
-              <div className="p-2.5 rounded border border-border bg-neutral-50/80 flex items-center gap-3">
+              <div className="p-2.5 rounded border border-border bg-bg/50 flex items-center gap-3">
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg border border-border bg-surface shrink-0 overflow-hidden relative shadow-2xs">
                   <img
                     src={nextTargetReq.image}
@@ -1789,7 +1754,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
       {cancelModalOpen && (
         <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-2xs">
           <div className="w-full max-w-sm bg-surface border border-border rounded-lg p-5 space-y-3.5 shadow-2xl">
-            <div className="flex items-center gap-2 text-red-600 font-bold text-sm">
+            <div className="flex items-center gap-2 text-danger font-bold text-sm">
               <RotateCcw className="w-4 h-4" />
               <span>Cancel packing session?</span>
             </div>
@@ -1821,7 +1786,7 @@ const PackingWorkspace: React.FC<PackingWorkspaceProps> = ({
                 type="button"
                 onClick={handleCancelSession}
                 disabled={isCancelling}
-                className="px-3.5 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-1.5 rounded bg-danger hover:opacity-90 text-white text-xs font-semibold cursor-pointer"
               >
                 {isCancelling ? 'Cancelling...' : 'Cancel session'}
               </button>

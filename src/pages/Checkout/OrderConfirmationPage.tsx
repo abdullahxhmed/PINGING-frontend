@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { StoreHeader } from '../../components/store/StoreHeader';
@@ -22,6 +22,8 @@ import {
   Clock,
   ArrowRight,
   AlertCircle,
+  RefreshCw,
+  RotateCcw,
   Loader2,
 } from 'lucide-react';
 
@@ -35,42 +37,65 @@ export const OrderConfirmationPage: React.FC = () => {
   });
   const [liveOrder, setLiveOrder] = useState<OrderStatusData | null>(null);
   const [loading, setLoading] = useState<boolean>(() => Boolean(orderId));
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!orderId) {
-      return;
-    }
-
-    // Fetch live status from backend
-    let isSubscribed = true;
-    getOrderStatus(orderId)
-      .then((data) => {
-        if (isSubscribed) {
-          setLiveOrder(data);
+  const fetchStatus = useCallback(
+    async (quiet = false) => {
+      if (!orderId) return;
+      if (!quiet) setIsRefreshingStatus(true);
+      setStatusMessage(null);
+      try {
+        const data = await getOrderStatus(orderId);
+        setLiveOrder(data);
+        if (!quiet) {
+          if (data.status === 'PAID' || data.paymentStatus === 'CAPTURED') {
+            setStatusMessage('Payment verified successfully!');
+          } else if (data.status === 'PAYMENT_PENDING') {
+            setStatusMessage('Status refreshed: Payment is still awaiting settlement.');
+          } else {
+            setStatusMessage(`Order status: ${data.status}`);
+          }
         }
-      })
-      .catch(() => {
-        // Silently keep storage fallback if backend is offline
-      })
-      .finally(() => {
-        if (isSubscribed) {
-          setLoading(false);
+      } catch {
+        if (!quiet) {
+          setStatusMessage('Could not reach server to verify payment. Please retry in a moment.');
         }
-      });
+      } finally {
+        if (!quiet) setIsRefreshingStatus(false);
+        setLoading(false);
+      }
+    },
+    [orderId]
+  );
 
-    return () => {
-      isSubscribed = false;
-    };
-  }, [orderId]);
-
-  // Trigger celebration confetti on mount when order is confirmed
   useEffect(() => {
-    if (!loading && (order || liveOrder)) {
+    fetchStatus(true);
+  }, [fetchStatus]);
+
+  const orderNumber = liveOrder?.orderNumber || order?.orderId || orderId || '';
+
+  // Strict payment authority: backend liveOrder takes absolute precedence
+  const isPaid = Boolean(
+    liveOrder
+      ? liveOrder.status === 'PAID' ||
+        liveOrder.paymentStatus === 'CAPTURED' ||
+        ['PACKING', 'PACKED', 'SHIPPED', 'DELIVERED'].includes(liveOrder.status)
+      : order?.paymentGatewayStatus === 'PAID' && order?.status === 'CONFIRMED'
+  );
+
+  const isCancelled = Boolean(
+    liveOrder?.status === 'CANCELLED' || liveOrder?.paymentStatus === 'FAILED'
+  );
+
+  // Trigger celebration confetti ONLY when order is confirmed and verified paid
+  useEffect(() => {
+    if (!loading && isPaid) {
       const cleanup = triggerConfetti(3500);
       return cleanup;
     }
-  }, [loading, order, liveOrder]);
+  }, [loading, isPaid]);
 
   const handleCopyOrderNumber = (text: string) => {
     if (!text) return;
@@ -93,12 +118,6 @@ export const OrderConfirmationPage: React.FC = () => {
       </div>
     );
   }
-
-  const orderNumber = liveOrder?.orderNumber || order?.orderId || orderId || '';
-  const isPaid =
-    liveOrder?.status === 'PAID' ||
-    liveOrder?.paymentStatus === 'CAPTURED' ||
-    order?.paymentGatewayStatus === 'PAID';
 
   if (!order && !liveOrder) {
     return (
@@ -173,24 +192,89 @@ export const OrderConfirmationPage: React.FC = () => {
         className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-14"
       >
         {/* Hero Title & Status */}
-        <div className="mb-10 text-center sm:text-left">
-          <div className="inline-flex items-center gap-1.5 text-xs font-satoshi font-medium text-ink mb-3">
+        <div className="mb-8 text-center sm:text-left">
+          <div className="inline-flex items-center gap-1.5 text-xs font-satoshi font-medium text-muted mb-3">
             {isPaid ? (
-              <Check className="w-3.5 h-3.5 text-ink stroke-[2.5]" />
+              <>
+                <Check className="w-3.5 h-3.5 text-ink stroke-[2.5]" />
+                <span className="text-ink">Payment Confirmed</span>
+              </>
+            ) : isCancelled ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-ink/30" />
+                <span>Payment Cancelled</span>
+              </>
             ) : (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-ink/40 animate-pulse" />
+                <span>Payment Awaiting Settlement</span>
+              </>
             )}
-            <span>{isPaid ? 'Payment Confirmed' : 'Payment Awaiting Settlement'}</span>
           </div>
 
           <h1 className="font-sans text-3xl sm:text-4xl lg:text-5xl font-medium text-ink tracking-tight leading-tight">
-            Your tags are on the way to you.
+            {isPaid
+              ? 'Your tags are on the way to you.'
+              : isCancelled
+              ? 'Payment was not completed.'
+              : 'Payment Not Yet Confirmed'}
           </h1>
 
           <p className="mt-2 text-sm text-muted font-satoshi">
-            Thank you, {customerName}. Your order has been placed and is being prepared for express delivery.
+            {isPaid
+              ? `Thank you, ${customerName}. Your order has been placed and is being prepared for express delivery.`
+              : isCancelled
+              ? `Your transaction for order #${orderNumber} was cancelled or declined. No items have been scheduled for fulfillment.`
+              : `Thank you, ${customerName}. We have recorded your order details, but your payment has not been confirmed yet. Your tags will not be dispatched until payment is verified.`}
           </p>
         </div>
+
+        {/* Awaiting Payment / Retry Banner */}
+        {!isPaid && (
+          <div className="mb-8 p-4 sm:p-5 rounded border border-border bg-surface text-ink">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted shrink-0" />
+                  <p className="font-satoshi font-medium text-sm text-ink">
+                    {isCancelled ? 'Payment Not Received' : 'Awaiting Banking Network Settlement'}
+                  </p>
+                </div>
+                <p className="text-xs text-muted font-satoshi max-w-xl leading-relaxed">
+                  {isCancelled
+                    ? 'No funds were captured for this order. You can restart checkout with your selected tag configuration.'
+                    : 'If you completed payment via UPI or Net Banking, bank settlement can take a moment to reflect. Click "Check Status" to refresh.'}
+                </p>
+                {statusMessage && (
+                  <p className="text-xs font-satoshi font-medium text-ink mt-2">
+                    {statusMessage}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {!isCancelled && (
+                  <button
+                    type="button"
+                    onClick={() => fetchStatus(false)}
+                    disabled={isRefreshingStatus}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface border border-border rounded text-xs font-satoshi font-medium text-ink hover:border-ink hover:bg-surface/80 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStatus ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshingStatus ? 'Checking...' : 'Check Status'}</span>
+                  </button>
+                )}
+                <Link
+                  to="/checkout"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ink text-surface rounded text-xs font-satoshi font-medium hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Retry Payment</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Primary Information Section (Satoshi Medium + Copy Button) */}
         <section aria-label="Order Details" className="border-t border-border pt-6 pb-8">
@@ -236,15 +320,29 @@ export const OrderConfirmationPage: React.FC = () => {
                 Fulfillment Status
               </span>
               <span className="inline-flex items-center gap-1.5 font-satoshi font-medium text-sm sm:text-base text-ink">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                {liveOrder?.status || 'Confirmed'}
+                {isPaid ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{liveOrder?.status || 'Confirmed'}</span>
+                  </>
+                ) : isCancelled ? (
+                  <>
+                    <AlertCircle className="w-3.5 h-3.5 text-muted" />
+                    <span className="text-muted">Cancelled</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3.5 h-3.5 text-muted" />
+                    <span>Awaiting Payment</span>
+                  </>
+                )}
               </span>
             </div>
 
             {/* Total Amount */}
             <div className="space-y-1">
               <span className="text-[11px] uppercase tracking-wider font-satoshi font-medium text-muted block">
-                Total Paid
+                {isPaid ? 'Total Paid' : 'Total Due'}
               </span>
               <span className="font-satoshi font-medium text-base sm:text-lg text-ink font-semibold">
                 ₹{displayTotal}
@@ -390,20 +488,36 @@ export const OrderConfirmationPage: React.FC = () => {
                 <span>Package Tracking</span>
               </h2>
               <p className="font-satoshi font-medium text-sm sm:text-base text-ink">
-                Track dispatch &amp; live courier milestones
+                {isPaid
+                  ? 'Track dispatch & live courier milestones'
+                  : 'Fulfillment on hold pending payment'}
               </p>
               <p className="text-xs text-muted font-satoshi">
-                Real-time updates via SMS and live courier telemetry.
+                {isPaid
+                  ? 'Real-time updates via SMS and live courier telemetry.'
+                  : 'Tracking milestones activate automatically once payment is verified and physical packing begins.'}
               </p>
             </div>
 
-            <Link
-              to={orderNumber ? `/track/${encodeURIComponent(orderNumber)}` : '/track'}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-surface text-xs uppercase tracking-wider font-satoshi font-medium rounded hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs shrink-0 self-start sm:self-auto"
-            >
-              <span>Track Package</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            {isPaid ? (
+              <Link
+                to={orderNumber ? `/track/${encodeURIComponent(orderNumber)}` : '/track'}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-surface text-xs uppercase tracking-wider font-satoshi font-medium rounded hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs shrink-0 self-start sm:self-auto"
+              >
+                <span>Track Package</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fetchStatus(false)}
+                disabled={isRefreshingStatus}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-surface border border-border text-ink text-xs uppercase tracking-wider font-satoshi font-medium rounded hover:border-ink active:scale-95 transition-all cursor-pointer shrink-0 self-start sm:self-auto disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStatus ? 'animate-spin' : ''}`} />
+                <span>{isRefreshingStatus ? 'Checking...' : 'Check Status'}</span>
+              </button>
+            )}
           </div>
 
           {/* Quick Footer Links */}

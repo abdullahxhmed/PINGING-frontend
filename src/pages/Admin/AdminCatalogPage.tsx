@@ -17,25 +17,17 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-// Map product type to readable label and styling
-const getProductTypeInfo = (type?: string) => {
+// Map product type to readable label only (no colors)
+const getProductTypeLabel = (type?: string) => {
   switch (type) {
-    case 'PHYSICAL_TAG_PACK':
-      return { label: 'Physical Bundle', bg: 'bg-blue-50 text-blue-700 border-blue-200' };
-    case 'COMBO_PACK':
-      return { label: 'Combo Pack', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-    case 'VEHICLE_STICKER':
-      return { label: 'Vehicle Sticker', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    case 'KEYCHAIN':
-      return { label: 'Keychain Tag', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
-    case 'MINI_STICKER':
-      return { label: 'Mini Sticker', bg: 'bg-purple-50 text-purple-700 border-purple-200' };
-    case 'SUBSCRIPTION_ONLY':
-      return { label: 'Subscription', bg: 'bg-zinc-100 text-zinc-700 border-zinc-200' };
-    case 'MERCHANDISE':
-      return { label: 'Merchandise', bg: 'bg-orange-50 text-orange-700 border-orange-200' };
-    default:
-      return { label: type || 'Standard', bg: 'bg-zinc-50 text-zinc-600 border-border' };
+    case 'PHYSICAL_TAG_PACK': return 'Physical Bundle';
+    case 'COMBO_PACK': return 'Combo Pack';
+    case 'VEHICLE_STICKER': return 'Vehicle Sticker';
+    case 'KEYCHAIN': return 'Keychain Tag';
+    case 'MINI_STICKER': return 'Mini Sticker';
+    case 'SUBSCRIPTION_ONLY': return 'Subscription';
+    case 'MERCHANDISE': return 'Merchandise';
+    default: return type || 'Standard';
   }
 };
 
@@ -156,14 +148,14 @@ export const AdminCatalogPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">
-                Products &amp; Catalog
+                Products & Catalog
               </h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-surface border border-border text-muted font-mono font-medium">
-                {total} items
+              <span className="text-xs px-2 py-0.5 rounded bg-bg border border-border text-muted font-mono">
+                {total}
               </span>
             </div>
-            <p className="text-xs text-muted mt-0.5 font-satoshi font-medium">
-              Manage backend catalog items, inventory packaging Bill of Materials, and product status.
+            <p className="text-xs text-muted mt-0.5">
+              Manage catalog items, inventory packaging BOM, and product status.
             </p>
           </div>
 
@@ -172,7 +164,7 @@ export const AdminCatalogPage: React.FC = () => {
               type="button"
               onClick={fetchProducts}
               disabled={isLoading}
-              className="h-8 px-2.5 rounded-md border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="h-8 px-2.5 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Reload catalog products"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-muted ${isLoading ? 'animate-spin' : ''}`} />
@@ -182,16 +174,16 @@ export const AdminCatalogPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/storefront')}
-              className="h-8 px-3 rounded-md border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="h-8 px-3 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <LayoutGrid className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Storefront Placement</span>
+              <LayoutGrid className="w-3.5 h-3.5 text-muted" />
+              <span>Storefront</span>
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/bundles/new')}
-              className="h-8 px-3 rounded-md border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              className="h-8 px-3 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Layers className="w-3.5 h-3.5 text-muted" />
               <span>New Bundle</span>
@@ -200,7 +192,7 @@ export const AdminCatalogPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/products/new')}
-              className="h-8 px-3 rounded-md bg-ink text-surface text-xs font-medium inline-flex items-center gap-1.5 hover:bg-black transition-colors cursor-pointer shadow-xs"
+              className="h-8 px-3 rounded bg-ink text-surface text-xs font-medium inline-flex items-center gap-1.5 hover:bg-black transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Product</span>
@@ -208,7 +200,7 @@ export const AdminCatalogPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 2. Search, Status, and Type Filter Bar ── */}
+        {/* ── 2. Search & Filter Bar ── */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1 max-w-md">
@@ -217,40 +209,40 @@ export const AdminCatalogPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by SKU, product name, or slug..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-border bg-surface text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none transition-colors"
+              placeholder="Search by SKU, name, or slug..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded border border-border bg-surface text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none transition-colors"
             />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Status Filter */}
-            <div className="flex items-center rounded-md border border-border bg-surface p-0.5 text-xs font-mono">
+            <div className="flex items-center rounded border border-border bg-surface p-0.5 text-xs font-mono">
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 py-1 rounded cursor-pointer ${
+                className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
                   statusFilter === 'ALL' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
                 }`}
               >
-                All Status
+                All
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('LIVE')}
-                className={`px-2.5 py-1 rounded cursor-pointer ${
+                className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
                   statusFilter === 'LIVE' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
                 }`}
               >
-                ● Live
+                Live
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('HIDDEN')}
-                className={`px-2.5 py-1 rounded cursor-pointer ${
+                className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
                   statusFilter === 'HIDDEN' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
                 }`}
               >
-                ○ Hidden
+                Hidden
               </button>
             </div>
 
@@ -261,10 +253,10 @@ export const AdminCatalogPage: React.FC = () => {
                 setTypeFilter(e.target.value as any);
                 setPage(1);
               }}
-              className="h-8 px-2.5 bg-surface border border-border rounded-md text-xs text-ink font-satoshi font-medium focus:outline-none focus:border-ink cursor-pointer"
+              className="h-8 px-2.5 bg-surface border border-border rounded text-xs text-ink focus:outline-none focus:border-ink cursor-pointer"
             >
-              <option value="ALL">All Product Types</option>
-              <option value="PHYSICAL_TAG_PACK">Physical Bundles / Packs</option>
+              <option value="ALL">All Types</option>
+              <option value="PHYSICAL_TAG_PACK">Physical Bundles</option>
               <option value="COMBO_PACK">Combo Packs</option>
               <option value="VEHICLE_STICKER">Vehicle Stickers</option>
               <option value="KEYCHAIN">Keychains</option>
@@ -276,7 +268,7 @@ export const AdminCatalogPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="p-3 border border-red-200 bg-red-50 text-xs text-red-800 rounded-lg flex items-center justify-between">
+          <div className="p-3 border border-danger/30 bg-danger/5 text-xs text-danger rounded flex items-center justify-between">
             <span>{error}</span>
             <button onClick={fetchProducts} className="underline font-bold cursor-pointer">
               Retry
@@ -285,42 +277,41 @@ export const AdminCatalogPage: React.FC = () => {
         )}
 
         {/* ── 3. Desktop Products Data Table ── */}
-        <div className="hidden md:block border border-border rounded-xl bg-surface overflow-hidden shadow-2xs">
+        <div className="hidden md:block border border-border rounded-lg bg-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-border bg-bg/60 text-muted font-mono uppercase text-[10px] tracking-wider font-semibold">
-                  <th className="py-2.5 px-3 w-14 text-center">Artwork</th>
+                <tr className="border-b border-border bg-bg/60 text-muted font-mono uppercase text-[10px] tracking-wider">
+                  <th className="py-2.5 px-3 w-14 text-center">Art</th>
                   <th className="py-2.5 px-4 w-36">SKU</th>
-                  <th className="py-2.5 px-4 min-w-[200px]">Product Name &amp; Slug</th>
+                  <th className="py-2.5 px-4 min-w-[200px]">Product</th>
                   <th className="py-2.5 px-4 w-32">Type</th>
-                  <th className="py-2.5 px-4 w-28 text-right">Base Price</th>
-                  <th className="py-2.5 px-4 min-w-[180px]">Bundle Components</th>
+                  <th className="py-2.5 px-4 w-28 text-right">Price</th>
+                  <th className="py-2.5 px-4 min-w-[180px]">Components</th>
                   <th className="py-2.5 px-3 w-20 text-center">Order</th>
-                  <th className="py-2.5 px-3 w-28 text-center">Visibility</th>
-                  <th className="py-2.5 px-3 w-28 text-center">Inventory</th>
-                  <th className="py-2.5 px-4 w-24 text-right">Actions</th>
+                  <th className="py-2.5 px-3 w-28 text-center">Status</th>
+                  <th className="py-2.5 px-3 w-28 text-center">Stock</th>
+                  <th className="py-2.5 px-4 w-24 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="divide-y divide-border/50">
                 {isLoading && products.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-16 text-center text-xs text-muted">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <RefreshCw className="w-5 h-5 animate-spin text-muted" />
-                        <span>Loading catalog products from backend...</span>
+                        <RefreshCw className="w-4 h-4 animate-spin text-muted" />
+                        <span>Loading catalog...</span>
                       </div>
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-16 text-center text-xs text-muted">
-                      No products found matching the current search and filter criteria.
+                      No products found.
                     </td>
                   </tr>
                 ) : (
                   products.map((p) => {
-                    const typeInfo = getProductTypeInfo(p.type);
                     const imgUrl = p.imageUrl || p.darkImageUrl || p.lightImageUrl || DEFAULT_PRODUCT_IMAGE;
                     const hasAnyImage = Boolean(p.imageUrl || p.darkImageUrl || p.lightImageUrl);
                     const isMissingLight = Boolean(p.darkImageUrl && !p.lightImageUrl);
@@ -337,7 +328,7 @@ export const AdminCatalogPage: React.FC = () => {
                           <img
                             src={imgUrl}
                             alt={p.name}
-                            className="w-10 h-10 object-cover rounded border border-border bg-surface mx-auto"
+                            className="w-9 h-9 object-cover rounded border border-border bg-bg mx-auto"
                             onError={(e) => ((e.target as HTMLElement).style.display = 'none')}
                           />
                         </td>
@@ -355,7 +346,7 @@ export const AdminCatalogPage: React.FC = () => {
                           >
                             <span>{p.sku}</span>
                             {copiedId === p.id ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
+                              <Check className="w-3 h-3 text-ink" />
                             ) : (
                               <Copy className="w-3 h-3 text-muted/40 group-hover:text-ink transition-colors" />
                             )}
@@ -367,23 +358,23 @@ export const AdminCatalogPage: React.FC = () => {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium text-ink">{p.name}</span>
                             {p.isFeatured && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-amber-100 text-amber-800 border border-amber-300">
-                                ★ Featured
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-bg text-muted border border-border">
+                                Featured
                               </span>
                             )}
                             {!hasAnyImage && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-amber-50 text-amber-800 border border-amber-200">
-                                ⚠ No Artwork
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
+                                No Artwork
                               </span>
                             )}
                             {isMissingLight && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-zinc-100 text-zinc-600 border border-zinc-200">
-                                Missing Light
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
+                                No Light
                               </span>
                             )}
                             {isMissingDark && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-zinc-100 text-zinc-600 border border-zinc-200">
-                                Missing Dark
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
+                                No Dark
                               </span>
                             )}
                           </div>
@@ -394,8 +385,8 @@ export const AdminCatalogPage: React.FC = () => {
 
                         {/* Type */}
                         <td className="py-2.5 px-4 font-mono text-[11px]">
-                          <span className={`px-2 py-0.5 rounded border text-[10px] ${typeInfo.bg}`}>
-                            {typeInfo.label}
+                          <span className="px-2 py-0.5 rounded border border-border bg-bg text-muted text-[10px]">
+                            {getProductTypeLabel(p.type)}
                           </span>
                         </td>
 
@@ -422,37 +413,29 @@ export const AdminCatalogPage: React.FC = () => {
                             type="button"
                             onClick={(e) => handleToggleActive(p, e)}
                             disabled={updatingId === p.id}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium border cursor-pointer transition-colors ${
-                              p.active
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                                : 'bg-zinc-100 text-zinc-600 border-zinc-300 hover:bg-zinc-200'
-                            }`}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-mono cursor-pointer transition-colors hover:text-ink text-muted"
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                p.active ? 'bg-emerald-600' : 'bg-muted/40'
+                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                p.active ? 'bg-ink' : 'bg-border-strong'
                               }`}
                             />
-                            <span>{p.active ? 'Live' : 'Hidden'}</span>
+                            <span className={p.active ? 'text-ink' : 'text-muted'}>
+                              {p.active ? 'Live' : 'Hidden'}
+                            </span>
                           </button>
                         </td>
 
                         {/* Inventory Availability */}
-                        <td className="py-2.5 px-3 text-center font-mono text-[10px]">
-                          <span
-                            className={`px-2 py-0.5 rounded ${
-                              p.inStock !== false
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
-                          >
-                            {p.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                          </span>
+                        <td className="py-2.5 px-3 text-center font-mono text-[10px] text-muted">
+                          {p.inStock !== false ? 'In Stock' : (
+                            <span className="text-danger">Out of Stock</span>
+                          )}
                         </td>
 
                         {/* Open Details Action */}
                         <td className="py-2.5 px-4 text-right">
-                          <span className="text-[11px] font-satoshi font-medium text-muted group-hover:text-ink inline-flex items-center gap-1">
+                          <span className="text-[11px] font-medium text-muted group-hover:text-ink inline-flex items-center gap-1">
                             <span>Details</span>
                             <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
                           </span>
@@ -467,19 +450,18 @@ export const AdminCatalogPage: React.FC = () => {
         </div>
 
         {/* ── 4. Mobile Card View ── */}
-        <div className="block md:hidden space-y-3">
+        <div className="block md:hidden space-y-2">
           {isLoading && products.length === 0 ? (
             <div className="py-16 text-center text-xs text-muted flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="w-5 h-5 animate-spin text-muted" />
-              <span>Loading catalog products...</span>
+              <RefreshCw className="w-4 h-4 animate-spin text-muted" />
+              <span>Loading catalog...</span>
             </div>
           ) : products.length === 0 ? (
-            <div className="py-12 text-center text-xs text-muted border border-border rounded-lg bg-surface">
-              No products found matching criteria.
+            <div className="py-12 text-center text-xs text-muted border border-border rounded bg-surface">
+              No products found.
             </div>
           ) : (
             products.map((p) => {
-              const typeInfo = getProductTypeInfo(p.type);
               const imgUrl = p.imageUrl || p.darkImageUrl || p.lightImageUrl || DEFAULT_PRODUCT_IMAGE;
               const hasAnyImage = Boolean(p.imageUrl || p.darkImageUrl || p.lightImageUrl);
 
@@ -487,14 +469,14 @@ export const AdminCatalogPage: React.FC = () => {
                 <div
                   key={p.id}
                   onClick={() => navigate(`/admin/catalog/products/${p.id}`)}
-                  className="p-3.5 rounded-xl border border-border bg-surface shadow-2xs space-y-3 cursor-pointer"
+                  className="p-3.5 rounded border border-border bg-surface space-y-3 cursor-pointer hover:bg-bg/40 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <img
                         src={imgUrl}
                         alt={p.name}
-                        className="w-11 h-11 object-cover rounded-lg border border-border bg-bg shrink-0"
+                        className="w-10 h-10 object-cover rounded border border-border bg-bg shrink-0"
                       />
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -508,19 +490,19 @@ export const AdminCatalogPage: React.FC = () => {
                             className="p-1 text-muted hover:text-ink cursor-pointer"
                           >
                             {copiedId === p.id ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
+                              <Check className="w-3 h-3 text-ink" />
                             ) : (
                               <Copy className="w-3 h-3" />
                             )}
                           </button>
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded border font-mono ${typeInfo.bg}`}>
-                            {typeInfo.label}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-bg font-mono text-muted">
+                            {getProductTypeLabel(p.type)}
                           </span>
                           {!hasAnyImage && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-amber-50 text-amber-800 border border-amber-200">
-                              ⚠ No Artwork
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
+                              No Artwork
                             </span>
                           )}
                         </div>
@@ -530,15 +512,11 @@ export const AdminCatalogPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleToggleActive(p, e)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium border cursor-pointer ${
-                        p.active
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                          : 'bg-zinc-100 text-zinc-600 border-zinc-300'
-                      }`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-mono cursor-pointer text-muted hover:text-ink transition-colors"
                     >
                       <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          p.active ? 'bg-emerald-600' : 'bg-muted/40'
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          p.active ? 'bg-ink' : 'bg-border-strong'
                         }`}
                       />
                       <span>{p.active ? 'Live' : 'Hidden'}</span>
@@ -557,8 +535,8 @@ export const AdminCatalogPage: React.FC = () => {
 
                   <div className="text-[11px] text-muted flex items-center justify-between pt-1 border-t border-border/60">
                     <span className="truncate max-w-[200px]">{summarizeComponents(p)}</span>
-                    <span className="font-mono text-[10px] text-ink font-semibold flex items-center gap-1">
-                      <span>View Detail</span>
+                    <span className="font-mono text-[10px] text-ink font-semibold flex items-center gap-1 shrink-0 ml-2">
+                      <span>View</span>
                       <ExternalLink className="w-3 h-3" />
                     </span>
                   </div>
@@ -571,7 +549,7 @@ export const AdminCatalogPage: React.FC = () => {
         {/* ── 5. Pagination Controls ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-mono text-muted">
           <div>
-            Showing {products.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
+            {products.length > 0 ? (page - 1) * limit + 1 : 0}–
             {Math.min(page * limit, total)} of {total} products
           </div>
 
@@ -585,7 +563,7 @@ export const AdminCatalogPage: React.FC = () => {
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="px-2 py-1 rounded bg-bg border border-border font-medium text-ink">
-              Page {page} of {totalPages}
+              {page} / {totalPages}
             </span>
             <button
               type="button"

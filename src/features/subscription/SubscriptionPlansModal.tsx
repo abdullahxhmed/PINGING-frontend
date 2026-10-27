@@ -53,7 +53,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
 }) => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const { showPaymentSuccess } = useSubscription();
+  const { isPlus, canRenewPlan, daysRemaining, daysUntilRenewal, showPaymentSuccess } = useSubscription();
 
   const [mounted, setMounted] = useState(false);
   const [activePlan, setActivePlan] = useState<SubscriptionPack>(DEFAULT_PACKS[0]);
@@ -107,6 +107,11 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   const handleCheckout = async () => {
     if (!isAuthenticated) {
       toast.info('Please sign in to proceed with your subscription.');
+      return;
+    }
+
+    if (activePlan.packType === 'PLUS_RENEWAL' && isPlus && !canRenewPlan) {
+      toast.info(`Plan renewal opens 30 days before expiry. You currently have ${daysRemaining} days remaining on your active plan.`);
       return;
     }
 
@@ -280,6 +285,15 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                     </div>
                   )}
 
+                  {isPlus && !canRenewPlan && activePlan.packType === 'PLUS_RENEWAL' && (
+                    <div className="p-3 rounded-lg bg-bg/90 border border-border text-ink text-xs space-y-1">
+                      <p className="font-semibold text-ink">Plan Currently Active</p>
+                      <p className="text-muted leading-relaxed">
+                        You have {daysRemaining} days remaining on your Kauntact Plus plan. Renewal opens within 30 days of expiry.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Validity Row */}
                   <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-bg/75 border border-border text-xs">
                     <span className="text-muted font-medium">Validity</span>
@@ -383,7 +397,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCheckout}
-                  disabled={isProcessing}
+                  disabled={isProcessing || (isPlus && !canRenewPlan && activePlan.packType === 'PLUS_RENEWAL')}
                   className="w-full py-3.5 px-4 rounded-xl bg-ink text-surface font-mono text-xs font-semibold uppercase tracking-wider hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
                 >
                   {isProcessing ? (
@@ -391,6 +405,8 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Opening Secure Checkout...</span>
                     </>
+                  ) : isPlus && !canRenewPlan && activePlan.packType === 'PLUS_RENEWAL' ? (
+                    <span>Renewal opens in {daysUntilRenewal} days</span>
                   ) : (
                     <>
                       <span>Proceed to Pay — ₹{displayPrice}</span>

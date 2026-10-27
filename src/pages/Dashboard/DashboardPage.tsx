@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import type { Resource } from '../../types/api';
 import { resourcesApi, resourceCache } from '../../lib/api';
 import { Layout } from '../../components/layout/Layout';
@@ -7,7 +6,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ResourceRow, CreateResourceModal, EditResourceModal, PairQrModal, TagSetupFlow, MobileTagDetailView } from '../../components/resources';
 import { Button, DelayedSpinner, useToast } from '../../components/ui';
 import { useSubscription } from '../../features/subscription';
-import { Plus, ShieldAlert, ArrowLeft, Sparkles } from 'lucide-react';
+import { useAuth } from '../../features/auth/AuthContext';
+import { getOrderStatus } from '../../services/checkout';
+import { Plus, ShieldAlert, ArrowLeft, QrCode, ArrowRight, X } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const isReload = useMemo(() => resourceCache.isPageReload(), []);
@@ -26,6 +27,24 @@ export const DashboardPage: React.FC = () => {
   const [isPairOpen, setIsPairOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [selectedMobileIndex, setSelectedMobileIndex] = useState(0);
+  const [pendingClaimOrder, setPendingClaimOrder] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromUrl = urlParams.get('pending_claim_order') || urlParams.get('claim_order');
+      if (fromUrl) return fromUrl;
+      const raw = sessionStorage.getItem('pending_claim_order');
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed?.orderNumber || raw;
+      } catch {
+        return raw;
+      }
+    } catch {
+      return null;
+    }
+  });
 
   const fetchResources = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -70,7 +89,67 @@ export const DashboardPage: React.FC = () => {
   }, [fetchResources, cachedList]);
 
   const { toast } = useToast();
+  const { user } = useAuth();
   const { tags, subscription, isPlus, openUpgradeModal, refetch: refetchSubscription } = useSubscription();
+
+  // Validate that pendingClaimOrder belongs to the current logged-in user
+  useEffect(() => {
+    if (!pendingClaimOrder) return;
+
+    const userPhone = user?.mobileNumber ? user.mobileNumber.replace(/\D/g, '').slice(-10) : '';
+
+    // 1. Verify against local storage metadata if available
+    try {
+      const raw = sessionStorage.getItem('pending_claim_order');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.phone && userPhone) {
+          const storedPhone = String(parsed.phone).replace(/\D/g, '').slice(-10);
+          if (storedPhone && storedPhone !== userPhone) {
+            // Order was placed under a different mobile number; purge immediately
+            sessionStorage.removeItem('pending_claim_order');
+            setPendingClaimOrder(null);
+            return;
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Authoritative backend check: verify order recipient phone matches logged in user
+    let isSubscribed = true;
+    getOrderStatus(pendingClaimOrder)
+      .then((orderData) => {
+        if (!isSubscribed) return;
+        const orderPhone = (
+          orderData?.customerPhone ||
+          orderData?.shippingAddress?.phoneNumber ||
+          ''
+        )
+          .replace(/\D/g, '')
+          .slice(-10);
+
+        // If order already claimed, or phone doesn't match the logged-in user
+        if (orderData.isClaimed || (userPhone && orderPhone && orderPhone !== userPhone)) {
+          try {
+            sessionStorage.removeItem('pending_claim_order');
+          } catch {}
+          setPendingClaimOrder(null);
+        }
+      })
+      .catch(() => {
+        // Unresolvable order; do not show
+        try {
+          sessionStorage.removeItem('pending_claim_order');
+        } catch {}
+        if (isSubscribed) {
+          setPendingClaimOrder(null);
+        }
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [pendingClaimOrder, user?.mobileNumber]);
 
   const handleCreated = (newResource: Resource) => {
     const newId = newResource.id || (newResource as any)._id;
@@ -193,27 +272,47 @@ export const DashboardPage: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Guest Order Claim & Plus Activation Banner */}
-      {sessionStorage.getItem('pending_claim_order') && (
-        <div className="my-4 p-4 rounded-xl bg-surface border border-accent/40 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="w-4 h-4 text-accent shrink-0" />
-            <div>
-              <p className="font-semibold text-ink">
-                Unclaimed Order #{sessionStorage.getItem('pending_claim_order')}
-              </p>
-              <p className="text-muted text-[11px] mt-0.5">
-                Claim this purchase to activate your included 12-Month Plus subscription.
-              </p>
-            </div>
+      {/* Subtle Unclaimed Order Notice */}
+      {pendingClaimOrder && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          className="mb-4 py-2 px-3 sm:px-3.5 rounded bg-surface border border-border/80 flex items-center justify-between gap-3 text-xs"
+        >
+          <div className="flex items-center gap-2 min-w-0 text-muted">
+            <QrCode className="w-3.5 h-3.5 text-ink shrink-0" />
+            <span className="truncate">
+              Order <span className="font-mono text-ink">#{pendingClaimOrder}</span> &bull; Physical tag ready to pair
+            </span>
           </div>
-          <Link
-            to={`/order/${encodeURIComponent(sessionStorage.getItem('pending_claim_order') || '')}`}
-            className="px-3.5 py-1.5 bg-ink text-surface text-xs font-semibold uppercase tracking-wider rounded hover:opacity-90 transition-opacity shrink-0 text-center"
-          >
-            Claim Plus Plan
-          </Link>
-        </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsPairOpen(true)}
+              className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-ink uppercase tracking-wider hover:opacity-75 transition-opacity cursor-pointer"
+            >
+              <span>Pair Tag</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem('pending_claim_order');
+                } catch {}
+                setPendingClaimOrder(null);
+              }}
+              className="text-muted/60 hover:text-ink transition-colors p-0.5 cursor-pointer"
+              title="Dismiss notice"
+              aria-label="Dismiss notice"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </motion.div>
       )}
 
       {/* Main Content Area - Immediate Access to Resources */}
@@ -356,6 +455,10 @@ export const DashboardPage: React.FC = () => {
         onClose={() => setIsPairOpen(false)}
         onSuccess={() => {
           setIsPairOpen(false);
+          try {
+            sessionStorage.removeItem('pending_claim_order');
+          } catch {}
+          setPendingClaimOrder(null);
           fetchResources();
         }}
       />

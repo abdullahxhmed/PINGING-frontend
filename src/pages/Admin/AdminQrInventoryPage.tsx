@@ -4,6 +4,8 @@ import { AdminLayout } from '../../components/admin/AdminLayout';
 import { AdminStickerModal } from '../../components/admin/AdminStickerModal';
 import { PrintProfilesSection } from '../../components/admin/PrintProfilesSection';
 import { PrintBatchesSection } from '../../components/admin/PrintBatchesSection';
+import { WarehouseInwardingSection } from '../../components/admin/WarehouseInwardingSection';
+import { BundleHealthSection } from '../../components/admin/BundleHealthSection';
 import { buildTagQrUrl } from '../../lib/qr';
 import { adminApi } from '../../lib/adminApi';
 import type {
@@ -11,6 +13,8 @@ import type {
   AdminInventoryTagRecord,
   TagStockState,
   BulkStockItem,
+  PrintBatch,
+  AdminProduct,
 } from '../../types/admin';
 import {
   Search,
@@ -41,14 +45,16 @@ const STOCK_STATES: Array<{ value: 'ALL' | TagStockState; label: string }> = [
 export const AdminQrInventoryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  // Active Tab: 'overview' | 'batches' | 'stock' | 'profiles' | 'packaging'
+  // Active Tab: 'overview' | 'batches' | 'inwarding' | 'stock' | 'profiles' | 'packaging'
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'batches' | 'stock' | 'profiles' | 'packaging'
+    'overview' | 'batches' | 'inwarding' | 'stock' | 'profiles' | 'packaging'
   >('overview');
-  const [batchModalDefaultSku, setBatchModalDefaultSku] = useState<string>('TAG-VEHICLE-STICKER');
+  const [selectedInwardBatch, setSelectedInwardBatch] = useState<PrintBatch | null>(null);
+  const [batchModalDefaultSku, setBatchModalDefaultSku] = useState<string>('KT-VS-SGL-DRK');
 
-  // Summary State
+  // Summary & Catalog State
   const [summary, setSummary] = useState<AdminInventorySummary | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<AdminProduct[]>([]);
 
   // Serialized Tags State
   const [tags, setTags] = useState<AdminInventoryTagRecord[]>([]);
@@ -114,6 +120,7 @@ export const AdminQrInventoryPage: React.FC = () => {
       tabParam === 'stock' ||
       tabParam === 'packaging' ||
       tabParam === 'batches' ||
+      tabParam === 'inwarding' ||
       tabParam === 'profiles'
     ) {
       setActiveTab(tabParam as any);
@@ -165,6 +172,17 @@ export const AdminQrInventoryPage: React.FC = () => {
       } catch {
         // Silently ignore
       }
+    }
+  }, []);
+
+  // Fetch Catalog Products to resolve SKUs and human-readable names
+  const fetchCatalogProducts = useCallback(async () => {
+    try {
+      const res: any = await adminApi.getCatalogProducts({ limit: 100 });
+      const payload = res?.data || res;
+      setCatalogProducts(payload?.products || []);
+    } catch {
+      // Fallback silently if catalog is unavailable
     }
   }, []);
 
@@ -259,7 +277,8 @@ export const AdminQrInventoryPage: React.FC = () => {
 
   useEffect(() => {
     fetchSummary();
-  }, [fetchSummary]);
+    fetchCatalogProducts();
+  }, [fetchSummary, fetchCatalogProducts]);
 
   useEffect(() => {
     if (activeTab === 'stock') {
@@ -268,9 +287,10 @@ export const AdminQrInventoryPage: React.FC = () => {
       fetchBulkStock();
     } else if (activeTab === 'overview') {
       fetchSummary();
+      fetchCatalogProducts();
       fetchBulkStock();
     }
-  }, [activeTab, fetchTags, fetchBulkStock, fetchSummary]);
+  }, [activeTab, fetchTags, fetchBulkStock, fetchSummary, fetchCatalogProducts]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -302,62 +322,182 @@ export const AdminQrInventoryPage: React.FC = () => {
     }
   };
 
+  // Dynamically resolve available SKUs from physical inventory summaries + catalog products
+  const availableSkuOptions = React.useMemo(() => {
+    const skuMap = new Map<string, { name?: string; inStock?: number; total?: number }>();
+
+    // 1. Pull SKUs present in serialized inventory
+    if (summary?.serializedBySku && Array.isArray(summary.serializedBySku)) {
+      summary.serializedBySku.forEach((s) => {
+        if (!s.sku) return;
+        skuMap.set(s.sku, {
+          inStock: s.physicalStock ?? s.inStock ?? 0,
+          total: s.total ?? 0,
+        });
+      });
+    }
+
+    // 2. Pull physical SKUs from catalog products and variants
+    if (catalogProducts && Array.isArray(catalogProducts)) {
+      catalogProducts.forEach((product) => {
+        product.variants?.forEach((variant) => {
+          // Check components for physical serialized QR tags
+          variant.components?.forEach((comp) => {
+            if (comp.inventorySku) {
+              const existing = skuMap.get(comp.inventorySku) || {};
+              const title =
+                comp.name ||
+                `${product.name}${variant.name && variant.name !== 'Standard Pack' ? ` (${variant.name})` : ''}`;
+              skuMap.set(comp.inventorySku, {
+                ...existing,
+                name: title,
+              });
+            }
+          });
+
+          // Check physical product variant SKUs directly
+          if (
+            product.type === 'VEHICLE_STICKER' ||
+            product.type === 'KEYCHAIN' ||
+            product.type === 'MINI_STICKER' ||
+            product.type === 'PHYSICAL_TAG_PACK'
+          ) {
+            if (variant.sku) {
+              const existing = skuMap.get(variant.sku) || {};
+              const title = `${product.name}${variant.name && variant.name !== 'Standard Pack' ? ` (${variant.name})` : ''}`;
+              skuMap.set(variant.sku, {
+                ...existing,
+                name: existing.name || title,
+              });
+            }
+          }
+        });
+      });
+    }
+
+    // 3. Fallback formatter for known standard naming conventions
+    const formatFallbackName = (sku: string): string => {
+      if (sku.startsWith('KT-VS') || sku === 'TAG-VEHICLE-STICKER') {
+        const edition = sku.includes('DRK') ? 'Dark' : sku.includes('LIT') ? 'Light' : '';
+        return `Vehicle Sticker${edition ? ` (${edition})` : sku === 'TAG-VEHICLE-STICKER' ? ' (Legacy)' : ''}`;
+      }
+      if (sku.startsWith('KT-KC') || sku === 'TAG-KEYCHAIN') {
+        const edition = sku.includes('DRK') ? 'Dark' : sku.includes('LIT') ? 'Light' : '';
+        return `Keychain Tag${edition ? ` (${edition})` : ''}`;
+      }
+      if (sku.startsWith('KT-MS') || sku === 'TAG-MINI-STICKER') {
+        const edition = sku.includes('DRK') ? 'Dark' : sku.includes('LIT') ? 'Light' : '';
+        return `Mini Sticker${edition ? ` (${edition})` : ''}`;
+      }
+      return sku;
+    };
+
+    const options: Array<{ sku: string; name: string; label: string; inStock?: number; total?: number }> = [];
+    skuMap.forEach((data, sku) => {
+      const friendlyName = data.name || formatFallbackName(sku);
+      const stockBadge = data.inStock !== undefined ? ` · ${data.inStock} in stock` : '';
+      options.push({
+        sku,
+        name: friendlyName,
+        label: `${friendlyName} (${sku})${stockBadge}`,
+        inStock: data.inStock,
+        total: data.total,
+      });
+    });
+
+    // Sort: SKUs with stock first, then alphabetically
+    return options.sort((a, b) => {
+      const aStock = a.inStock ?? 0;
+      const bStock = b.inStock ?? 0;
+      if (aStock !== bStock) return bStock - aStock;
+      return a.sku.localeCompare(b.sku);
+    });
+  }, [summary, catalogProducts]);
+
+  const skuNameMap = React.useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    availableSkuOptions.forEach((opt) => {
+      map[opt.sku] = opt.name;
+    });
+    return map;
+  }, [availableSkuOptions]);
+
   // Clean item name resolver
   const getItemName = (sku: string) => {
-    if (sku.includes('STICKER') && !sku.includes('MINI')) return 'Vehicle Sticker';
-    if (sku.includes('KEYCHAIN')) return 'Metal Keychain';
-    if (sku.includes('MINI')) return 'Mini Sticker';
+    if (skuNameMap[sku]) return skuNameMap[sku];
+    if (sku.startsWith('KT-VS') || sku === 'TAG-VEHICLE-STICKER') {
+      return sku.includes('DRK')
+        ? 'Vehicle Sticker (Dark)'
+        : sku.includes('LIT')
+        ? 'Vehicle Sticker (Light)'
+        : 'Vehicle Sticker';
+    }
+    if (sku.startsWith('KT-KC') || sku === 'TAG-KEYCHAIN') {
+      return sku.includes('DRK')
+        ? 'Keychain Tag (Dark)'
+        : sku.includes('LIT')
+        ? 'Keychain Tag (Light)'
+        : 'Keychain Tag';
+    }
+    if (sku.startsWith('KT-MS') || sku === 'TAG-MINI-STICKER') {
+      return sku.includes('DRK')
+        ? 'Mini Sticker (Dark)'
+        : sku.includes('LIT')
+        ? 'Mini Sticker (Light)'
+        : 'Mini Sticker';
+    }
     return sku;
   };
 
-  // Quiet status dot helper
+  // Quiet status dot helper — system theme only
   const renderStatusDot = (state: TagStockState | string) => {
-    let dotClass = 'bg-neutral-400';
+    let dotClass = 'bg-subtle';
     let text = state.replace(/_/g, ' ');
 
     if (state === 'GENERATED') {
-      dotClass = 'bg-purple-600';
+      dotClass = 'bg-muted';
       text = 'Digital Generated';
     } else if (state === 'SENT_TO_PRINT') {
-      dotClass = 'bg-amber-500';
+      dotClass = 'bg-subtle';
       text = 'At Vendor Print';
     } else if (state === 'IN_STOCK') {
-      dotClass = 'bg-emerald-600';
+      dotClass = 'bg-ink';
       text = 'In Stock';
     } else if (state === 'ALLOCATED_TO_ORDER') {
-      dotClass = 'bg-blue-600';
+      dotClass = 'bg-ink';
       text = 'Allocated';
     } else if (state === 'DISPATCHED') {
-      dotClass = 'bg-indigo-600';
+      dotClass = 'bg-ink';
       text = 'Dispatched';
     } else if (state === 'DELIVERED') {
-      dotClass = 'bg-teal-600';
+      dotClass = 'bg-muted';
       text = 'Delivered';
     } else if (state === 'DAMAGED') {
-      dotClass = 'bg-red-500';
+      dotClass = 'bg-danger';
       text = 'Damaged';
     } else if (state === 'RETURNED_TO_STOCK') {
-      dotClass = 'bg-amber-500';
+      dotClass = 'bg-subtle';
       text = 'Returned';
     } else if (state === 'RESERVED') {
-      dotClass = 'bg-purple-600';
+      dotClass = 'bg-subtle';
       text = 'Reserved';
     }
 
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-ink font-mono">
-        <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
         <span>{text}</span>
       </span>
     );
   };
 
-  const totals = summary?.totals || {
-    totalPhysicalTags: 0,
-    assignedToVehicles: 0,
-    inCommerceStock: 0,
-    reservedInCheckout: 0,
-  };
+  const totals = summary?.totals;
+  const physicalStock = totals?.physicalStock ?? totals?.inCommerceStock ?? 0;
+  const totalCommittedDemand = totals?.totalCommittedDemand ?? totals?.reservedInCheckout ?? 0;
+  const paidUnfulfilledDemand = totals?.paidUnfulfilledDemand ?? 0;
+  const reservedInCheckout = totals?.reservedInCheckout ?? 0;
+  const totalSellableStock =
+    totals?.totalSellableStock ?? Math.max(0, physicalStock - totalCommittedDemand);
 
   const totalGenerated =
     summary?.serializedBySku?.reduce((sum, item) => sum + (item.generated || 0), 0) || 0;
@@ -371,7 +511,7 @@ export const AdminQrInventoryPage: React.FC = () => {
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 px-3.5 py-2 rounded border border-border bg-surface shadow-md text-xs font-medium text-ink flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+          <span className="w-1.5 h-1.5 rounded-full bg-ink" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -395,6 +535,7 @@ export const AdminQrInventoryPage: React.FC = () => {
               if (activeTab === 'stock') fetchTags(true);
               else if (activeTab === 'packaging') fetchBulkStock();
               fetchSummary();
+              fetchCatalogProducts();
             }}
             disabled={isRefreshing}
             className="w-8 h-8 rounded-full border border-border hover:border-ink bg-surface flex items-center justify-center text-muted hover:text-ink active:scale-95 transition-all cursor-pointer shadow-2xs"
@@ -433,85 +574,91 @@ export const AdminQrInventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. Warehouse Stock Metrics Bar (5 Warehouse Lifecycle States) ── */}
-      <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 py-2 border-y border-border/60">
-        <div className="space-y-0.5">
+      {/* ── 2. Warehouse Stock Metrics Bar (Sellable Stock Equation & Lifecycle) ── */}
+      <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px border border-border rounded-lg bg-border overflow-hidden">
+        <div className="space-y-0.5 bg-surface px-4 py-3">
           <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
-            Digital Unprinted
+            Sellable Stock
           </span>
-          <span className="font-satoshi font-semibold text-xl sm:text-2xl text-purple-700 tracking-tight block">
-            {totalGenerated.toLocaleString()}
+          <span className="font-semibold text-xl text-ink tracking-tight block font-mono">
+            {totalSellableStock.toLocaleString()}
           </span>
-          <span className="text-[10px] text-muted font-satoshi font-medium block">
-            0 sellable until printed
+          <span className="text-[10px] text-muted block">
+            Available for customer purchase
           </span>
         </div>
 
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 bg-surface px-4 py-3">
+          <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
+            Physical In-Stock
+          </span>
+          <span className="font-semibold text-xl text-ink tracking-tight block font-mono">
+            {physicalStock.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-muted block">
+            Physical tags in warehouse
+          </span>
+        </div>
+
+        <div className="space-y-0.5 bg-surface px-4 py-3">
+          <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
+            Committed Demand
+          </span>
+          <span className="font-semibold text-xl text-ink tracking-tight block font-mono">
+            {totalCommittedDemand.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-muted block">
+            {paidUnfulfilledDemand} paid · {reservedInCheckout} cart holds
+          </span>
+        </div>
+
+        <div className="space-y-0.5 bg-surface px-4 py-3">
           <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
             At Print Vendor
           </span>
-          <span className="font-satoshi font-semibold text-xl sm:text-2xl text-amber-600 tracking-tight block">
+          <span className="font-semibold text-xl text-ink tracking-tight block font-mono">
             {totalSentToPrint.toLocaleString()}
           </span>
-          <span className="text-[10px] text-muted font-satoshi font-medium block">
+          <span className="text-[10px] text-muted block">
             In vendor production
           </span>
         </div>
 
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 col-span-2 sm:col-span-1 bg-surface px-4 py-3">
           <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
-            Available Stock
+            Damaged
           </span>
-          <span className="font-satoshi font-semibold text-xl sm:text-2xl text-emerald-700 tracking-tight block">
-            {totals.inCommerceStock.toLocaleString()}
-          </span>
-          <span className="text-[10px] text-muted font-satoshi font-medium block">
-            Sellable &amp; ready to pack
-          </span>
-        </div>
-
-        <div className="space-y-0.5">
-          <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
-            Checkout Reserved
-          </span>
-          <span className="font-satoshi font-semibold text-xl sm:text-2xl text-amber-600 tracking-tight block">
-            {totals.reservedInCheckout.toLocaleString()}
-          </span>
-          <span className="text-[10px] text-muted font-satoshi font-medium block">
-            Temporary cart holds
-          </span>
-        </div>
-
-        <div className="space-y-0.5 col-span-2 sm:col-span-1">
-          <span className="text-[10px] text-muted tracking-wider uppercase font-medium block">
-            Damaged / Quarantine
-          </span>
-          <span className="font-satoshi font-semibold text-xl sm:text-2xl text-red-600 tracking-tight block">
+          <span className={`font-semibold text-xl tracking-tight block font-mono ${totalDamaged > 0 ? 'text-danger' : 'text-ink'}`}>
             {totalDamaged.toLocaleString()}
           </span>
-          <span className="text-[10px] text-muted font-satoshi font-medium block">
+          <span className="text-[10px] text-muted block">
             Defective or rejected tags
           </span>
         </div>
       </div>
 
       {/* Operational Fleet & Cumulative Context (Separated from Warehouse Inventory) */}
-      <div className="mt-2.5 px-3.5 py-1.5 rounded-lg bg-bg/70 border border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-          <span className="font-medium text-ink">Operational Fleet Assets:</span>
-          <span className="font-mono font-semibold text-blue-700">
-            {totals.assignedToVehicles.toLocaleString()} active on vehicles
-          </span>
-          <span className="text-muted text-[11px]">
-            (active customer assets · not warehouse inventory)
-          </span>
+      <div className="mt-2.5 px-3.5 py-1.5 rounded bg-bg border border-border/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-ink" />
+            <span className="font-medium text-ink">Operational Fleet Assets:</span>
+            <span className="font-mono font-semibold text-ink">
+              {(totals?.assignedToVehicles ?? 0).toLocaleString()} active on vehicles
+            </span>
+            <span className="text-muted text-[11px]">
+              (active customer assets · not warehouse inventory)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-muted text-[11px] font-mono">
+            <span>Unprinted Digital Tokens:</span>
+            <span className="font-semibold text-ink">{totalGenerated.toLocaleString()}</span>
+          </div>
         </div>
         <div className="flex items-center gap-1.5 text-muted text-[11px] font-mono">
           <span>Lifetime Output:</span>
           <span className="font-semibold text-ink">
-            {totals.totalPhysicalTags.toLocaleString()} tags generated
+            {(totals?.totalPhysicalTags ?? 0).toLocaleString()} tags generated
           </span>
         </div>
       </div>
@@ -525,7 +672,7 @@ export const AdminQrInventoryPage: React.FC = () => {
             activeTab === 'overview' ? 'text-ink' : 'text-muted hover:text-ink'
           }`}
         >
-          <span>Overview</span>
+          <span>Overview &amp; Bundles</span>
           {activeTab === 'overview' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
           )}
@@ -538,8 +685,21 @@ export const AdminQrInventoryPage: React.FC = () => {
             activeTab === 'batches' ? 'text-ink' : 'text-muted hover:text-ink'
           }`}
         >
-          <span>Print Runs</span>
+          <span>Production Batches</span>
           {activeTab === 'batches' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('inwarding')}
+          className={`pb-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer relative shrink-0 ${
+            activeTab === 'inwarding' ? 'text-ink' : 'text-muted hover:text-ink'
+          }`}
+        >
+          <span>Warehouse Inwarding</span>
+          {activeTab === 'inwarding' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
           )}
         </button>
@@ -590,18 +750,21 @@ export const AdminQrInventoryPage: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="mt-6 space-y-6">
           {/* Low Stock Warnings Banner if any SKU has low sellable stock */}
-          {summary?.serializedBySku?.some((s) => (s.inStock ?? 0) <= 5) && (
-            <div className="p-3.5 rounded-lg border border-amber-300 bg-amber-50/70 text-amber-900 text-xs flex items-center justify-between gap-3">
+          {summary?.serializedBySku?.some((s) => {
+            const sellable = s.sellableStock ?? Math.max(0, (s.physicalStock ?? s.inStock ?? 0) - (s.committedDemand ?? 0));
+            return sellable <= 5;
+          }) && (
+            <div className="p-3 rounded border border-border bg-bg text-ink text-xs flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <AlertTriangle className="w-3.5 h-3.5 text-muted shrink-0" />
                 <span>
-                  <strong>Low stock alert:</strong> One or more SKUs have 5 or fewer available sellable tags in warehouse inventory.
+                  <strong>Low sellable stock alert:</strong> One or more SKUs have 5 or fewer sellable units available after committed demand.
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveTab('batches')}
-                className="font-semibold underline hover:opacity-80 shrink-0 cursor-pointer"
+                className="font-semibold underline hover:opacity-80 shrink-0 cursor-pointer text-ink"
               >
                 Create Print Run →
               </button>
@@ -609,92 +772,95 @@ export const AdminQrInventoryPage: React.FC = () => {
           )}
 
           {/* SKU Stock Levels & Lifecycle Summary Table */}
-          <div className="border border-border rounded-lg bg-surface overflow-hidden shadow-xs">
-            <div className="px-4 py-3 border-b border-border bg-bg/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-ink font-satoshi">
-                  Sellable Stock &amp; Manufacturing Funnel by SKU
-                </h3>
-                <p className="text-[11px] text-muted font-satoshi">
-                  Physical warehouse stock, vendor manufacturing batches, and temporary checkout holds
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-mono text-muted">
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> Available
-                </span>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Vendor Print
-                </span>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600" /> Unprinted
-                </span>
-              </div>
+          <div className="border border-border rounded-lg bg-surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-bg/50">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink">
+                Stock &amp; Manufacturing Funnel by SKU
+              </h3>
+              <p className="text-[11px] text-muted mt-0.5">
+                Sellable stock = max(0, Physical in-stock − Committed demand), plus production pipeline and cart holds
+              </p>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse font-satoshi">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-bg/30 text-muted font-mono uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-4 font-medium">Product SKU</th>
-                    <th className="py-2.5 px-3 font-medium text-emerald-700">Available Stock</th>
-                    <th className="py-2.5 px-3 font-medium text-amber-700">At Vendor Print</th>
-                    <th className="py-2.5 px-3 font-medium text-purple-700">Digital Unprinted</th>
-                    <th className="py-2.5 px-3 font-medium text-amber-600">Checkout Hold</th>
-                    <th className="py-2.5 px-3 font-medium text-blue-600">Packing Allocated</th>
-                    <th className="py-2.5 px-3 font-medium text-red-600">Damaged</th>
-                    <th className="py-2.5 px-3 font-medium text-muted">Field Delivered</th>
-                    <th className="py-2.5 px-4 font-medium text-right text-ink">Total Lifecycle</th>
+                    <th className="py-2.5 px-3 font-medium">Sellable</th>
+                    <th className="py-2.5 px-3 font-medium">Physical</th>
+                    <th className="py-2.5 px-3 font-medium">Committed</th>
+                    <th className="py-2.5 px-3 font-medium">At Vendor</th>
+                    <th className="py-2.5 px-3 font-medium">Unprinted</th>
+                    <th className="py-2.5 px-3 font-medium">Cart Hold</th>
+                    <th className="py-2.5 px-3 font-medium">Allocated</th>
+                    <th className="py-2.5 px-3 font-medium">Damaged</th>
+                    <th className="py-2.5 px-3 font-medium">Delivered</th>
+                    <th className="py-2.5 px-4 font-medium text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 font-mono text-[11px]">
                   {(!summary?.serializedBySku || summary.serializedBySku.length === 0) ? (
                     <tr>
-                      <td colSpan={9} className="py-8 text-center text-muted font-satoshi text-xs">
+                      <td colSpan={11} className="py-8 text-center text-muted text-xs">
                         No SKU stock summaries available. Generate tags or import inventory.
                       </td>
                     </tr>
                   ) : (
                     summary.serializedBySku.map((item) => {
-                      const isLowStock = (item.inStock ?? 0) <= 5;
+                      const physical = item.physicalStock ?? item.inStock ?? 0;
+                      const committed = item.committedDemand ?? (item.reserved || 0);
+                      const sellable = item.sellableStock ?? Math.max(0, physical - committed);
+                      const isLowStock = sellable <= 5;
                       return (
                         <tr key={item.sku} className="hover:bg-bg/40 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-ink font-satoshi">
+                          <td className="py-3 px-4 font-semibold text-ink font-sans">
                             <div className="flex items-center gap-1.5">
                               <span>{item.sku}</span>
                               {isLowStock && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] uppercase font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold bg-bg text-muted border border-border">
                                   Low
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-3 font-semibold text-emerald-700 font-mono">
-                            <span className="text-sm">{item.inStock}</span>
+                          <td className="py-3 px-3 font-semibold text-ink font-mono">
+                            <span className="text-sm">{sellable}</span>
                             <span className="text-[10px] text-muted font-sans ml-1">sellable</span>
                           </td>
-                          <td className="py-3 px-3 text-amber-700 font-mono">
-                            {item.sentToPrint ?? 0}
+                          <td className="py-3 px-3 text-ink font-mono font-medium">
+                            {physical}
                           </td>
-                          <td className="py-3 px-3 text-purple-700 font-mono">
-                            {item.generated ?? 0}
-                          </td>
-                          <td className="py-3 px-3 text-amber-600 font-mono">
-                            {item.reserved}
-                          </td>
-                          <td className="py-3 px-3 text-blue-600 font-mono">
-                            {item.allocated}
-                          </td>
-                          <td className="py-3 px-3 text-red-600 font-mono">
-                            {item.damaged}
+                          <td className="py-3 px-3 font-mono">
+                            <span className={committed > 0 ? 'text-ink font-semibold' : 'text-muted'}>
+                              {committed}
+                            </span>
+                            {committed > 0 && (
+                              <span className="text-[10px] text-muted block font-sans">
+                                {item.paidUnfulfilledDemand ?? 0} paid · {item.activeReservationsDemand ?? item.reserved ?? 0} cart
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-3 text-muted font-mono">
-                            {item.delivered}
+                            {item.sentToPrint ?? 0}
+                          </td>
+                          <td className="py-3 px-3 text-muted font-mono">
+                            {item.generated ?? 0}
+                          </td>
+                          <td className="py-3 px-3 text-muted font-mono">
+                            {item.activeReservationsDemand ?? item.reserved ?? 0}
+                          </td>
+                          <td className="py-3 px-3 text-muted font-mono">
+                            {item.allocated ?? 0}
+                          </td>
+                          <td className={`py-3 px-3 font-mono ${(item.damaged ?? 0) > 0 ? 'text-danger' : 'text-muted'}`}>
+                            {item.damaged ?? 0}
+                          </td>
+                          <td className="py-3 px-3 text-muted font-mono">
+                            {item.delivered ?? 0}
                           </td>
                           <td className="py-3 px-4 font-bold text-ink text-right font-mono">
-                            {item.total}
+                            {item.total ?? 0}
                           </td>
                         </tr>
                       );
@@ -705,15 +871,21 @@ export const AdminQrInventoryPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Bundle Health & Component Constraints */}
+          <BundleHealthSection
+            summary={summary}
+            onRefresh={fetchSummary}
+          />
+
           {/* Quick Production Workflows Hub */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg border border-border bg-surface space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded border border-border bg-surface space-y-2">
               <div className="flex items-center gap-2 text-ink font-semibold text-xs">
-                <Plus className="w-4 h-4 text-purple-600" />
+                <Plus className="w-4 h-4 text-muted" />
                 <span>1. Generate Digital Tokens</span>
               </div>
               <p className="text-[11px] text-muted leading-relaxed">
-                Mint unique, cryptographically secure serialized tag numbers before assigning them to vendor print sheets.
+                Mint unique, serialized tag numbers before assigning them to vendor print sheets.
               </p>
               <button
                 type="button"
@@ -723,41 +895,41 @@ export const AdminQrInventoryPage: React.FC = () => {
                 }}
                 className="mt-1 text-xs text-ink font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Generate digital tokens →</span>
+                <span>Generate tokens →</span>
               </button>
             </div>
 
-            <div className="p-4 rounded-lg border border-border bg-surface space-y-2">
+            <div className="p-4 rounded border border-border bg-surface space-y-2">
               <div className="flex items-center gap-2 text-ink font-semibold text-xs">
-                <Box className="w-4 h-4 text-amber-600" />
-                <span>2. Print Runs &amp; Vendors</span>
+                <Box className="w-4 h-4 text-muted" />
+                <span>2. Production Batches</span>
               </div>
               <p className="text-[11px] text-muted leading-relaxed">
-                Dispatch print jobs to printing vendors, export CSV manifests with dimensions, and record inward warehouse receiving.
+                Dispatch print jobs to vendors, export CSV manifests, and manage vendor runs.
               </p>
               <button
                 type="button"
                 onClick={() => setActiveTab('batches')}
                 className="mt-1 text-xs text-ink font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Manage print runs →</span>
+                <span>Manage batches →</span>
               </button>
             </div>
 
-            <div className="p-4 rounded-lg border border-border bg-surface space-y-2">
+            <div className="p-4 rounded border border-border bg-surface space-y-2">
               <div className="flex items-center gap-2 text-ink font-semibold text-xs">
-                <Layers className="w-4 h-4 text-emerald-600" />
-                <span>3. Stocked Tags &amp; Packaging</span>
+                <Layers className="w-4 h-4 text-muted" />
+                <span>3. Warehouse Inwarding</span>
               </div>
               <p className="text-[11px] text-muted leading-relaxed">
-                Search individual tag records, inspect physical condition, update damage states, and track packaging supplies.
+                Record physical deliveries, activate stock to shelves, and log defective tags.
               </p>
               <button
                 type="button"
-                onClick={() => setActiveTab('stock')}
+                onClick={() => setActiveTab('inwarding')}
                 className="mt-1 text-xs text-ink font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <span>Inspect serialized tags →</span>
+                <span>Inward deliveries →</span>
               </button>
             </div>
           </div>
@@ -779,6 +951,25 @@ export const AdminQrInventoryPage: React.FC = () => {
             if (sku) setBatchModalDefaultSku(sku);
             setIsBatchModalOpen(true);
           }}
+          onSelectBatchForInward={(batch) => {
+            setSelectedInwardBatch(batch);
+            setActiveTab('inwarding');
+          }}
+        />
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB: WAREHOUSE INWARDING & STOCK ACTIVATION               */}
+      {/* ========================================================= */}
+      {activeTab === 'inwarding' && (
+        <WarehouseInwardingSection
+          preselectedBatch={selectedInwardBatch}
+          onRefreshInventory={() => {
+            fetchSummary();
+            fetchTags();
+          }}
+          showToast={showToast}
+          onNavigateToBatches={() => setActiveTab('batches')}
         />
       )}
 
@@ -812,45 +1003,60 @@ export const AdminQrInventoryPage: React.FC = () => {
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse font-satoshi">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-border bg-bg/30 text-muted font-mono uppercase tracking-wider text-[10px]">
                       <th className="py-2 px-4 font-medium">SKU</th>
-                      <th className="py-2 px-3 font-medium text-purple-700">Digital Unprinted</th>
-                      <th className="py-2 px-3 font-medium text-amber-700">At Vendor Print</th>
-                      <th className="py-2 px-3 font-medium text-emerald-700">Sellable In Stock</th>
-                      <th className="py-2 px-3 font-medium text-amber-600">Checkout Hold</th>
-                      <th className="py-2 px-3 font-medium text-blue-600">Allocated</th>
-                      <th className="py-2 px-3 font-medium text-teal-600">Delivered</th>
-                      <th className="py-2 px-3 font-medium text-red-600">Damaged</th>
-                      <th className="py-2 px-4 font-medium text-right text-ink">Total</th>
+                      <th className="py-2 px-3 font-medium">Unprinted</th>
+                      <th className="py-2 px-3 font-medium">At Vendor</th>
+                      <th className="py-2 px-3 font-medium">Available</th>
+                      <th className="py-2 px-3 font-medium">Cart Hold</th>
+                      <th className="py-2 px-3 font-medium">Allocated</th>
+                      <th className="py-2 px-3 font-medium">Delivered</th>
+                      <th className="py-2 px-3 font-medium">Damaged</th>
+                      <th className="py-2 px-4 font-medium text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60 font-mono text-[11px]">
                     {summary.serializedBySku.map((item) => (
                       <tr key={item.sku} className="hover:bg-bg/40 transition-colors">
                         <td className="py-2.5 px-4 font-semibold text-ink">
-                          {item.sku}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSkuFilter(item.sku);
+                              setPage(1);
+                            }}
+                            className="hover:underline text-left cursor-pointer flex items-center gap-1.5 font-mono text-xs"
+                            title={`Filter stock ledger by ${item.sku}`}
+                          >
+                            <span>{item.sku}</span>
+                            {skuFilter === item.sku && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-ink text-surface font-sans font-bold uppercase tracking-wider">
+                                Filtered
+                              </span>
+                            )}
+                          </button>
                         </td>
-                        <td className="py-2.5 px-3 text-purple-700">
+                        <td className="py-2.5 px-3 text-muted">
                           {item.generated ?? 0}
                         </td>
-                        <td className="py-2.5 px-3 text-amber-700">
+                        <td className="py-2.5 px-3 text-muted">
                           {item.sentToPrint ?? 0}
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-emerald-700">
+                        <td className="py-2.5 px-3 font-semibold text-ink">
                           {item.inStock}
                         </td>
-                        <td className="py-2.5 px-3 text-amber-600">
+                        <td className="py-2.5 px-3 text-muted">
                           {item.reserved}
                         </td>
-                        <td className="py-2.5 px-3 text-blue-600">
+                        <td className="py-2.5 px-3 text-muted">
                           {item.allocated}
                         </td>
-                        <td className="py-2.5 px-3 text-teal-600">
+                        <td className="py-2.5 px-3 text-muted">
                           {item.delivered}
                         </td>
-                        <td className="py-2.5 px-3 text-red-600">
+                        <td className={`py-2.5 px-3 ${(item.damaged ?? 0) > 0 ? 'text-danger' : 'text-muted'}`}>
                           {item.damaged}
                         </td>
                         <td className="py-2.5 px-4 font-bold text-ink text-right">
@@ -894,12 +1100,15 @@ export const AdminQrInventoryPage: React.FC = () => {
                   setSkuFilter(e.target.value);
                   setPage(1);
                 }}
+                aria-label="Filter by Product SKU"
                 className="px-2.5 py-1.5 bg-surface border border-border rounded text-xs font-mono text-ink focus:outline-none focus:border-ink"
               >
-                <option value="ALL">All Products</option>
-                <option value="TAG-VEHICLE-STICKER">Vehicle Stickers</option>
-                <option value="TAG-KEYCHAIN">Metal Keychains</option>
-                <option value="TAG-MINI-STICKER">Mini Stickers</option>
+                <option value="ALL">All Products ({availableSkuOptions.length} SKUs)</option>
+                {availableSkuOptions.map((opt) => (
+                  <option key={opt.sku} value={opt.sku}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
 
               <select
@@ -916,6 +1125,36 @@ export const AdminQrInventoryPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {skuFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSkuFilter('ALL');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-mono transition-colors cursor-pointer"
+                  title="Clear SKU filter"
+                >
+                  <span>SKU: {skuFilter}</span>
+                  <X className="w-3 h-3 text-muted" />
+                </button>
+              )}
+
+              {stateFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStateFilter('ALL');
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-mono transition-colors cursor-pointer"
+                  title="Clear state filter"
+                >
+                  <span>State: {stateFilter}</span>
+                  <X className="w-3 h-3 text-muted" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -969,7 +1208,7 @@ export const AdminQrInventoryPage: React.FC = () => {
                               title="Copy Tag Number"
                             >
                               {copiedId === `tag-${t.id}` ? (
-                                <Check className="w-3 h-3 text-emerald-600" />
+                                <Check className="w-3 h-3 text-ink" />
                               ) : (
                                 <Copy className="w-3 h-3" />
                               )}
@@ -1140,13 +1379,13 @@ export const AdminQrInventoryPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           {item.isLowStock ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-red-600">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-danger">
+                              <span className="w-1.5 h-1.5 rounded-full bg-danger" />
                               <span>Low ({item.reorderLevel})</span>
                             </span>
                           ) : (
                             <span className="text-muted font-mono text-[11px]">
-                              level: {item.reorderLevel}
+                              {item.reorderLevel}
                             </span>
                           )}
                         </td>
@@ -1250,7 +1489,8 @@ export const AdminQrInventoryPage: React.FC = () => {
       {/* ========================================================= */}
       {isBatchModalOpen && (
         <BatchGenerateSkuModal
-          defaultSku={batchModalDefaultSku || (skuFilter !== 'ALL' ? skuFilter : 'TAG-VEHICLE-STICKER')}
+          defaultSku={batchModalDefaultSku || (skuFilter !== 'ALL' ? skuFilter : (availableSkuOptions[0]?.sku || 'KT-VS-SGL-DRK'))}
+          skuOptions={availableSkuOptions}
           onClose={() => setIsBatchModalOpen(false)}
           onSuccess={() => {
             setIsBatchModalOpen(false);
@@ -1302,17 +1542,19 @@ export const AdminQrInventoryPage: React.FC = () => {
 // =========================================================================
 interface BatchGenerateSkuModalProps {
   defaultSku?: string;
+  skuOptions: Array<{ sku: string; name: string; label: string }>;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const BatchGenerateSkuModal: React.FC<BatchGenerateSkuModalProps> = ({
   defaultSku,
+  skuOptions,
   onClose,
   onSuccess,
 }) => {
   const [selectedProduct, setSelectedProduct] = useState<string>(
-    defaultSku || 'TAG-VEHICLE-STICKER'
+    defaultSku || skuOptions[0]?.sku || 'KT-VS-SGL-DRK'
   );
   const [quantity, setQuantity] = useState<number>(100);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1427,15 +1669,28 @@ const BatchGenerateSkuModal: React.FC<BatchGenerateSkuModalProps> = ({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block font-medium text-ink mb-1">Physical Item *</label>
+                <label className="block font-medium text-ink mb-1">Physical Item SKU *</label>
                 <select
                   value={selectedProduct}
                   onChange={(e) => setSelectedProduct(e.target.value)}
                   className="w-full px-3 py-2 rounded border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-none"
                 >
-                  <option value="TAG-VEHICLE-STICKER">Vehicle QR Sticker</option>
-                  <option value="TAG-KEYCHAIN">Metal QR Keychain</option>
-                  <option value="TAG-MINI-STICKER">Mini QR Sticker</option>
+                  {skuOptions.length > 0 ? (
+                    skuOptions.map((opt) => (
+                      <option key={opt.sku} value={opt.sku}>
+                        {opt.name} ({opt.sku})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="KT-VS-SGL-DRK">Vehicle Sticker — Dark (KT-VS-SGL-DRK)</option>
+                      <option value="KT-VS-SGL-LIT">Vehicle Sticker — Light (KT-VS-SGL-LIT)</option>
+                      <option value="KT-KC-SGL-DRK">Keychain Tag — Dark (KT-KC-SGL-DRK)</option>
+                      <option value="KT-KC-SGL-LIT">Keychain Tag — Light (KT-KC-SGL-LIT)</option>
+                      <option value="KT-MS-SGL-DRK">Mini Sticker — Dark (KT-MS-SGL-DRK)</option>
+                      <option value="KT-MS-SGL-LIT">Mini Sticker — Light (KT-MS-SGL-LIT)</option>
+                    </>
+                  )}
                 </select>
               </div>
 

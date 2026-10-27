@@ -32,7 +32,8 @@ export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { updateUser } = useAuth();
-  const { subscription, isPlus, openUpgradeModal } = useSubscription();
+  const { subscription, isPlus, canRenewPlan, daysUntilRenewal, daysRemaining, openUpgradeModal } =
+    useSubscription();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -606,13 +607,22 @@ export const SettingsPage: React.FC = () => {
                 </h2>
 
                 {isPlus ? (
-                  <button
-                    type="button"
-                    onClick={() => openUpgradeModal('PLUS_RENEWAL')}
-                    className="text-xs sm:text-sm font-semibold text-ink hover:text-muted transition-colors cursor-pointer"
-                  >
-                    Renew plan
-                  </button>
+                  canRenewPlan ? (
+                    <button
+                      type="button"
+                      onClick={() => openUpgradeModal('PLUS_RENEWAL')}
+                      className="text-xs sm:text-sm font-semibold text-ink hover:text-muted transition-colors cursor-pointer"
+                    >
+                      Renew plan
+                    </button>
+                  ) : (
+                    <span
+                      title={`Renewal opens 30 days before expiry (${daysRemaining} days remaining)`}
+                      className="text-xs sm:text-sm text-muted font-medium cursor-not-allowed"
+                    >
+                      Renew in {daysUntilRenewal} days
+                    </span>
+                  )
                 ) : (
                   <button
                     type="button"

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { startCheckoutFlow, getOrderStatus, pollOrderStatus } from '../../services/checkout';
 import { useStoreCatalog } from '../../features/store/useStoreCatalog';
+import { useToast } from '../../components/ui/Toast';
 
 const CHECKOUT_DRAFT_KEY = 'kauntact_checkout_draft';
 const ACTIVE_PAYMENT_KEY = 'kauntact_active_payment';
@@ -69,6 +70,7 @@ export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromOrigin = (location.state as { from?: string } | null)?.from;
+  const { toast } = useToast();
 
   // Real-time backend catalog
   const { sets, addons, products: backendCatalog } = useStoreCatalog();
@@ -152,6 +154,7 @@ export const CheckoutPage: React.FC = () => {
 
   const updateSetQty = (id: string, delta: number) => {
     if (delta > 0 && cartCalc.itemCount >= MAX_ITEMS_PER_ORDER) {
+      toast.error(`Maximum limit of ${MAX_ITEMS_PER_ORDER} items per order.`);
       return;
     }
     setCart((prev) => {
@@ -171,6 +174,7 @@ export const CheckoutPage: React.FC = () => {
 
   const updateAddonQty = (id: string, delta: number) => {
     if (delta > 0 && cartCalc.itemCount >= MAX_ITEMS_PER_ORDER) {
+      toast.error(`Maximum limit of ${MAX_ITEMS_PER_ORDER} items per order.`);
       return;
     }
     setCart((prev) => {
@@ -232,7 +236,17 @@ export const CheckoutPage: React.FC = () => {
     }
 
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+
+    const errorList = Object.values(errs);
+    if (errorList.length > 0) {
+      if (errorList.length === 1) {
+        toast.error(errorList[0]);
+      } else {
+        toast.error(`Please complete required fields:\n• ${errorList.join('\n• ')}`, { duration: 6000 });
+      }
+    }
+
+    return errorList.length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -258,11 +272,11 @@ export const CheckoutPage: React.FC = () => {
       }));
 
     if (checkoutItems.length === 0) {
+      const msg = 'Unable to resolve the product variant ID for items in your cart. Please try re-adding items from the store.';
       setIsSubmitting(false);
       setProgressStatus(null);
-      setErrors({
-        submit: 'Unable to resolve the product variant ID for items in your cart. Please try re-adding items from the store.',
-      });
+      setErrors({ submit: msg });
+      toast.error(msg);
       return;
     }
 
@@ -287,18 +301,20 @@ export const CheckoutPage: React.FC = () => {
           matchedVariant.inStock === false ||
           (matchedVariant.availableQuantity !== undefined && matchedVariant.availableQuantity <= 0)
         ) {
+          const msg = `Sorry, ${matchedVariant.name || 'an item in your cart'} is currently sold out.`;
           setIsSubmitting(false);
-          setErrors({ submit: `Sorry, ${matchedVariant.name || 'an item in your cart'} is currently sold out.` });
+          setErrors({ submit: msg });
+          toast.error(msg);
           return;
         }
         if (
           matchedVariant.availableQuantity !== undefined &&
           item.quantity > matchedVariant.availableQuantity
         ) {
+          const msg = `Only ${matchedVariant.availableQuantity} units available for ${matchedVariant.name}. Please adjust your cart quantity.`;
           setIsSubmitting(false);
-          setErrors({
-            submit: `Only ${matchedVariant.availableQuantity} units available for ${matchedVariant.name}. Please adjust your cart quantity.`,
-          });
+          setErrors({ submit: msg });
+          toast.error(msg);
           return;
         }
       }
@@ -339,7 +355,10 @@ export const CheckoutPage: React.FC = () => {
         };
 
         saveOrderToStorage(confirmedOrder);
-        sessionStorage.setItem('pending_claim_order', orderNumber);
+        sessionStorage.setItem(
+          'pending_claim_order',
+          JSON.stringify({ orderNumber, phone: cleanMobile })
+        );
         saveCartToStorage({ sets: {}, addons: {}, setTones: {} });
         try {
           sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
@@ -354,6 +373,7 @@ export const CheckoutPage: React.FC = () => {
         setIsSubmitting(false);
         setProgressStatus(null);
         setErrors({ submit: errorMsg });
+        toast.error(errorMsg, { duration: 5000 });
       },
       (progressMsg) => {
         setProgressStatus(progressMsg);
@@ -461,10 +481,17 @@ export const CheckoutPage: React.FC = () => {
                         navigate(`/order/${activePaymentOrder}`, { state: { from: 'bottom' } });
                       } else {
                         setIsVerifyingActivePayment(false);
-                        setErrors({ submit: 'Payment not yet confirmed by the bank. If money was debited, it will confirm in a few moments.' });
+                        const msg = 'Payment not yet confirmed by the bank. If money was debited, it will confirm in a few moments.';
+                        setErrors({ submit: msg });
+                        toast.error(msg);
                       }
                     })
-                    .catch(() => setIsVerifyingActivePayment(false));
+                    .catch(() => {
+                      setIsVerifyingActivePayment(false);
+                      const msg = 'Failed to verify payment status. Please try again.';
+                      setErrors({ submit: msg });
+                      toast.error(msg);
+                    });
                 }}
                 className="px-3 py-1.5 font-semibold bg-ink text-[#F4F3EE] rounded-sm hover:opacity-90 transition-opacity"
               >

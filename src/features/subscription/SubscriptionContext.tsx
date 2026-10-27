@@ -12,13 +12,19 @@ import { authStorage } from '../../lib/auth';
 import { useAuth } from '../auth/AuthContext';
 import { SubscriptionPlansModal } from './SubscriptionPlansModal';
 import { DemotedTagSelectionModal } from './DemotedTagSelectionModal';
+import { useToast } from '../../components/ui/Toast';
 import { PaymentSuccessModal } from './PaymentSuccessModal';
+
+export const RENEWAL_WINDOW_DAYS = 30;
 
 interface SubscriptionContextType {
   subscription: UserSubscription | null;
   tags: SubscriptionTagsState | null;
   catalog: SubscriptionPack[];
   isPlus: boolean;
+  canRenewPlan: boolean;
+  daysRemaining: number;
+  daysUntilRenewal: number;
   isLoading: boolean;
   error: string | null;
   refetch: (force?: boolean) => Promise<void>;
@@ -40,6 +46,7 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [tags, setTags] = useState<SubscriptionTagsState | null>(null);
   const [catalog, setCatalog] = useState<SubscriptionPack[]>([]);
@@ -137,10 +144,31 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
   }, [fetchSubscriptionData, isAuthenticated]);
 
+  const isPlus = Boolean(
+    subscription?.tier === 'PLUS' &&
+      subscription?.status === 'ACTIVE' &&
+      !subscription?.isExpired
+  );
+
+  const daysRemaining = subscription?.daysRemaining ?? (
+    subscription?.expiresAt
+      ? Math.max(0, Math.ceil((new Date(subscription.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : isPlus
+      ? 365
+      : 0
+  );
+
+  const canRenewPlan = !isPlus || daysRemaining <= RENEWAL_WINDOW_DAYS || Boolean(subscription?.isExpired);
+  const daysUntilRenewal = Math.max(0, daysRemaining - RENEWAL_WINDOW_DAYS);
+
   const openUpgradeModal = useCallback((packType?: PackType) => {
+    if (packType === 'PLUS_RENEWAL' && !canRenewPlan) {
+      toast.info(`Plan renewal opens 30 days before expiry. You currently have ${daysRemaining} days remaining on your active plan.`);
+      return;
+    }
     setSelectedPackForUpgrade(packType || null);
     setIsUpgradeModalOpen(true);
-  }, []);
+  }, [canRenewPlan, daysRemaining, toast]);
 
   const closeUpgradeModal = useCallback(() => {
     setIsUpgradeModalOpen(false);
@@ -155,12 +183,6 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     setIsTagSelectionModalOpen(false);
   }, []);
 
-  const isPlus = Boolean(
-    subscription?.tier === 'PLUS' &&
-      subscription?.status === 'ACTIVE' &&
-      !subscription?.isExpired
-  );
-
   return (
     <SubscriptionContext.Provider
       value={{
@@ -168,6 +190,9 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         tags,
         catalog,
         isPlus,
+        canRenewPlan,
+        daysRemaining,
+        daysUntilRenewal,
         isLoading,
         error,
         refetch: fetchSubscriptionData,

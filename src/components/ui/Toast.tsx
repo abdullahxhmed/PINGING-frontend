@@ -72,7 +72,7 @@ const ToastCard: React.FC<{
     >
       {/* Message Text with inline underlined action and 45-degree arrow */}
       <span
-        className={`text-xs sm:text-sm font-sans font-medium leading-snug tracking-wide break-words flex-1 ${
+        className={`text-xs sm:text-sm font-sans font-medium leading-snug tracking-wide break-words whitespace-pre-line flex-1 ${
           isError ? 'text-[#ff7875]' : 'text-[#f5f4ee]'
         }`}
       >

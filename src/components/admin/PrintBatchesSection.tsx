@@ -4,19 +4,20 @@ import type {
   PrintBatch,
   SerializedSkuSummary,
   CreatePrintBatchPayload,
-  ReceivePrintBatchPayload,
+  AdminProduct,
 } from '../../types/admin';
 import {
   Printer,
   Plus,
   RefreshCw,
   Search,
-  CheckCircle2,
   AlertTriangle,
   PackageCheck,
   X,
   FileSpreadsheet,
   ShieldCheck,
+  Send,
+  Eye,
 } from 'lucide-react';
 
 interface PrintBatchesSectionProps {
@@ -24,6 +25,7 @@ interface PrintBatchesSectionProps {
   onRefreshInventory?: () => void;
   showToast: (msg: string) => void;
   onOpenBatchGenerator?: (sku?: string) => void;
+  onSelectBatchForInward?: (batch: PrintBatch) => void;
 }
 
 export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
@@ -31,6 +33,7 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
   onRefreshInventory,
   showToast,
   onOpenBatchGenerator,
+  onSelectBatchForInward,
 }) => {
   const [batches, setBatches] = useState<PrintBatch[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -41,9 +44,12 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
   const [skuFilter, setSkuFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Modals
+  // Modals & Drawers
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const [receivingBatch, setReceivingBatch] = useState<PrintBatch | null>(null);
+  const [detailBatch, setDetailBatch] = useState<PrintBatch | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState<boolean>(false);
+  const [dispatchConfirmBatch, setDispatchConfirmBatch] = useState<PrintBatch | null>(null);
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
   const [exportingBatchId, setExportingBatchId] = useState<string | null>(null);
 
   // Fetch Print Batches
@@ -85,9 +91,42 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
       URL.revokeObjectURL(url);
       showToast(`Exported print manifest for ${batch.batchNumber}`);
     } catch (err: any) {
-      alert(`Export failed: ${err.message || 'Unknown error'}`);
+      showToast(`Export failed: ${err.message || 'Unknown error'}`);
     } finally {
       setExportingBatchId(null);
+    }
+  };
+
+  // Open Detailed Drawer with Fresh Authoritative State
+  const handleViewDetails = async (batch: PrintBatch) => {
+    setDetailBatch(batch);
+    setIsLoadingDetail(true);
+    try {
+      const res = await adminApi.getPrintBatchById(batch.id);
+      if (res?.data) {
+        setDetailBatch(res.data);
+      }
+    } catch {
+      // Fallback to local batch
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  // Handle Dispatch to Vendor Confirmation
+  const handleConfirmDispatch = async () => {
+    if (!dispatchConfirmBatch) return;
+    setIsDispatching(true);
+    try {
+      const res = await adminApi.dispatchPrintBatch(dispatchConfirmBatch.id);
+      showToast(res.message || `Batch ${dispatchConfirmBatch.batchNumber} dispatched to printer.`);
+      setDispatchConfirmBatch(null);
+      fetchBatches();
+      if (onRefreshInventory) onRefreshInventory();
+    } catch (err: any) {
+      showToast(`Dispatch failed: ${err.message || 'Could not dispatch batch'}`);
+    } finally {
+      setIsDispatching(false);
     }
   };
 
@@ -98,23 +137,24 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
     return (
       b.batchNumber?.toLowerCase().includes(term) ||
       b.vendorName?.toLowerCase().includes(term) ||
-      b.sku?.toLowerCase().includes(term)
+      b.sku?.toLowerCase().includes(term) ||
+      b.variantSnapshot?.variantName?.toLowerCase().includes(term)
     );
   });
 
   return (
     <div className="space-y-6 mt-6">
-      {/* 1. Header & Quick Stats */}
+      {/* 1. Header & Primary Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
           <div className="flex items-center gap-2">
             <Printer className="w-4 h-4 text-ink" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-ink font-satoshi">
-              Production Print Runs & Vendor Batches
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-ink font-mono">
+              Production Print Runs &amp; Vendor Batches
             </h2>
           </div>
-          <p className="text-xs text-muted mt-1 font-satoshi">
-            Dispatch digital QR tokens to print shops, download manufacturing manifests (CSV), and inward received stock.
+          <p className="text-xs text-muted mt-0.5">
+            Manage production print jobs, export sequence-numbered printer manifests, dispatch to vendors, and monitor inwarding progress.
           </p>
         </div>
 
@@ -123,7 +163,7 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
             type="button"
             onClick={fetchBatches}
             disabled={isLoading}
-            className="p-1.5 rounded border border-border bg-surface hover:border-ink text-muted hover:text-ink cursor-pointer disabled:opacity-50"
+            className="w-8 h-8 rounded-full border border-border hover:border-ink bg-surface flex items-center justify-center text-muted hover:text-ink active:scale-95 transition-all cursor-pointer shadow-2xs"
             title="Refresh batches"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -132,23 +172,22 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-3.5 py-1.5 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium flex items-center gap-1.5 cursor-pointer font-satoshi"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-ink hover:opacity-90 active:scale-95 text-surface text-xs font-medium tracking-wide shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Create Print Run</span>
+            <span>Create Production Batch</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Informational Banner: Lifecycle & Snapshot Immutability */}
-      <div className="p-3.5 rounded-xl border border-border bg-bg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-satoshi">
+      {/* 2. Informational Banner: Lifecycle & Snapshot Invariant */}
+      <div className="p-3.5 rounded border border-border bg-bg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-start gap-2.5">
           <ShieldCheck className="w-4 h-4 text-ink shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <span className="font-semibold text-ink">Manufacturing Invariant & Snapshot Protection:</span>
+            <span className="font-semibold text-ink">Manufacturing Invariant &amp; Snapshot Protection:</span>
             <p className="text-[11px] text-muted leading-relaxed">
-              When a print run is dispatched, each batch locks an immutable snapshot (<code className="font-mono text-[10px]">profileSnapshot</code>).
-              Digital tags in <span className="font-mono text-[10px] px-1 py-0.2 rounded bg-neutral-200 text-neutral-800">GENERATED</span> state do not enter storefront sellable stock until inwarded via Warehouse Receiving (<span className="font-mono text-[10px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800">IN_STOCK</span>).
+              When created, batches record immutable snapshots of the variant artwork and print dimensions. Digital tags remain in vendor production until physically received at the warehouse via the Inwarding workflow.
             </p>
           </div>
         </div>
@@ -168,54 +207,41 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Filter */}
-          <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-surface text-xs font-satoshi">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-                statusFilter === 'ALL'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              All Batches ({batches.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('PRINTING')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-                statusFilter === 'PRINTING'
-                  ? 'bg-amber-600 text-white'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              At Vendor (Printing)
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('STOCKED')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-                statusFilter === 'STOCKED'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              Stocked (Complete)
-            </button>
+          <div className="flex items-center gap-1 p-0.5 rounded border border-border bg-surface text-xs font-mono">
+            {[
+              { id: 'ALL', label: `All (${batches.length})` },
+              { id: 'PRINTING', label: 'In Printing' },
+              { id: 'PARTIALLY_RECEIVED', label: 'Partially Received' },
+              { id: 'STOCKED', label: 'Stocked' },
+              { id: 'GENERATED', label: 'Prepared' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
+                  statusFilter === tab.id
+                    ? 'bg-ink text-surface font-semibold'
+                    : 'text-muted hover:text-ink'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* SKU Filter */}
           <select
             value={skuFilter}
             onChange={(e) => setSkuFilter(e.target.value)}
-            className="px-2.5 py-1 rounded-lg border border-border bg-surface text-xs text-ink font-mono focus:border-ink focus:outline-none"
+            className="px-2.5 py-1 rounded border border-border bg-surface text-xs text-ink font-mono focus:border-ink focus:outline-none"
           >
             <option value="ALL">All SKUs</option>
-            <option value="TAG-VEHICLE-STICKER">TAG-VEHICLE-STICKER</option>
-            <option value="TAG-KEYCHAIN">TAG-KEYCHAIN</option>
-            <option value="TAG-MINI-STICKER">TAG-MINI-STICKER</option>
-            <option value="TAG-BIKE-WATERPROOF">TAG-BIKE-WATERPROOF</option>
-            <option value="TAG-PREPRINTED-STD">TAG-PREPRINTED-STD</option>
+            {serializedSummaries.map((s) => (
+              <option key={s.sku} value={s.sku}>
+                {s.sku}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -224,7 +250,7 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
           <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search batch # or vendor..."
+            placeholder="Search batch #, vendor, or SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 bg-surface border border-border rounded text-xs text-ink placeholder:text-muted font-mono focus:outline-none focus:border-ink"
@@ -234,7 +260,7 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
 
       {/* 4. Error State */}
       {error && (
-        <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs flex items-center gap-2">
+        <div className="p-3 rounded border border-danger/40 bg-bg text-danger text-xs flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -242,186 +268,181 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
 
       {/* 5. Batches Table */}
       {isLoading ? (
-        <div className="p-12 text-center text-xs text-muted font-satoshi flex items-center justify-center gap-2">
+        <div className="p-12 text-center text-xs text-muted flex items-center justify-center gap-2 font-mono">
           <RefreshCw className="w-4 h-4 animate-spin text-ink" />
           <span>Loading production print batches...</span>
         </div>
       ) : filteredBatches.length === 0 ? (
-        <div className="p-12 text-center rounded-xl border border-dashed border-border bg-surface space-y-2">
-          <Printer className="w-6 h-6 text-muted mx-auto" />
-          <p className="text-xs font-semibold text-ink font-satoshi">No production print runs found</p>
-          <p className="text-[11px] text-muted font-satoshi max-w-sm mx-auto">
-            Create a production print run to allocate generated digital QR tokens to a print vendor.
+        <div className="p-12 text-center rounded-lg border border-dashed border-border bg-surface space-y-2">
+          <Printer className="w-8 h-8 text-muted mx-auto" />
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-ink font-mono">
+            No Production Print Batches Found
+          </h4>
+          <p className="text-xs text-muted max-w-sm mx-auto">
+            {searchTerm || statusFilter !== 'ALL' || skuFilter !== 'ALL'
+              ? 'Try clearing your filters or search terms.'
+              : 'Create your first production print batch to dispatch digital tags to print shops.'}
           </p>
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="mt-2 px-3 py-1.5 rounded bg-ink text-surface text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create First Print Run</span>
-          </button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-surface overflow-hidden shadow-xs">
+        <div className="border border-border rounded-lg bg-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-border bg-bg/60 text-muted font-medium text-[11px] uppercase tracking-wider font-satoshi">
-                  <th className="py-2.5 px-4">Batch Number</th>
-                  <th className="py-2.5 px-3">SKU & Specs</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Vendor</th>
-                  <th className="py-2.5 px-3">Receiving Progress</th>
-                  <th className="py-2.5 px-4 text-right">Actions</th>
+                <tr className="border-b border-border bg-bg/40 text-muted font-mono uppercase tracking-wider text-[10px]">
+                  <th className="py-2.5 px-4 font-medium">Batch Number</th>
+                  <th className="py-2.5 px-3 font-medium">Product / Variant</th>
+                  <th className="py-2.5 px-3 font-medium">Physical SKU</th>
+                  <th className="py-2.5 px-3 font-medium">Status</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Requested</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Accepted</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Defective</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Outstanding</th>
+                  <th className="py-2.5 px-3 font-medium">Vendor</th>
+                  <th className="py-2.5 px-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border font-satoshi">
+              <tbody className="divide-y divide-border/60 font-mono text-[11px]">
                 {filteredBatches.map((batch) => {
-                  const isStocked = batch.status === 'STOCKED' || batch.outstanding === 0;
-                  const percentReceived = batch.quantityRequested > 0
-                    ? Math.round(((batch.quantityReceived + batch.quantityDefective) / batch.quantityRequested) * 100)
-                    : 100;
+                  const accepted =
+                    batch.quantityAccepted ??
+                    Math.max(0, batch.quantityReceived - batch.quantityDefective);
+                  const outstanding = Math.max(
+                    0,
+                    batch.quantityRequested - (accepted + batch.quantityDefective)
+                  );
+                  const isEligibleForInward =
+                    batch.status === 'PRINTING' || batch.status === 'PARTIALLY_RECEIVED';
+                  const isReadyToDispatch =
+                    batch.status === 'GENERATED' || batch.status === 'PREPARED';
 
                   return (
-                    <tr
-                      key={batch.id}
-                      className="hover:bg-bg/40 transition-colors"
-                    >
-                      {/* Batch Number & Date */}
-                      <td className="py-3 px-4">
-                        <div className="space-y-0.5">
-                          <span className="font-mono font-semibold text-ink text-xs block">
-                            {batch.batchNumber}
-                          </span>
-                          <span className="text-[10px] text-muted font-mono block">
-                            Dispatched: {new Date(batch.dispatchedAt || batch.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
+                    <tr key={batch.id} className="hover:bg-bg/40 transition-colors">
+                      {/* Batch Identifier & Barcode */}
+                      <td className="py-3 px-4 font-semibold text-ink font-mono">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDetails(batch)}
+                          className="hover:underline text-ink font-bold text-left block"
+                        >
+                          {batch.batchNumber}
+                        </button>
+                        <span className="text-[10px] text-muted block font-sans">
+                          {new Date(batch.createdAt).toLocaleDateString()}
+                        </span>
                       </td>
 
-                      {/* SKU & Immutable Snapshot Details */}
-                      <td className="py-3 px-3">
-                        <div className="space-y-0.5">
-                          <span className="font-mono text-xs font-medium text-ink block">
-                            {batch.sku}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-[10px] text-muted font-mono">
-                            <span>
-                              {batch.profileSnapshot?.widthMm || 100}×{batch.profileSnapshot?.heightMm || 100}mm
-                            </span>
-                            <span>•</span>
-                            <span>{batch.profileSnapshot?.shape || 'CIRCLE'}</span>
-                            <span>•</span>
-                            <span className="truncate max-w-[120px]">{batch.templateSnapshot?.name || 'Default Template'}</span>
-                          </div>
-                        </div>
+                      {/* Product & Variant */}
+                      <td className="py-3 px-3 font-sans">
+                        <span className="font-medium text-ink block truncate max-w-[160px]">
+                          {batch.variantSnapshot?.variantName ||
+                            batch.variant?.name ||
+                            batch.product?.name ||
+                            'Standard Sticker'}
+                        </span>
+                        <span className="text-[10px] text-muted font-mono block">
+                          {batch.variantSnapshot?.variantSku || batch.variant?.sku || '—'}
+                        </span>
+                      </td>
+
+                      {/* SKU */}
+                      <td className="py-3 px-3 text-ink font-mono font-medium">
+                        {batch.sku}
                       </td>
 
                       {/* Status */}
                       <td className="py-3 px-3">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-medium ${
-                            isStocked
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-amber-100 text-amber-900 border border-amber-200'
+                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase font-semibold border ${
+                            batch.status === 'STOCKED'
+                              ? 'border-border bg-bg text-ink'
+                              : batch.status === 'PARTIALLY_RECEIVED'
+                              ? 'border-border bg-bg text-ink font-bold'
+                              : batch.status === 'PRINTING'
+                              ? 'border-border bg-bg text-ink'
+                              : 'border-border bg-bg text-muted'
                           }`}
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isStocked ? 'bg-emerald-600' : 'bg-amber-500 animate-pulse'
-                            }`}
-                          />
-                          <span>{batch.status}</span>
+                          {batch.status.replace(/_/g, ' ')}
                         </span>
+                      </td>
+
+                      {/* Quantities */}
+                      <td className="py-3 px-3 text-right font-bold text-ink">
+                        {batch.quantityRequested}
+                      </td>
+                      <td className="py-3 px-3 text-right font-medium text-ink">
+                        {accepted}
+                      </td>
+                      <td
+                        className={`py-3 px-3 text-right ${
+                          batch.quantityDefective > 0 ? 'text-danger font-bold' : 'text-muted'
+                        }`}
+                      >
+                        {batch.quantityDefective}
+                      </td>
+                      <td
+                        className={`py-3 px-3 text-right font-semibold ${
+                          outstanding > 0 ? 'text-ink' : 'text-muted'
+                        }`}
+                      >
+                        {outstanding}
                       </td>
 
                       {/* Vendor */}
-                      <td className="py-3 px-3">
-                        <span className="text-xs font-medium text-ink block">
-                          {batch.vendorName || 'Print Vendor'}
-                        </span>
-                        {batch.notes && (
-                          <span className="text-[10px] text-muted truncate max-w-[150px] block" title={batch.notes}>
-                            {batch.notes}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Progress / Receiving Accounting */}
-                      <td className="py-3 px-3">
-                        <div className="space-y-1.5 min-w-[170px]">
-                          <div className="flex items-center justify-between text-[11px] font-mono">
-                            <span className="text-ink font-semibold">
-                              Accounted for: {percentReceived}%
-                            </span>
-                            <span className="text-muted text-[10px]">
-                              Total: {batch.quantityRequested}
-                            </span>
-                          </div>
-
-                          {/* Progress Bar (Accepted: emerald, Defective: red, Remaining: neutral) */}
-                          <div className="w-full h-1.5 bg-neutral-200 rounded-full overflow-hidden flex" title={`Accepted: ${batch.quantityReceived}, Defective: ${batch.quantityDefective}, Outstanding: ${batch.outstanding}`}>
-                            <div
-                              style={{ width: `${Math.min(100, (batch.quantityReceived / (batch.quantityRequested || 1)) * 100)}%` }}
-                              className="bg-emerald-600 h-full"
-                            />
-                            {batch.quantityDefective > 0 && (
-                              <div
-                                style={{ width: `${Math.min(100, (batch.quantityDefective / (batch.quantityRequested || 1)) * 100)}%` }}
-                                className="bg-red-500 h-full"
-                              />
-                            )}
-                          </div>
-
-                          {/* Explicit Separate Accounting Labels */}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-mono">
-                            <span className="text-emerald-700 font-medium">
-                              Accepted: <strong>{batch.quantityReceived}</strong>
-                            </span>
-                            <span className="text-muted">•</span>
-                            <span className={batch.quantityDefective > 0 ? 'text-red-600 font-medium' : 'text-muted'}>
-                              Defective: <strong>{batch.quantityDefective}</strong>
-                            </span>
-                            <span className="text-muted">•</span>
-                            <span className={batch.outstanding > 0 ? 'text-amber-700 font-medium' : 'text-muted'}>
-                              Outstanding: <strong>{batch.outstanding}</strong>
-                            </span>
-                          </div>
-                        </div>
+                      <td className="py-3 px-3 text-muted font-sans truncate max-w-[120px]">
+                        {batch.vendorName || '—'}
                       </td>
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5">
                           {/* Export Manifest CSV */}
                           <button
                             type="button"
                             onClick={() => handleExportManifest(batch)}
                             disabled={exportingBatchId === batch.id}
-                            className="px-2.5 py-1 rounded border border-border bg-surface hover:border-ink text-ink text-xs font-medium inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            title="Download CSV manifest for print shop"
+                            className="p-1.5 rounded border border-border hover:border-ink text-muted hover:text-ink cursor-pointer"
+                            title="Export Printer Manifest (CSV)"
                           >
-                            <FileSpreadsheet className="w-3 h-3 text-muted" />
-                            <span>{exportingBatchId === batch.id ? 'Exporting...' : 'Manifest'}</span>
+                            <FileSpreadsheet
+                              className={`w-3.5 h-3.5 ${
+                                exportingBatchId === batch.id ? 'animate-spin' : ''
+                              }`}
+                            />
                           </button>
 
-                          {/* Warehouse Inward */}
-                          {batch.outstanding > 0 ? (
+                          {/* Dispatch Action if not yet dispatched */}
+                          {isReadyToDispatch && (
                             <button
                               type="button"
-                              onClick={() => setReceivingBatch(batch)}
-                              className="px-2.5 py-1 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium inline-flex items-center gap-1 cursor-pointer"
+                              onClick={() => setDispatchConfirmBatch(batch)}
+                              className="px-2 py-1 rounded bg-ink text-surface hover:opacity-90 text-[10px] font-mono uppercase cursor-pointer"
                             >
-                              <PackageCheck className="w-3 h-3" />
-                              <span>Inward</span>
+                              Dispatch
                             </button>
-                          ) : (
-                            <span className="px-2 py-1 text-[11px] font-mono text-muted inline-flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Done</span>
-                            </span>
                           )}
+
+                          {/* Inward Action if printing or partially received */}
+                          {isEligibleForInward && onSelectBatchForInward && (
+                            <button
+                              type="button"
+                              onClick={() => onSelectBatchForInward(batch)}
+                              className="px-2 py-1 rounded border border-ink bg-surface hover:bg-ink hover:text-surface text-ink text-[10px] font-mono uppercase cursor-pointer transition-colors"
+                            >
+                              Inward
+                            </button>
+                          )}
+
+                          {/* View Detail Drawer */}
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails(batch)}
+                            className="p-1.5 rounded border border-border hover:border-ink text-muted hover:text-ink cursor-pointer"
+                            title="View Batch Details & Audit Receipts"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -434,15 +455,15 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 1: CREATE PRODUCTION PRINT RUN                      */}
+      {/* MODAL: CREATE PRINT BATCH (CATALOG VARIANT LINKED)       */}
       {/* ========================================================= */}
       {isCreateModalOpen && (
         <CreatePrintBatchModal
           serializedSummaries={serializedSummaries}
           onClose={() => setIsCreateModalOpen(false)}
-          onSuccess={(createdBatch) => {
+          onSuccess={(newBatch) => {
             setIsCreateModalOpen(false);
-            showToast(`Print batch '${createdBatch.batchNumber}' created for ${createdBatch.quantityRequested} tags.`);
+            showToast(`Batch ${newBatch.batchNumber} created successfully.`);
             fetchBatches();
             if (onRefreshInventory) onRefreshInventory();
           }}
@@ -451,28 +472,270 @@ export const PrintBatchesSection: React.FC<PrintBatchesSectionProps> = ({
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 2: WAREHOUSE RECEIVING & STOCK ACTIVATION           */}
+      {/* MODAL: DISPATCH CONFIRMATION                              */}
       {/* ========================================================= */}
-      {receivingBatch && (
-        <ReceivePrintBatchModal
-          batch={receivingBatch}
-          onClose={() => setReceivingBatch(null)}
-          onSuccess={(res) => {
-            setReceivingBatch(null);
-            showToast(
-              `Inwarded: ${res.data.newlyAccepted} tags activated to IN_STOCK, ${res.data.newlyDefective} marked DAMAGED.`
-            );
-            fetchBatches();
-            if (onRefreshInventory) onRefreshInventory();
-          }}
-        />
+      {dispatchConfirmBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 text-ink font-semibold text-sm">
+                <Send className="w-4 h-4" />
+                <span>Confirm Batch Dispatch to Printer</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDispatchConfirmBatch(null)}
+                className="text-muted hover:text-ink p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted leading-relaxed">
+              Are you sure you want to dispatch batch{' '}
+              <strong className="text-ink font-mono">{dispatchConfirmBatch.batchNumber}</strong> ({dispatchConfirmBatch.quantityRequested} tags) to{' '}
+              <strong className="text-ink">{dispatchConfirmBatch.vendorName}</strong>?
+            </p>
+
+            <div className="p-3 rounded border border-border bg-bg text-xs space-y-1 font-mono text-[11px]">
+              <div>SKU: {dispatchConfirmBatch.sku}</div>
+              <div>Quantity: {dispatchConfirmBatch.quantityRequested} tags</div>
+              <div>State transition: GENERATED → PRINTING</div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setDispatchConfirmBatch(null)}
+                className="px-3 py-1.5 rounded border border-border hover:border-ink text-xs font-medium text-ink cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDispatch}
+                disabled={isDispatching}
+                className="px-4 py-1.5 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium cursor-pointer disabled:opacity-50"
+              >
+                {isDispatching ? 'Dispatching...' : 'Confirm Dispatch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* DRAWER: AUTHORITATIVE BATCH DETAILS & AUDIT RECEIPTS     */}
+      {/* ========================================================= */}
+      {detailBatch && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-ink/50 backdrop-blur-xs">
+          <div className="w-full max-w-xl bg-surface border-l border-border h-full overflow-y-auto shadow-2xl p-5 sm:p-6 space-y-6 animate-in slide-in-from-right duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-start justify-between gap-3 pb-4 border-b border-border">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-ink font-mono">
+                    {detailBatch.batchNumber}
+                  </h3>
+                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-ink text-surface font-semibold">
+                    {detailBatch.status.replace(/_/g, ' ')}
+                  </span>
+                  {isLoadingDetail && (
+                    <RefreshCw className="w-3.5 h-3.5 text-muted animate-spin" />
+                  )}
+                </div>
+                <p className="text-xs text-muted mt-1 font-mono">
+                  Physical SKU: <strong>{detailBatch.sku}</strong> · Created on{' '}
+                  {new Date(detailBatch.createdAt).toLocaleString()}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDetailBatch(null)}
+                className="p-1 rounded text-muted hover:text-ink cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleExportManifest(detailBatch)}
+                disabled={exportingBatchId === detailBatch.id}
+                className="px-3 py-1.5 rounded border border-border hover:border-ink bg-bg text-ink text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Export Manifest (CSV)</span>
+              </button>
+
+              {(detailBatch.status === 'PRINTING' ||
+                detailBatch.status === 'PARTIALLY_RECEIVED') &&
+                onSelectBatchForInward && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = detailBatch;
+                      setDetailBatch(null);
+                      onSelectBatchForInward(b);
+                    }}
+                    className="px-3.5 py-1.5 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <PackageCheck className="w-3.5 h-3.5" />
+                    <span>Inward Physical Delivery →</span>
+                  </button>
+                )}
+            </div>
+
+            {/* Quantities Overview */}
+            <div className="grid grid-cols-4 gap-px bg-border border border-border rounded text-center overflow-hidden">
+              <div className="bg-surface p-2.5 space-y-0.5">
+                <span className="text-[10px] text-muted uppercase block font-mono">Requested</span>
+                <span className="font-mono text-base font-bold text-ink block">
+                  {detailBatch.quantityRequested}
+                </span>
+              </div>
+              <div className="bg-surface p-2.5 space-y-0.5">
+                <span className="text-[10px] text-muted uppercase block font-mono">Accepted</span>
+                <span className="font-mono text-base font-bold text-ink block">
+                  {detailBatch.quantityAccepted ??
+                    (detailBatch.quantityReceived - detailBatch.quantityDefective)}
+                </span>
+              </div>
+              <div className="bg-surface p-2.5 space-y-0.5">
+                <span className="text-[10px] text-muted uppercase block font-mono">Defective</span>
+                <span
+                  className={`font-mono text-base font-bold block ${
+                    detailBatch.quantityDefective > 0 ? 'text-danger' : 'text-ink'
+                  }`}
+                >
+                  {detailBatch.quantityDefective}
+                </span>
+              </div>
+              <div className="bg-surface p-2.5 space-y-0.5">
+                <span className="text-[10px] text-muted uppercase block font-mono">Outstanding</span>
+                <span className="font-mono text-base font-bold text-ink block">
+                  {Math.max(
+                    0,
+                    detailBatch.quantityRequested -
+                      ((detailBatch.quantityAccepted ??
+                        (detailBatch.quantityReceived - detailBatch.quantityDefective)) +
+                        detailBatch.quantityDefective)
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Product / Variant Snapshot Details */}
+            <div className="p-3.5 rounded border border-border bg-bg space-y-2 text-xs">
+              <span className="font-semibold text-ink font-mono uppercase tracking-wider block text-[10px]">
+                Immutable Product &amp; Print Snapshot
+              </span>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-muted">
+                <div>
+                  Vendor: <strong className="text-ink">{detailBatch.vendorName}</strong>
+                </div>
+                <div>
+                  Dispatched:{' '}
+                  <strong className="text-ink">
+                    {detailBatch.dispatchedAt
+                      ? new Date(detailBatch.dispatchedAt).toLocaleDateString()
+                      : 'Pending'}
+                  </strong>
+                </div>
+                <div>
+                  Dimensions:{' '}
+                  <strong className="text-ink">
+                    {detailBatch.profileSnapshot?.widthMm}x{detailBatch.profileSnapshot?.heightMm}mm
+                  </strong>
+                </div>
+                <div>
+                  Material:{' '}
+                  <strong className="text-ink">
+                    {detailBatch.profileSnapshot?.material || 'Vinyl UV Protected'}
+                  </strong>
+                </div>
+                {detailBatch.variantSnapshot?.variantName && (
+                  <div className="col-span-2">
+                    Variant Snapshot:{' '}
+                    <strong className="text-ink">
+                      {detailBatch.variantSnapshot.variantName} (
+                      {detailBatch.variantSnapshot.variantSku})
+                    </strong>
+                  </div>
+                )}
+                {detailBatch.notes && (
+                  <div className="col-span-2 text-muted">
+                    Notes: <span className="text-ink">{detailBatch.notes}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Chronological Inwarding Receipts (Audit Trail) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink font-mono">
+                  Inwarding Audit History ({detailBatch.receipts?.length || 0})
+                </span>
+              </div>
+
+              {(!detailBatch.receipts || detailBatch.receipts.length === 0) ? (
+                <div className="p-4 rounded border border-border text-center text-xs text-muted font-mono">
+                  No inwarding receipts recorded yet for this batch.
+                </div>
+              ) : (
+                <div className="space-y-2 font-mono text-xs">
+                  {detailBatch.receipts.map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-3 rounded border border-border bg-surface space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-ink">{r.receiptNumber}</span>
+                        <span className="text-[10px] text-muted">
+                          {new Date(r.receivedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-muted">
+                        <span>Delivered: <strong>{r.receivedQuantity}</strong></span>
+                        <span>Accepted: <strong className="text-ink">{r.acceptedQuantity}</strong></span>
+                        <span>
+                          Defective:{' '}
+                          <strong className={r.defectiveQuantity > 0 ? 'text-danger' : 'text-ink'}>
+                            {r.defectiveQuantity}
+                          </strong>
+                        </span>
+                        {r.missingQuantity > 0 && (
+                          <span>Missing: <strong className="text-muted">{r.missingQuantity}</strong></span>
+                        )}
+                      </div>
+                      {r.notes && (
+                        <div className="text-[11px] text-muted italic font-sans">{r.notes}</div>
+                      )}
+                      {r.defectiveTagNumbers && (r.defectiveTagNumbers as string[]).length > 0 && (
+                        <div className="text-[10px] text-danger bg-bg p-1.5 rounded border border-border">
+                          Defective tags revoked:{' '}
+                          {(r.defectiveTagNumbers as string[]).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
 // =========================================================================
-// Create Print Batch Modal Component
+// Create Print Batch Modal (Product Variant Linked & Component SKU Safe)
 // =========================================================================
 interface CreatePrintBatchModalProps {
   serializedSummaries: SerializedSkuSummary[];
@@ -487,14 +750,18 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
   onSuccess,
   onOpenBatchGenerator,
 }) => {
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [sku, setSku] = useState<string>('TAG-VEHICLE-STICKER');
   const [quantity, setQuantity] = useState<number>(50);
   const [vendorName, setVendorName] = useState<string>('Precision Print Labs');
   const [templateId, setTemplateId] = useState<string>('');
   const [templates, setTemplates] = useState<any[]>([]);
-  const [notes, setNotes] = useState<string>('Urgent restock batch');
-  const [dispatchImmediately, setDispatchImmediately] = useState<boolean>(true);
+  const [notes, setNotes] = useState<string>('Production print run');
+  const [dispatchImmediately, setDispatchImmediately] = useState<boolean>(false);
 
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -502,11 +769,58 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
   const skuSummary = serializedSummaries.find((s) => s.sku === sku);
   const availableGeneratedCount = skuSummary?.generated ?? 0;
 
+  // Fetch catalog products to bind real variantId & component inventorySku
+  useEffect(() => {
+    let isCancelled = false;
+    adminApi
+      .getCatalogProducts({ limit: 50, activeOnly: true })
+      .then((res: any) => {
+        if (!isCancelled) {
+          const prods: AdminProduct[] = res?.products || res?.data?.products || [];
+          setProducts(prods);
+
+          // Find default product with variant
+          const firstWithVariants = prods.find((p) => (p.variants?.length || 0) > 0);
+          if (firstWithVariants && firstWithVariants.variants?.[0]) {
+            setSelectedProductId(firstWithVariants.id);
+            setSelectedVariantId(firstWithVariants.variants[0].id || '');
+
+            // Set physical SKU from first component if available
+            const comp = firstWithVariants.variants[0].components?.[0];
+            if (comp?.inventorySku) {
+              setSku(comp.inventorySku);
+            }
+          }
+        }
+      })
+      .catch(() => {
+        // Keep fallback
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingProducts(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // When variant changes, update physical SKU
+  const handleVariantChange = (variantId: string) => {
+    setSelectedVariantId(variantId);
+    const prod = products.find((p) => p.id === selectedProductId);
+    const variant = prod?.variants?.find((v) => v.id === variantId);
+    const comp = variant?.components?.find((c: any) => c.inventorySku);
+    if (comp?.inventorySku) {
+      setSku(comp.inventorySku);
+    }
+  };
+
   // Fetch templates for selected SKU
   useEffect(() => {
     let isCancelled = false;
     adminApi
-      .getPrintProfile(sku)
+      .getPrintProfile(sku || 'TAG-VEHICLE-STICKER')
       .then((res: any) => {
         if (!isCancelled) {
           const profile = res?.data || res;
@@ -548,6 +862,7 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
     const payload: CreatePrintBatchPayload = {
       sku: sku.trim().toUpperCase(),
       quantity: Number(quantity),
+      variantId: selectedVariantId || undefined,
       vendorName: vendorName.trim(),
       templateId: templateId || undefined,
       notes: notes.trim() || undefined,
@@ -565,14 +880,16 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
     }
   };
 
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-surface border border-border rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full max-w-lg bg-surface border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Printer className="w-4 h-4 text-ink" />
-            <h3 className="text-sm font-semibold text-ink font-satoshi">
-              Create Production Print Run (Vendor Dispatch)
+            <h3 className="text-sm font-semibold text-ink font-mono">
+              Create Production Print Batch
             </h3>
           </div>
           <button
@@ -584,132 +901,129 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs font-satoshi">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs font-mono">
           {error && (
-            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span>{error}</span>
-                {availableGeneratedCount < quantity && onOpenBatchGenerator && (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        onOpenBatchGenerator(sku);
-                      }}
-                      className="font-semibold underline hover:text-red-900 cursor-pointer"
-                    >
-                      Click here to generate digital tags for {sku} →
-                    </button>
-                  </div>
-                )}
-              </div>
+            <div className="p-3 rounded border border-danger/40 bg-bg text-danger flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* SKU Selection */}
+          {/* Product & Variant Binding */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-ink font-medium mb-1 font-sans">Catalog Product</label>
+              <select
+                value={selectedProductId}
+                onChange={(e) => {
+                  setSelectedProductId(e.target.value);
+                  const p = products.find((prod) => prod.id === e.target.value);
+                  if (p?.variants?.[0]) {
+                    handleVariantChange(p.variants[0].id || '');
+                  }
+                }}
+                disabled={isLoadingProducts}
+                className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
+              >
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-ink font-medium mb-1 font-sans">Product Variant</label>
+              <select
+                value={selectedVariantId}
+                onChange={(e) => handleVariantChange(e.target.value)}
+                disabled={!selectedProduct || (selectedProduct.variants?.length || 0) === 0}
+                className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
+              >
+                {(selectedProduct?.variants || []).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.sku})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Physical Inventory SKU */}
           <div>
-            <label className="block font-medium text-ink mb-1">Product SKU *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-ink font-medium font-sans">
+                Physical Inventory SKU
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted">
+                  Unprinted available: <strong>{availableGeneratedCount}</strong>
+                </span>
+                {availableGeneratedCount === 0 && onOpenBatchGenerator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenBatchGenerator(sku);
+                    }}
+                    className="text-[10px] text-ink underline font-bold cursor-pointer"
+                  >
+                    Generate Tokens →
+                  </button>
+                )}
+              </div>
+            </div>
             <select
               value={sku}
               onChange={(e) => setSku(e.target.value)}
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink font-mono text-xs focus:border-ink focus:outline-none"
+              className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
             >
-              <option value="TAG-VEHICLE-STICKER">TAG-VEHICLE-STICKER (Windshield Decal)</option>
-              <option value="TAG-KEYCHAIN">TAG-KEYCHAIN (Acrylic / Metal)</option>
-              <option value="TAG-MINI-STICKER">TAG-MINI-STICKER (Mini Decal)</option>
-              <option value="TAG-BIKE-WATERPROOF">TAG-BIKE-WATERPROOF (Weatherproof)</option>
-              <option value="TAG-PREPRINTED-STD">TAG-PREPRINTED-STD (Standard Decal)</option>
+              {serializedSummaries.map((s) => (
+                <option key={s.sku} value={s.sku}>
+                  {s.sku} ({s.generated ?? 0} unprinted tokens ready)
+                </option>
+              ))}
+              {serializedSummaries.length === 0 && (
+                <option value="TAG-VEHICLE-STICKER">TAG-VEHICLE-STICKER</option>
+              )}
             </select>
-          </div>
-
-          {/* Available Generated Tokens Callout */}
-          <div className="p-3 rounded-lg border border-border bg-bg flex items-center justify-between text-xs">
-            <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-medium text-muted font-mono block">
-                Available Digital Tags (Unprinted)
-              </span>
-              <span className="font-mono font-semibold text-sm text-ink block">
-                {availableGeneratedCount} tags available
-              </span>
-            </div>
-
-            {availableGeneratedCount === 0 && onOpenBatchGenerator && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenBatchGenerator(sku);
-                }}
-                className="px-2.5 py-1 rounded bg-ink text-surface text-[11px] font-medium cursor-pointer"
-              >
-                + Generate First
-              </button>
-            )}
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="block font-medium text-ink mb-1">
-              Quantity to Dispatch *
+            <label className="block text-ink font-medium mb-1 font-sans">
+              Print Quantity (Units)
             </label>
             <input
               type="number"
               min="1"
               max={Math.max(1, availableGeneratedCount)}
-              required
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink font-mono focus:border-ink focus:outline-none"
+              className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
             />
-            <div className="flex items-center gap-1.5 mt-2">
-              {[15, 25, 50, 100].map((qty) => (
-                <button
-                  key={qty}
-                  type="button"
-                  onClick={() => setQuantity(qty)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono border cursor-pointer ${
-                    quantity === qty
-                      ? 'bg-ink text-surface border-ink'
-                      : 'bg-surface text-muted border-border hover:border-ink hover:text-ink'
-                  }`}
-                >
-                  {qty}
-                </button>
-              ))}
-              {availableGeneratedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setQuantity(availableGeneratedCount)}
-                  className="px-2 py-0.5 rounded text-[11px] font-mono border border-border hover:border-ink text-ink bg-surface cursor-pointer"
-                >
-                  All ({availableGeneratedCount})
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Vendor Name */}
           <div>
-            <label className="block font-medium text-ink mb-1">Print Vendor *</label>
+            <label className="block text-ink font-medium mb-1 font-sans">Print Vendor</label>
             <input
               type="text"
-              required
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
-              placeholder="e.g. Apex Print Solutions, Precision Print Labs"
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
+              placeholder="e.g. Apex Print Labs"
+              className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
             />
           </div>
 
-          {/* Reusable Template */}
+          {/* Template */}
           <div>
-            <label className="block font-medium text-ink mb-1">Design Template</label>
+            <label className="block text-ink font-medium mb-1 font-sans">Design Template</label>
             <select
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink text-xs focus:border-ink focus:outline-none"
+              className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
             >
               {templates.map((tpl) => (
                 <option key={tpl.id} value={tpl.id}>
@@ -717,25 +1031,25 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
                 </option>
               ))}
               {templates.length === 0 && (
-                <option value="">Default Decal Layout</option>
+                <option value="">Standard Label Template</option>
               )}
             </select>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block font-medium text-ink mb-1">Batch Notes</label>
+            <label className="block text-ink font-medium mb-1 font-sans">Batch Notes</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Urgent restock, Matte UV laminate run"
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
+              placeholder="e.g. Production restock run"
+              className="w-full px-3 py-1.5 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
             />
           </div>
 
           {/* Dispatch immediately */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
               id="dispatchImmediately"
@@ -743,8 +1057,8 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
               onChange={(e) => setDispatchImmediately(e.target.checked)}
               className="rounded border-border text-ink focus:ring-ink"
             />
-            <label htmlFor="dispatchImmediately" className="text-xs text-ink cursor-pointer">
-              Set status to PRINTING immediately and dispatch manifest to vendor
+            <label htmlFor="dispatchImmediately" className="text-xs text-ink cursor-pointer font-sans">
+              Dispatch to vendor immediately (status: PRINTING)
             </label>
           </div>
 
@@ -762,193 +1076,7 @@ const CreatePrintBatchModal: React.FC<CreatePrintBatchModalProps> = ({
               disabled={isSubmitting || availableGeneratedCount === 0}
               className="px-4 py-1.5 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium cursor-pointer disabled:opacity-50"
             >
-              {isSubmitting ? 'Dispatching...' : 'Dispatch Print Run'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// =========================================================================
-// Warehouse Receiving Modal Component (Partial / Complete Stock Activation)
-// =========================================================================
-interface ReceivePrintBatchModalProps {
-  batch: PrintBatch;
-  onClose: () => void;
-  onSuccess: (res: any) => void;
-}
-
-const ReceivePrintBatchModal: React.FC<ReceivePrintBatchModalProps> = ({
-  batch,
-  onClose,
-  onSuccess,
-}) => {
-  const [acceptedInput, setAcceptedInput] = useState<string>('');
-  const [defectiveInput, setDefectiveInput] = useState<string>('');
-  const [notes, setNotes] = useState<string>(
-    `Warehouse inward for batch ${batch.batchNumber}`
-  );
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Helper to parse comma / newline separated tags
-  const parseTags = (input: string): string[] => {
-    return input
-      .split(/[\n,;\s]+/)
-      .map((t) => t.trim().toUpperCase())
-      .filter((t) => t.length > 0);
-  };
-
-  const acceptedTags = parseTags(acceptedInput);
-  const defectiveTags = parseTags(defectiveInput);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (acceptedTags.length === 0 && defectiveTags.length === 0) {
-      setError('Please provide at least one accepted or defective tag number to inward.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    const payload: ReceivePrintBatchPayload = {
-      acceptedTagNumbers: acceptedTags,
-      defectiveTagNumbers: defectiveTags.length > 0 ? defectiveTags : undefined,
-      notes: notes.trim() || undefined,
-    };
-
-    try {
-      const res = await adminApi.receivePrintBatch(batch.id, payload);
-      onSuccess(res);
-    } catch (err: any) {
-      setError(err.message || 'Receiving failed. Ensure tag numbers belong to this batch.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-surface border border-border rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PackageCheck className="w-4 h-4 text-emerald-700" />
-            <h3 className="text-sm font-semibold text-ink font-satoshi">
-              Warehouse Inward & Stock Activation
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-ink p-1 rounded cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs font-satoshi">
-          {error && (
-            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Batch Summary Info */}
-          <div className="p-3 rounded-lg border border-border bg-bg/50 grid grid-cols-3 gap-2 text-xs">
-            <div>
-              <span className="text-[10px] text-muted font-mono block">BATCH</span>
-              <span className="font-mono font-semibold text-ink text-[11px] block truncate">
-                {batch.batchNumber}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted font-mono block">VENDOR</span>
-              <span className="font-semibold text-ink text-[11px] block truncate">
-                {batch.vendorName}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted font-mono block">OUTSTANDING</span>
-              <span className="font-mono font-semibold text-amber-700 text-[11px] block">
-                {batch.outstanding} tags
-              </span>
-            </div>
-          </div>
-
-          {/* State Behavior Callout */}
-          <div className="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 text-emerald-900 text-[11px] leading-relaxed">
-            <span className="font-semibold block text-emerald-950">Storefront Activation:</span>
-            Accepted tags immediately transition to <strong className="font-mono">IN_STOCK</strong> and become sellable on the storefront. Defective tags transition to <strong className="font-mono">DAMAGED</strong>.
-          </div>
-
-          {/* Accepted Tags Textarea */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="font-medium text-ink">
-                Accepted Tag Numbers ({acceptedTags.length} tags) *
-              </label>
-              <span className="text-[10px] text-muted font-mono">
-                Comma or line separated
-              </span>
-            </div>
-            <textarea
-              rows={4}
-              value={acceptedInput}
-              onChange={(e) => setAcceptedInput(e.target.value)}
-              placeholder="e.g.&#10;KT024958&#10;KT024959&#10;KT024960"
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink font-mono text-xs focus:border-ink focus:outline-none"
-            />
-          </div>
-
-          {/* Defective / Damaged Tags */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="font-medium text-ink">
-                Defective / Damaged Tags ({defectiveTags.length} tags)
-              </label>
-              <span className="text-[10px] text-muted font-mono">Optional</span>
-            </div>
-            <textarea
-              rows={2}
-              value={defectiveInput}
-              onChange={(e) => setDefectiveInput(e.target.value)}
-              placeholder="e.g. KT024961 (misaligned laminate, print artifact)"
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink font-mono text-xs focus:border-ink focus:outline-none"
-            />
-          </div>
-
-          {/* Receiving Notes */}
-          <div>
-            <label className="block font-medium text-ink mb-1">Receiving Notes</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Box 1 of 2 inwarded; QA verified"
-              className="w-full px-3 py-2 rounded border border-border bg-bg text-ink focus:border-ink focus:outline-none"
-            />
-          </div>
-
-          <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-3 py-1.5 rounded border border-border hover:border-ink text-ink text-xs font-medium cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || (acceptedTags.length === 0 && defectiveTags.length === 0)}
-              className="px-4 py-1.5 rounded bg-ink text-surface hover:opacity-90 text-xs font-medium cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? 'Inwarding...' : `Inward ${acceptedTags.length} Tag(s) to Stock`}
+              {isSubmitting ? 'Creating...' : 'Create Batch'}
             </button>
           </div>
         </form>

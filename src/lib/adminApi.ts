@@ -36,6 +36,8 @@ import type {
   CreatePrintBatchPayload,
   ReceivePrintBatchPayload,
   ReceivePrintBatchResponse,
+  InwardPrintBatchPayload,
+  InwardPrintBatchResponse,
   PackingStatusData,
   StartPackingSessionResponse,
   ScanPackingTagResponse,
@@ -646,6 +648,55 @@ export const adminApi = {
   ): Promise<ReceivePrintBatchResponse> => {
     return request<ReceivePrintBatchResponse>(
       `/api/admin/inventory/print-batches/${encodeURIComponent(batchId)}/receive`,
+      {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify(payload),
+      }
+    );
+  },
+
+  /**
+   * GET /api/admin/inventory/print-batches/:batchId
+   * Fetch complete authoritative batch details including receipts, product/variant snapshot, and sample tags.
+   */
+  getPrintBatchById: async (batchId: string): Promise<{ data: PrintBatch }> => {
+    return request<{ data: PrintBatch }>(
+      `/api/admin/inventory/print-batches/${encodeURIComponent(batchId)}`,
+      {
+        headers: getAdminHeaders(),
+      }
+    );
+  },
+
+  /**
+   * POST /api/admin/inventory/print-batches/:batchId/dispatch
+   * Record explicit batch dispatch to print vendor (GENERATED -> PRINTING).
+   */
+  dispatchPrintBatch: async (
+    batchId: string,
+    payload?: { vendorName?: string }
+  ): Promise<{ message: string; data: PrintBatch }> => {
+    return request<{ message: string; data: PrintBatch }>(
+      `/api/admin/inventory/print-batches/${encodeURIComponent(batchId)}/dispatch`,
+      {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify(payload || {}),
+      }
+    );
+  },
+
+  /**
+   * POST /api/admin/inventory/print-batches/:batchId/inward
+   * Idempotent warehouse inwarding supporting counts, deterministic defects, and receipt audit logging.
+   */
+  inwardPrintBatch: async (
+    batchId: string,
+    payload: InwardPrintBatchPayload
+  ): Promise<InwardPrintBatchResponse> => {
+    return request<InwardPrintBatchResponse>(
+      `/api/admin/inventory/print-batches/${encodeURIComponent(batchId)}/inward`,
       {
         method: 'POST',
         headers: getAdminHeaders(),

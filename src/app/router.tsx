@@ -311,6 +311,18 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/admin/inventory/batches',
+    element: <Navigate to="/admin/inventory?tab=batches" replace />,
+  },
+  {
+    path: '/admin/inventory/inwarding',
+    element: <Navigate to="/admin/inventory?tab=inwarding" replace />,
+  },
+  {
+    path: '/admin/inventory/overview',
+    element: <Navigate to="/admin/inventory?tab=overview" replace />,
+  },
+  {
     path: '/admin/qr',
     element: <Navigate to="/admin/inventory" replace />,
   },

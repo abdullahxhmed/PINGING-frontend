@@ -201,8 +201,10 @@ export const pollOrderStatus = async (
   attempts = 0
 ): Promise<void> => {
   if (attempts > 12) {
-    // Webhook may take a moment to settle; order is recorded and can still be tracked
-    onSuccess(orderNumber);
+    // Payment unconfirmed within polling window; do NOT route to celebratory confirmation
+    onError(
+      'Payment verification is taking longer than usual. If your bank account was debited, your order will update automatically once verified by the banking network.'
+    );
     return;
   }
   try {
@@ -216,6 +218,8 @@ export const pollOrderStatus = async (
       onSuccess(orderNumber);
     } else if (orderData?.status === 'CANCELLED') {
       onError('Order payment was cancelled.');
+    } else if (orderData?.paymentStatus === 'FAILED') {
+      onError('Payment failed. Please retry payment.');
     } else {
       setTimeout(() => pollOrderStatus(orderNumber, onSuccess, onError, attempts + 1), 1500);
     }
@@ -353,7 +357,7 @@ export const startCheckoutFlow = async (
       key: keyId,
       amount: amount, // in paise
       currency: currency || 'INR',
-      name: 'Kauntact',
+      name: 'kauntact.in',
       description: 'Smart QR Tag Pack Order',
       order_id: razorpayOrderId,
       prefill: {
@@ -362,7 +366,7 @@ export const startCheckoutFlow = async (
         contact: payload.shippingAddress.phoneNumber || '',
       },
       theme: {
-        color: '#0F172A',
+        color: '#0e265dff',
       },
       handler: async function (response: any) {
         // Modal payment completed

@@ -375,7 +375,12 @@ export interface SerializedSkuSummary {
   sku: string;
   generated?: number;
   sentToPrint?: number;
-  inStock: number;
+  inStock: number; // backward compatibility (maps to physicalStock)
+  physicalStock?: number;
+  committedDemand?: number;
+  paidUnfulfilledDemand?: number;
+  activeReservationsDemand?: number;
+  sellableStock?: number;
   reserved: number;
   allocated: number;
   delivered: number;
@@ -443,7 +448,31 @@ export interface CreatePrintTemplatePayload {
   brandingAssets?: Record<string, any>;
 }
 
-export type PrintBatchStatus = 'DRAFT' | 'PREPARED' | 'PRINTING' | 'STOCKED' | 'CANCELLED' | string;
+export type PrintBatchStatus =
+  | 'DRAFT'
+  | 'GENERATED'
+  | 'PREPARED'
+  | 'PRINTING'
+  | 'PARTIALLY_RECEIVED'
+  | 'STOCKED'
+  | 'RECONCILIATION_REQUIRED'
+  | 'CANCELLED'
+  | string;
+
+export interface PrintBatchReceipt {
+  id: string;
+  receiptNumber: string;
+  printBatchId: string;
+  idempotencyKey?: string | null;
+  receivedQuantity: number;
+  acceptedQuantity: number;
+  defectiveQuantity: number;
+  missingQuantity: number;
+  defectiveTagNumbers?: string[] | null;
+  receivedBy?: string | null;
+  notes?: string | null;
+  receivedAt: string;
+}
 
 export interface PrintBatch {
   id: string;
@@ -453,8 +482,11 @@ export interface PrintBatch {
   vendorName: string;
   quantityRequested: number;
   quantityReceived: number;
+  quantityAccepted?: number;
   quantityDefective: number;
   outstanding: number;
+  variantId?: string | null;
+  productId?: string | null;
   notes?: string | null;
   profileSnapshot: {
     sku?: string;
@@ -476,11 +508,50 @@ export interface PrintBatch {
     tagNumberPosition?: string;
     [key: string]: any;
   };
+  variantSnapshot?: {
+    variantId?: string;
+    variantName?: string;
+    variantSku?: string;
+    imageUrl?: string | null;
+    price?: number;
+    [key: string]: any;
+  } | null;
+  variant?: {
+    id: string;
+    name: string;
+    sku: string;
+    price: number;
+    imageUrl?: string | null;
+    product?: {
+      id: string;
+      name: string;
+      sku: string;
+      slug: string;
+    };
+  } | null;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+    slug: string;
+  } | null;
   dispatchedAt?: string | null;
   stockedAt?: string | null;
   createdAt: string;
   updatedAt?: string;
   tagCount?: number;
+  receipts?: PrintBatchReceipt[];
+  tags?: Array<{
+    id: string;
+    tagNumber: string;
+    sku: string;
+    state: string;
+    qrTag?: {
+      id: string;
+      tagNumber: string;
+      status: string;
+    };
+  }>;
 }
 
 export interface PrintBatchesResponse {
@@ -494,6 +565,7 @@ export interface PrintBatchesResponse {
 export interface CreatePrintBatchPayload {
   sku: string;
   quantity: number;
+  variantId?: string;
   vendorName: string;
   templateId?: string;
   notes?: string;
@@ -523,6 +595,40 @@ export interface ReceivePrintBatchResponse {
   };
 }
 
+export interface InwardPrintBatchPayload {
+  batchIdentifier?: string;
+  receivedCount?: number;
+  acceptedCount?: number;
+  defectiveCount?: number;
+  defectiveTagNumbers?: string[];
+  markAsFinalShipment?: boolean;
+  notes?: string;
+  receivedBy?: string;
+  idempotencyKey?: string;
+}
+
+export interface InwardPrintBatchResponse {
+  message: string;
+  data: {
+    batchId: string;
+    batchNumber: string;
+    receiptNumber: string;
+    sku: string;
+    batchStatus: PrintBatchStatus;
+    newlyAccepted: number;
+    newlyDefective: number;
+    totalReceived: number;
+    totalAccepted: number;
+    totalDefective: number;
+    outstanding: number;
+    totalSellableInStockForSku: number;
+    isFullyStocked: boolean;
+    isDuplicateRequest: boolean;
+    notes?: string;
+    receipt?: PrintBatchReceipt;
+  };
+}
+
 export interface BulkStockItem {
   id?: string;
   sku: string;
@@ -537,8 +643,12 @@ export interface BulkStockItem {
 export interface InventoryTotals {
   totalPhysicalTags: number;
   assignedToVehicles: number;
-  inCommerceStock: number;
+  inCommerceStock: number; // backward compatibility
   reservedInCheckout: number;
+  physicalStock?: number;
+  totalCommittedDemand?: number;
+  paidUnfulfilledDemand?: number;
+  totalSellableStock?: number;
 }
 
 export interface AdminInventorySummary {

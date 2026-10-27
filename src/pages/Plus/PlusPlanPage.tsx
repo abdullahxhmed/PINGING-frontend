@@ -38,7 +38,7 @@ export const DEFAULT_99_PLAN: SubscriptionPack = {
 
 export const PlusPlanPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
-  const { isPlus, showPaymentSuccess } = useSubscription();
+  const { isPlus, canRenewPlan, daysRemaining, daysUntilRenewal, showPaymentSuccess } = useSubscription();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -71,6 +71,11 @@ export const PlusPlanPage: React.FC = () => {
     if (!isAuthenticated) {
       toast.info('Please sign in to activate your Plus plan.');
       navigate('/login?redirect=/plus');
+      return;
+    }
+
+    if (isPlus && !canRenewPlan) {
+      toast.info(`Plan renewal opens 30 days before expiry. You currently have ${daysRemaining} days remaining on your active plan.`);
       return;
     }
 
@@ -279,12 +284,22 @@ export const PlusPlanPage: React.FC = () => {
               )}
             </div>
 
+            {/* Plan active / renewal locked notice */}
+            {isPlus && !canRenewPlan && (
+              <div className="p-3 rounded border border-border bg-bg text-ink text-xs space-y-1 font-satoshi">
+                <p className="font-semibold text-ink">Plan Currently Active</p>
+                <p className="text-muted leading-relaxed text-[11px]">
+                  You have {daysRemaining} days remaining on your Kauntact Plus plan. Renewal opens within 30 days of expiry.
+                </p>
+              </div>
+            )}
+
             {/* CTA */}
             <div className="space-y-2.5 pt-1">
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={isProcessing || isPlus}
+                disabled={isProcessing || (isPlus && !canRenewPlan)}
                 className="w-full py-3.5 px-4 rounded bg-ink text-surface font-mono text-xs font-semibold uppercase tracking-wider hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
               >
                 {isProcessing ? (
@@ -292,8 +307,13 @@ export const PlusPlanPage: React.FC = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Opening Secure Checkout...</span>
                   </>
+                ) : isPlus && !canRenewPlan ? (
+                  <span>Renewal opens in {daysUntilRenewal} days</span>
                 ) : isPlus ? (
-                  <span>Plan Already Active</span>
+                  <>
+                    <span>Renew Plan — ₹{displayPrice}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 ) : (
                   <>
                     <span>Proceed to Pay — ₹{displayPrice}</span>
