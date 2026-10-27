@@ -5,12 +5,14 @@ import type {
   SubscriptionPack,
   PackType,
   UserSubscriptionMeData,
+  PaymentSuccessDetails,
 } from '../../types/subscription';
 import { subscriptionApi } from '../../lib/api';
 import { authStorage } from '../../lib/auth';
 import { useAuth } from '../auth/AuthContext';
 import { SubscriptionPlansModal } from './SubscriptionPlansModal';
 import { DemotedTagSelectionModal } from './DemotedTagSelectionModal';
+import { PaymentSuccessModal } from './PaymentSuccessModal';
 
 interface SubscriptionContextType {
   subscription: UserSubscription | null;
@@ -28,6 +30,10 @@ interface SubscriptionContextType {
   isTagSelectionModalOpen: boolean;
   openTagSelectionModal: () => void;
   closeTagSelectionModal: () => void;
+  // Payment Success Modal
+  paymentSuccess: PaymentSuccessDetails | null;
+  showPaymentSuccess: (details: PaymentSuccessDetails) => void;
+  closePaymentSuccess: () => void;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -44,9 +50,18 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [selectedPackForUpgrade, setSelectedPackForUpgrade] = useState<PackType | null>(null);
   const [isTagSelectionModalOpen, setIsTagSelectionModalOpen] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<PaymentSuccessDetails | null>(null);
 
   const prevAuthRef = useRef<boolean>(isAuthenticated);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showPaymentSuccess = useCallback((details: PaymentSuccessDetails) => {
+    setPaymentSuccess(details);
+  }, []);
+
+  const closePaymentSuccess = useCallback(() => {
+    setPaymentSuccess(null);
+  }, []);
 
   const fetchSubscriptionData = useCallback(async (force = false) => {
     const hasToken = Boolean(authStorage.getAccessToken());
@@ -163,6 +178,9 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         isTagSelectionModalOpen,
         openTagSelectionModal,
         closeTagSelectionModal,
+        paymentSuccess,
+        showPaymentSuccess,
+        closePaymentSuccess,
       }}
     >
       {children}
@@ -177,6 +195,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       <DemotedTagSelectionModal
         isOpen={isTagSelectionModalOpen}
         onClose={closeTagSelectionModal}
+      />
+
+      <PaymentSuccessModal
+        isOpen={Boolean(paymentSuccess)}
+        onClose={closePaymentSuccess}
+        details={paymentSuccess}
       />
     </SubscriptionContext.Provider>
   );

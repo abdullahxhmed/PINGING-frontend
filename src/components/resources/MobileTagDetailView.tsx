@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import type { Resource, CallRecord } from '../../types/api';
-import { extractResourceTag, getResourceContactUrl, resourcesApi } from '../../lib/api';
+import { extractResourceTag, getResourceContactUrl, resourcesApi, resourceCache } from '../../lib/api';
 import { buildTagQrUrl } from '../../lib/qr';
 import { ShareTagSheet } from './ShareTagSheet';
 import {
@@ -106,6 +106,8 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
   const tagId = resource?.id || (resource as any)?._id;
   const [tagNumber, setTagNumber] = useState<string>(() => extractResourceTag(resource));
   const [cardResource, setCardResource] = useState<Resource>(resource);
+  const fetchedDetailRef = useRef<string | null>(null);
+  const fetchedCallsRef = useRef<string | null>(null);
 
   // Sync state if resource prop changes
   useEffect(() => {
@@ -114,13 +116,15 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
     if (resolved) setTagNumber(resolved);
   }, [resource]);
 
-  // If tagNumber or vehicleDetails is missing from list summary, fetch full resource details
+  // If tagNumber or vehicleDetails is missing from list summary, fetch full resource details ONCE per tagId
   useEffect(() => {
-    if (!tagId) return;
-    const hasTag = Boolean(extractResourceTag(cardResource));
-    const hasVehicle = Boolean(cardResource.vehicleDetails);
+    if (!tagId || fetchedDetailRef.current === tagId) return;
+
+    const hasTag = Boolean(extractResourceTag(resource));
+    const hasVehicle = Boolean(resource.vehicleDetails);
 
     if (!hasTag || !hasVehicle) {
+      fetchedDetailRef.current = tagId;
       let isMounted = true;
       resourcesApi
         .getById(tagId)
@@ -139,7 +143,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
         isMounted = false;
       };
     }
-  }, [tagId, cardResource]);
+  }, [tagId, resource]);
 
   const publicUrl = useMemo(() => {
     return tagNumber ? buildTagQrUrl(tagNumber) : getResourceContactUrl(cardResource);
@@ -147,22 +151,37 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
 
   // Fetch or resolve call records for this specific belonging
   const [calls, setCalls] = useState<CallRecord[]>(() => {
-    if (Array.isArray(cardResource.recentCalls) && cardResource.recentCalls.length > 0) return cardResource.recentCalls;
-    if (Array.isArray(cardResource.calls) && cardResource.calls.length > 0) return cardResource.calls;
+    if (Array.isArray(resource.recentCalls) && resource.recentCalls.length > 0) return resource.recentCalls;
+    if (Array.isArray(resource.calls) && resource.calls.length > 0) return resource.calls;
+    if (tagId) {
+      const cached = resourceCache.getCalls(tagId);
+      if (cached && cached.length > 0) return cached;
+    }
     return [];
   });
 
   useEffect(() => {
-    if (!tagId) return;
-    if (Array.isArray(cardResource.recentCalls) && cardResource.recentCalls.length > 0) {
-      setCalls(cardResource.recentCalls);
+    if (!tagId || fetchedCallsRef.current === tagId) return;
+
+    if (Array.isArray(resource.recentCalls) && resource.recentCalls.length > 0) {
+      setCalls(resource.recentCalls);
+      fetchedCallsRef.current = tagId;
       return;
     }
-    if (Array.isArray(cardResource.calls) && cardResource.calls.length > 0) {
-      setCalls(cardResource.calls);
+    if (Array.isArray(resource.calls) && resource.calls.length > 0) {
+      setCalls(resource.calls);
+      fetchedCallsRef.current = tagId;
       return;
     }
 
+    const cached = resourceCache.getCalls(tagId);
+    if (cached && cached.length > 0) {
+      setCalls(cached);
+      fetchedCallsRef.current = tagId;
+      return;
+    }
+
+    fetchedCallsRef.current = tagId;
     let isMounted = true;
     resourcesApi
       .getCalls(tagId, { limit: 3 })
@@ -171,6 +190,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
         const list = Array.isArray(res) ? res : (res?.calls || res?.data?.calls || res?.data || []);
         if (Array.isArray(list)) {
           setCalls(list);
+          resourceCache.setCalls(tagId, list);
         }
       })
       .catch(() => {});
@@ -178,7 +198,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
     return () => {
       isMounted = false;
     };
-  }, [tagId, cardResource.recentCalls, cardResource.calls]);
+  }, [tagId, resource]);
 
   // Extract clean vehicle/belonging metadata
   const rawDetails = cardResource.vehicleDetails;

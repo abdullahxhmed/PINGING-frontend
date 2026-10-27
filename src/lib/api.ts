@@ -30,6 +30,8 @@ import type {
   SelectActiveTagsResponse,
   CreatePurchasePayload,
   CreatePurchaseResponse,
+  VerifySubscriptionPaymentPayload,
+  VerifySubscriptionPaymentResponse,
   ActivateSubscriptionPayload,
   ActivateSubscriptionResponse,
   PurchaseRecord,
@@ -570,6 +572,23 @@ export const subscriptionApi = {
     invalidateRequestCache('subscription:');
     invalidateRequestCache('resources:');
     const res = await api.post<ActivateSubscriptionResponse>('/api/subscriptions/activate', payload);
+    return res.data;
+  },
+
+  /**
+   * Cryptographic signature verification & instant activation for Razorpay subscription orders.
+   * POST /api/subscriptions/verify-payment
+   * Access: Authenticated
+   */
+  verifyPayment: async (
+    payload: VerifySubscriptionPaymentPayload
+  ): Promise<VerifySubscriptionPaymentResponse['data']> => {
+    invalidateRequestCache('subscription:');
+    invalidateRequestCache('resources:');
+    const res = await api.post<VerifySubscriptionPaymentResponse>(
+      '/api/subscriptions/verify-payment',
+      payload
+    );
     return res.data;
   },
 

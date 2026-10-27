@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Check,
-  ShieldAlert,
-  Loader2,
-  ArrowRight,
-  Sparkles,
-} from 'lucide-react';
+import { Check, Loader2, ArrowRight } from 'lucide-react';
 import { subscriptionApi } from '../../lib/api';
 import { useToast } from '../../components/ui/Toast';
 import type { UserTagItem } from '../../types/subscription';
@@ -64,7 +58,7 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
       setSelectedTagIds(selectedTagIds.filter((id) => id !== tagId));
     } else {
       if (selectedTagIds.length >= maxAllowed) {
-        setError(`You can select at most ${maxAllowed} active tags on the BASIC plan.`);
+        setError(`You can select at most ${maxAllowed} active tags on the Basic plan.`);
         return;
       }
       setSelectedTagIds([...selectedTagIds, tagId]);
@@ -78,7 +72,7 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
     }
 
     if (selectedTagIds.length > maxAllowed) {
-      setError(`Your BASIC plan allows a maximum of ${maxAllowed} active tags.`);
+      setError(`Your Basic plan allows a maximum of ${maxAllowed} active tags.`);
       return;
     }
 
@@ -89,7 +83,7 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
       await subscriptionApi.selectActiveTags(selectedTagIds);
 
       toast.success(
-        `Successfully set ${selectedTagIds.length} active tag${selectedTagIds.length > 1 ? 's' : ''}. Unselected tags are suspended.`
+        `Set ${selectedTagIds.length} active tag${selectedTagIds.length > 1 ? 's' : ''}. Unselected tags are suspended.`
       );
 
       await refetch();
@@ -105,47 +99,35 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-3 sm:p-4 text-center">
+      <div className="flex min-h-full items-center justify-center p-4 text-center">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-surface-dark/80 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-[#0c0c0b]/70 backdrop-blur-sm transition-opacity"
           aria-hidden="true"
         />
 
         {/* Modal Window */}
-        <div className="relative transform overflow-hidden rounded-[var(--radius-md)] bg-surface text-left transition-all sm:my-8 w-full max-w-xl p-5 sm:p-7 border border-border z-10 shadow-2xl">
+        <div className="relative transform overflow-hidden rounded-xl bg-surface text-left transition-all sm:my-8 w-full max-w-lg p-6 border border-border z-10 shadow-2xl space-y-4">
           {/* Header */}
-          <div className="flex items-start gap-3 pb-4 border-b border-border">
-            <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-700 shrink-0">
-              <ShieldAlert className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <h3 className="heading-md text-ink text-lg font-bold">
-                Action Required: Choose 2 Active Tags
-              </h3>
-              <p className="body-sm text-muted mt-1">
-                Your Plus subscription has ended. The Free/Basic plan supports up to{' '}
-                <strong className="text-ink">2 active tags</strong>. Please choose which 2 tags will
-                remain active. All other tags will be suspended.
-              </p>
-            </div>
+          <div className="pb-3 border-b border-border space-y-1">
+            <h3 className="font-display font-medium text-xl text-ink tracking-tight">
+              Choose 2 Active Tags
+            </h3>
+            <p className="text-xs text-muted leading-relaxed">
+              Your Plus subscription has ended. The Basic plan supports up to 2 active tags. Choose which 2 tags remain active; unselected tags will be paused.
+            </p>
           </div>
 
-          {/* Quick Upgrade Callout */}
-          <div className="my-4 p-3.5 rounded-[var(--radius-sm)] bg-accent/20 border border-accent/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-ink shrink-0" />
-              <p className="text-xs text-ink font-medium">
-                Want to keep all your tags active simultaneously?
-              </p>
-            </div>
+          {/* Upgrade Link Row */}
+          <div className="py-2.5 px-3 rounded-lg border border-border bg-bg/50 flex items-center justify-between gap-3 text-xs">
+            <span className="text-muted">Keep all tags active simultaneously?</span>
             <button
               type="button"
               onClick={() => {
                 onClose();
                 openUpgradeModal('PLUS_RENEWAL');
               }}
-              className="text-xs font-bold text-ink underline hover:no-underline flex items-center gap-1 shrink-0"
+              className="font-medium text-ink hover:underline flex items-center gap-1 cursor-pointer shrink-0"
             >
               Renew Plus Plan <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -153,29 +135,23 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-4 p-3 rounded-[var(--radius-sm)] bg-danger/10 border border-danger/20 text-danger text-xs font-medium">
+            <div className="p-2.5 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs font-medium">
               {error}
             </div>
           )}
 
           {/* Tag Selection Counter */}
-          <div className="flex items-center justify-between py-2 text-xs font-semibold text-ink">
-            <span>Select up to 2 active tags:</span>
-            <span
-              className={`px-2 py-0.5 rounded-full ${
-                selectedTagIds.length > maxAllowed
-                  ? 'bg-danger/20 text-danger'
-                  : 'bg-surface-dark/10 text-ink'
-              }`}
-            >
+          <div className="flex items-center justify-between text-xs pt-1">
+            <span className="text-muted font-medium">Select up to {maxAllowed} active tags:</span>
+            <span className="font-mono text-xs font-semibold text-ink">
               {selectedTagIds.length} / {maxAllowed} Selected
             </span>
           </div>
 
           {/* Tag List */}
-          <div className="max-h-64 overflow-y-auto space-y-2 my-2 pr-1">
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
             {allUserTags.length === 0 ? (
-              <p className="text-xs text-muted py-4 text-center">No paired tags found.</p>
+              <p className="text-xs text-muted py-6 text-center font-mono">No paired tags found.</p>
             ) : (
               allUserTags.map((tag) => {
                 const isSelected = selectedTagIds.includes(tag.id);
@@ -185,31 +161,31 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
                   <div
                     key={tag.id}
                     onClick={() => toggleTag(tag.id)}
-                    className={`cursor-pointer rounded-[var(--radius-sm)] p-3 border transition-all flex items-center justify-between gap-3 ${
+                    className={`cursor-pointer rounded-lg p-3 border transition-colors flex items-center justify-between gap-3 ${
                       isSelected
-                        ? 'border-ink bg-surface-dark/[0.04] ring-1 ring-ink'
-                        : 'border-border hover:border-border-strong bg-surface'
+                        ? 'border-ink bg-bg/60'
+                        : 'border-border hover:border-ink/40 bg-surface'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Checkbox */}
                       <div
-                        className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
                           isSelected
                             ? 'bg-ink border-ink text-surface'
-                            : 'border-border-strong bg-surface'
+                            : 'border-border bg-surface'
                         }`}
                       >
-                        {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-ink tracking-wider bg-surface-dark/10 px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-xs font-semibold text-ink">
                             {tag.tagNumber}
                           </span>
-                          <span className="text-xs font-medium text-ink truncate">
-                            {tag.resource?.name || 'Unassigned Resource'}
+                          <span className="text-xs text-ink/80 truncate">
+                            {tag.resource?.name || 'Unassigned'}
                           </span>
                         </div>
                         {tag.resource?.vehicleDetail?.registrationNum && (
@@ -223,17 +199,9 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
                       </div>
                     </div>
 
-                    <div>
-                      {isCurrentlySuspended ? (
-                        <span className="text-[10px] font-semibold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
-                          Suspended
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                          Active
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-[11px] font-mono text-muted shrink-0">
+                      {isCurrentlySuspended ? 'Suspended' : 'Active'}
+                    </span>
                   </div>
                 );
               })
@@ -241,18 +209,18 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-border flex items-center justify-end gap-2.5 mt-4">
+          <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={handleConfirm}
               disabled={isSubmitting || selectedTagIds.length === 0}
-              className="btn-primary px-5 py-2 text-xs font-semibold rounded-[var(--radius-sm)] flex items-center justify-center gap-2 bg-ink text-surface hover:bg-ink/90 transition-all disabled:opacity-50"
+              className="py-2.5 px-5 rounded-lg bg-ink text-surface font-mono text-xs font-semibold uppercase tracking-wider hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-40"
             >
               {isSubmitting ? (
-                <>
+                <span className="flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Saving Tags...
-                </>
+                  Saving...
+                </span>
               ) : (
                 `Confirm ${selectedTagIds.length} Active Tag${selectedTagIds.length === 1 ? '' : 's'}`
               )}
@@ -263,3 +231,5 @@ export const DemotedTagSelectionModal: React.FC<DemotedTagSelectionModalProps> =
     </div>
   );
 };
+
+export default DemotedTagSelectionModal;

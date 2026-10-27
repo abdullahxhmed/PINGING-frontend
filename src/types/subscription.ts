@@ -129,16 +129,67 @@ export interface PurchaseRecord {
   };
 }
 
+export interface CreatePurchaseResponseData {
+  purchaseId: string;
+  packType: PackType;
+  amount: number;
+  currency: string;
+  razorpayOrderId: string;
+  keyId: string;
+  pack: {
+    name: string;
+    plusDurationMonths: number;
+    amountPaise: number;
+  };
+  prefill?: {
+    name?: string;
+    contact?: string;
+  };
+  purchase?: PurchaseRecord;
+}
+
 export interface CreatePurchaseResponse {
   success: boolean;
   message: string;
+  data: CreatePurchaseResponseData;
+}
+
+export interface VerifySubscriptionPaymentPayload {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
+export interface VerifySubscriptionPaymentResponse {
+  success: boolean;
+  status?: string;
+  message: string;
   data: {
-    purchase: PurchaseRecord;
-    pack: {
-      name: string;
-      amountPaise: number;
+    subscription: Partial<UserSubscription> & {
+      id?: string;
+      tier: SubscriptionTier;
+      maxActiveTags: number;
+      hasWhatsappAlerts?: boolean;
+      hasAnalytics?: boolean;
+      expiresAt?: string;
+    };
+    purchase?: {
+      id: string;
+      status: string;
+      providerOrderId?: string;
+      providerPaymentId?: string;
     };
   };
+}
+
+export interface PaymentSuccessDetails {
+  planName: string;
+  durationMonths: number;
+  tier?: SubscriptionTier;
+  amountPaise?: number;
+  expiresAt?: string | null;
+  paymentId?: string;
+  orderId?: string;
 }
 
 export interface ActivateSubscriptionPayload {
@@ -168,3 +219,4 @@ export interface SubscriptionPurchasesResponse {
     purchases: PurchaseRecord[];
   };
 }
+
