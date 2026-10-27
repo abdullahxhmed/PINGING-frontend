@@ -1,4 +1,5 @@
 import React from 'react';
+import { CatalogImage } from './CatalogImage';
 import { DEFAULT_PRODUCT_IMAGE } from '../../features/store/catalog';
 
 export interface ProductArtworkProps {
@@ -14,6 +15,7 @@ export interface ProductArtworkProps {
 }
 
 export const ProductArtwork: React.FC<ProductArtworkProps> = ({
+  productId,
   images,
   alt,
   tone,
@@ -29,31 +31,31 @@ export const ProductArtwork: React.FC<ProductArtworkProps> = ({
       } ${className}`}
     >
       {/* Dark Finish Image */}
-      <img
-        src={images?.dark || DEFAULT_PRODUCT_IMAGE}
+      <CatalogImage
+        productId={productId}
+        imageType="dark"
+        initialUrl={images?.dark}
         alt={`${alt} (Dark)`}
         loading="eager"
         decoding="async"
+        fallbackSrc={DEFAULT_PRODUCT_IMAGE}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${
           isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
         }`}
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-        }}
       />
 
       {/* Light Finish Image */}
-      <img
-        src={images?.light || DEFAULT_PRODUCT_IMAGE}
+      <CatalogImage
+        productId={productId}
+        imageType="light"
+        initialUrl={images?.light}
         alt={`${alt} (Light)`}
         loading="eager"
         decoding="async"
+        fallbackSrc={DEFAULT_PRODUCT_IMAGE}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${
           !isDark ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
         }`}
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-        }}
       />
     </div>
   );

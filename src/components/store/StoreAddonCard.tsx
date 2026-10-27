@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Minus } from 'lucide-react';
 import type { AddonItem } from '../../features/store/catalog';
 import { DEFAULT_PRODUCT_IMAGE } from '../../features/store/catalog';
+import { CatalogImage } from './CatalogImage';
 
 export interface StoreAddonCardProps {
   addon: AddonItem;
@@ -55,15 +56,15 @@ export const StoreAddonCard: React.FC<StoreAddonCardProps> = ({
       onClick={handleCardClick}
       className="group relative aspect-square bg-[#101010] overflow-hidden cursor-pointer select-none transition-all duration-300"
     >
-      {/* Edge-to-edge Photo displaying exact slotted variant artwork */}
-      <img
-        src={addon.image || DEFAULT_PRODUCT_IMAGE}
+      {/* Edge-to-edge Photo displaying exact slotted variant artwork with resilient caching */}
+      <CatalogImage
+        productId={addon.productId || addon.id}
+        imageType={addon.tone}
+        initialUrl={addon.image}
         alt={addon.name}
+        fallbackSrc={DEFAULT_PRODUCT_IMAGE}
         className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
         loading="lazy"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-        }}
       />
 
       {/* Subtle baseline vignette for text readability */}

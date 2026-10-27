@@ -1,4 +1,9 @@
 import type { BackendCatalogProduct, BackendCatalogVariantComponent } from '../../types/orders';
+import {
+  resolveImageSource,
+  getStableObjectReference,
+  isUrlExpired,
+} from '../../services/catalogImages';
 
 export const DEFAULT_PRODUCT_IMAGE =
   "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%20fill%3D%22none%22%3E%3Crect%20width%3D%22400%22%20height%3D%22225%22%20fill%3D%22%231c1c1a%22%2F%3E%3Crect%20x%3D%22170%22%20y%3D%2270%22%20width%3D%2260%22%20height%3D%2260%22%20rx%3D%226%22%20stroke%3D%22%23444440%22%20stroke-width%3D%221.5%22%20stroke-dasharray%3D%224%204%22%2F%3E%3Cpath%20d%3D%22M190%20100h20M200%2090v20%22%20stroke%3D%22%23666660%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%22155%22%20text-anchor%3D%22middle%22%20fill%3D%22%23888880%22%20font-family%3D%22monospace%22%20font-size%3D%2211%22%3ENo%20Artwork%20Configured%3C%2Ftext%3E%3C%2Fsvg%3E";
@@ -150,15 +155,11 @@ function buildDynamicSetProduct(
   );
 
   const darkImg =
-    darkVariant?.imageUrl ||
-    variant?.imageUrl ||
-    prod.imageUrl ||
+    resolveImageSource(darkVariant?.imageUrl || variant?.imageUrl || prod.imageUrl) ||
     DEFAULT_PRODUCT_IMAGE;
 
   const lightImg =
-    lightVariant?.imageUrl ||
-    variant?.imageUrl ||
-    prod.imageUrl ||
+    resolveImageSource(lightVariant?.imageUrl || variant?.imageUrl || prod.imageUrl) ||
     DEFAULT_PRODUCT_IMAGE;
 
   return {
@@ -295,10 +296,10 @@ export function hydrateSetsFromBackend(
       const pack = buildDynamicSetProduct(matchedPrimary, matchedPrimary.variants?.[0]);
 
       if (matchedDark?.imageUrl) {
-        pack.images.dark = matchedDark.imageUrl;
+        pack.images.dark = resolveImageSource(matchedDark.imageUrl);
       }
       if (matchedLight?.imageUrl) {
-        pack.images.light = matchedLight.imageUrl;
+        pack.images.light = resolveImageSource(matchedLight.imageUrl);
       }
 
       // Clean display name if it had 'Light' or 'Dark' suffix
@@ -436,13 +437,8 @@ export function hydrateAddonsFromBackend(
       const inStock = boundVariant?.inStock ?? slotted.inStock ?? true;
       const tagCount = extractTagCount(boundVariant?.components) || slotted.tagsCount || 1;
       const candidateImg = slotted.selectedVariant?.imageUrl || slotted.imageUrl || boundVariant?.imageUrl;
-      const variantImg =
-        candidateImg &&
-        (candidateImg.startsWith('http://') ||
-          candidateImg.startsWith('https://') ||
-          candidateImg.startsWith('data:'))
-          ? candidateImg
-          : DEFAULT_PRODUCT_IMAGE;
+      const resolvedVariantImg = resolveImageSource(candidateImg);
+      const variantImg = resolvedVariantImg || DEFAULT_PRODUCT_IMAGE;
 
       const rawName = boundVariant?.name
         ? `${slotted.name.replace(/\s*\([^)]*\)/g, '').trim()} (${boundVariant.name})`
@@ -742,8 +738,17 @@ export function saveOrderToStorage(order: OrderRecord): void {
   try {
     const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     const list: OrderRecord[] = raw ? JSON.parse(raw) : [];
+    // Sanitize item images to stable canonical references to prevent persisting transient expired tokens
+    const sanitizedItems = (order.items || []).map((it) => ({
+      ...it,
+      image: getStableObjectReference(it.image),
+    }));
+    const sanitizedOrder: OrderRecord = {
+      ...order,
+      items: sanitizedItems,
+    };
     const filtered = list.filter((o) => o.orderId !== order.orderId);
-    filtered.unshift(order);
+    filtered.unshift(sanitizedOrder);
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(filtered.slice(0, 50)));
   } catch (err) {
     console.error('Failed to save order to localStorage:', err);
@@ -802,13 +807,13 @@ export const INDIAN_STATES = [
  * Uses explicit image URL if valid, or matches against live dynamic catalog.
  */
 export function getProductThumbnail(name?: string, fallbackImage?: string): string {
+  const resolvedFallback = resolveImageSource(fallbackImage);
   if (
-    fallbackImage &&
-    (fallbackImage.startsWith('http://') ||
-      fallbackImage.startsWith('https://') ||
-      fallbackImage.startsWith('data:'))
+    resolvedFallback &&
+    resolvedFallback !== DEFAULT_PRODUCT_IMAGE &&
+    !isUrlExpired(resolvedFallback)
   ) {
-    return fallbackImage;
+    return resolvedFallback;
   }
 
   if (name) {
@@ -818,8 +823,9 @@ export function getProductThumbnail(name?: string, fallbackImage?: string): stri
     for (const addon of Object.values(liveAddons || {})) {
       const aName = addon.name.toLowerCase();
       if (aName === clean || clean.includes(aName) || aName.includes(clean)) {
-        if (addon.image && (addon.image.startsWith('http') || addon.image.startsWith('data:'))) {
-          return addon.image;
+        const candidate = resolveImageSource(addon.image);
+        if (candidate && !isUrlExpired(candidate)) {
+          return candidate;
         }
       }
     }
@@ -830,14 +836,17 @@ export function getProductThumbnail(name?: string, fallbackImage?: string): stri
       if (clean.includes(pName) || pName.includes(clean)) {
         const isDark = clean.includes('dark') || clean.includes('drk');
         const img = isDark ? pack.images?.dark : pack.images?.light;
-        if (img && (img.startsWith('http') || img.startsWith('data:'))) {
-          return img;
-        }
-        if (pack.image && (pack.image.startsWith('http') || pack.image.startsWith('data:'))) {
-          return pack.image;
+        const candidate = resolveImageSource(img || pack.image);
+        if (candidate && !isUrlExpired(candidate)) {
+          return candidate;
         }
       }
     }
+  }
+
+  // If fallback was expired or only available reference, return it rather than blank placeholder
+  if (resolvedFallback && resolvedFallback !== DEFAULT_PRODUCT_IMAGE) {
+    return resolvedFallback;
   }
 
   return DEFAULT_PRODUCT_IMAGE;
