@@ -55,6 +55,11 @@ export const StoreFooter: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/pair" className="hover:text-ink transition-colors">
+                  Pair a Received Tag
+                </Link>
+              </li>
+              <li>
                 <span className="text-muted/80">
                   Standard Delivery: 3–5 business days across India
                 </span>
@@ -68,23 +73,13 @@ export const StoreFooter: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Bar: Copyright & Links on Left, Payment Badges on Right */}
-        <div className="pt-6 border-t border-border/80 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-[11px] font-mono text-muted/70 text-center sm:text-left">
-            <span>© {new Date().getFullYear()} Kauntact. All rights reserved.</span>
-            <span className="hidden sm:inline">•</span>
-            <div className="flex items-center gap-4">
-              <Link to="/login" className="hover:text-ink transition-colors whitespace-nowrap">
-                Account Login
-              </Link>
-              <span>•</span>
-              <Link to="/pair" className="hover:text-ink transition-colors whitespace-nowrap">
-                Pair Received Tag
-              </Link>
-            </div>
+        {/* Bottom Bar: Copyright on Left, Payment Badges on Right */}
+        <div className="pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted/70">
+          <div>
+            © {new Date().getFullYear()} Kauntact. All rights reserved.
           </div>
 
-          {/* Payment Badges - Larger & Optically Balanced */}
+          {/* Payment Badges */}
           <div className="flex items-center gap-2.5 shrink-0">
             <div
               className="flex items-center px-3 py-1.5 rounded-sm border border-border/80 bg-surface shadow-2xs"

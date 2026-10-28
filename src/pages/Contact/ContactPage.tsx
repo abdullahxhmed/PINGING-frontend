@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
-import { PingInLogo, PingInSvgLogo } from '../../components/brand/PingInLogo';
+import { PingInLogo } from '../../components/brand/PingInLogo';
 import {
   Send,
   CheckCircle2,
@@ -339,9 +339,7 @@ export const ContactPage: React.FC = () => {
       <footer className="border-t border-border bg-surface py-6">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div className="flex items-center gap-2.5">
-            ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
-            <span className="text-border-strong">•</span>
-            <span>Private contact made safe and seamless.</span>
+            <span>© {new Date().getFullYear()} Kauntact. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-4 text-muted">
             <Link to="/" className="hover:text-ink transition-colors">Home</Link>

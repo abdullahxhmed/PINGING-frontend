@@ -501,8 +501,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
                 : mode === 'signup'
                   ? 'Set up your stickers and private relay in under a minute.'
                   : loginMethod === 'password'
-                    ? 'Good to see you! Hop in.'
-                    : 'No password needed. We’ll send a quick 6-digit code.'}
+                    ? 'Sign in to manage your tags and account.'
+                    : 'Enter your registered mobile number to receive a verification code.'}
             </p>
           </div>
 
@@ -744,13 +744,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode }) => {
         </div>
       </main>
 
-      {/* Bottom Bar: Clean Protocol & Privacy Metadata */}
-      <footer className="w-full max-w-4xl mx-auto py-4 text-center">
-        <div className="flex items-center justify-center gap-2 text-[11px] font-mono font-medium text-muted uppercase tracking-wider">
-          <span>© {new Date().getFullYear()} KAUNTACT</span>
-          <span>•</span>
-          <span>PRIVACY FIRST IDENTITY &amp; CONTACT</span>
-        </div>
+      {/* Bottom Bar */}
+      <footer className="w-full max-w-4xl mx-auto py-6 text-center text-xs text-muted/60 font-sans">
+        © {new Date().getFullYear()} Kauntact. All rights reserved.
       </footer>
     </div>
   );

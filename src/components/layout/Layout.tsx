@@ -5,7 +5,6 @@ import { Navbar } from './Navbar';
 import { Container } from './Container';
 import { PlusSideDrawerTab } from './PlusSideDrawerTab';
 
-import { PingInSvgLogo } from '../brand/PingInLogo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,9 +33,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="mt-auto border-t border-border bg-surface py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         <Container className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div className="flex items-center gap-3">
-            ©<PingInSvgLogo height={13} className="text-muted/70 hover:text-ink transition-colors" />
-            <span className="text-border-strong">•</span>
-            <span>Private contact made safe and seamless.</span>
+            <span>© {new Date().getFullYear()} Kauntact. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
