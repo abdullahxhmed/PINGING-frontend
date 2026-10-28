@@ -79,6 +79,48 @@ export interface ShippingAddressPayload {
   country?: string;
 }
 
+export interface ShippingRateItemInput {
+  variantId?: string;
+  productId?: string;
+  quantity: number;
+}
+
+export interface ShippingRateRequestInput {
+  items: ShippingRateItemInput[];
+  deliveryPincode: string;
+  paymentMethod?: 'PREPAID' | 'COD';
+}
+
+export interface ShippingRateCourierDetails {
+  courierCompanyId?: number;
+  name: string;
+  estimatedDeliveryDays?: string;
+  etd?: string | null;
+}
+
+export interface ShippingRateResponseData {
+  isServiceable: boolean;
+  freeShippingThreshold: number; // 40000 paise (₹400)
+  isFreeShipping: boolean;
+  subtotalAmount: number; // in paise
+  shippingFee: number | null; // in paise, null if unserviceable
+  estimatedTax: number;
+  estimatedTotal: number; // in paise
+  currency: string;
+  deliveryPincode: string;
+  paymentMethod: 'PREPAID' | 'COD';
+  courier?: ShippingRateCourierDetails | null;
+  packageDetails?: {
+    weightGrams: number;
+    dimensions: {
+      lengthCm: number;
+      breadthCm: number;
+      heightCm: number;
+    };
+  };
+  unserviceableReason?: string;
+}
+
 export interface CheckoutCartItem {
   variantId: string;
   quantity: number;

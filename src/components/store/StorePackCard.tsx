@@ -97,6 +97,19 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
                 >
                   ₹{product.price}
                 </span>
+                <span
+                  className={`block text-[11px] font-mono tracking-tight mt-0.5 ${
+                    product.price >= 400
+                      ? isDark
+                        ? 'text-[#d7ff3f]'
+                        : 'text-ink font-medium'
+                      : isDark
+                      ? 'text-[#929087]'
+                      : 'text-muted'
+                  }`}
+                >
+                  {product.price >= 400 ? 'Free shipping included' : 'Free shipping on orders ₹400+'}
+                </span>
                 {isSoldOut ? (
                   <span className="block text-[10px] font-mono uppercase tracking-wider text-red-500 font-semibold mt-0.5">
                     Sold Out

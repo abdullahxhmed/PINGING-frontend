@@ -2,29 +2,26 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { adminApi } from '../../lib/adminApi';
-import type { AdminProduct, ProductVariant, ProductVariantComponent, ProductComponentType, UpdateProductPayload } from '../../types/admin';
+import type {
+  AdminProduct,
+  ProductVariant,
+  ProductVariantComponent,
+  ProductComponentType,
+  UpdateProductPayload,
+} from '../../types/admin';
 import { DEFAULT_PRODUCT_IMAGE } from '../../features/store/catalog';
 import {
   ArrowLeft,
-  Layers,
   Copy,
   Check,
   RefreshCw,
   AlertTriangle,
-  Truck,
-  Eye,
-  EyeOff,
   Edit3,
   X,
   Save,
   Plus,
   Trash2,
-  Sliders,
   CheckCircle2,
-  TrendingUp,
-  Package,
-  Calendar,
-  Lock,
   Upload,
 } from 'lucide-react';
 import { CatalogImagePickerModal } from '../../components/admin/CatalogImagePickerModal';
@@ -39,13 +36,11 @@ export const AdminProductDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [activeTone, setActiveTone] = useState<'dark' | 'light'>('dark');
 
   // Image Asset Picker Modal state
-  const [imagePickerTarget, setImagePickerTarget] = useState<'default' | 'dark' | 'light' | 'variant' | null>(null);
-  const [previewUrls, setPreviewUrls] = useState<{ default?: string; dark?: string; light?: string }>({});
+  const [imagePickerTarget, setImagePickerTarget] = useState<'product' | 'variant' | null>(null);
 
-  // Product Edit Mode State (Product-level fields only)
+  // Product Edit Mode State
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [productFormData, setProductFormData] = useState<{
@@ -54,8 +49,6 @@ export const AdminProductDetailPage: React.FC = () => {
     description: string;
     basePriceRupees: string;
     imageUrl: string;
-    darkImageUrl: string;
-    lightImageUrl: string;
     isFeatured: boolean;
     displayOrder: number;
     weightGrams: number;
@@ -68,8 +61,6 @@ export const AdminProductDetailPage: React.FC = () => {
     description: '',
     basePriceRupees: '0',
     imageUrl: '',
-    darkImageUrl: '',
-    lightImageUrl: '',
     isFeatured: false,
     displayOrder: 0,
     weightGrams: 50,
@@ -97,7 +88,6 @@ export const AdminProductDetailPage: React.FC = () => {
     components: [],
   });
   const [isSavingVariant, setIsSavingVariant] = useState(false);
-  const [variantPreviewUrl, setVariantPreviewUrl] = useState<string | null>(null);
 
   // Initialize form state from loaded product
   const initProductFormData = (p: AdminProduct) => {
@@ -107,8 +97,6 @@ export const AdminProductDetailPage: React.FC = () => {
       description: p.description || '',
       basePriceRupees: p.basePrice !== undefined ? (p.basePrice / 100).toString() : '0',
       imageUrl: p.imageUrl || '',
-      darkImageUrl: p.darkImageUrl || '',
-      lightImageUrl: p.lightImageUrl || '',
       isFeatured: Boolean(p.isFeatured),
       displayOrder: p.displayOrder ?? 0,
       weightGrams: p.weightGrams ?? 50,
@@ -118,7 +106,7 @@ export const AdminProductDetailPage: React.FC = () => {
     });
   };
 
-  // Fetch product directly using dedicated admin detail endpoint
+  // Fetch product from backend
   const fetchProduct = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -146,7 +134,7 @@ export const AdminProductDetailPage: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  // Toggle Catalog Visibility (Product-level active toggle)
+  // Toggle Catalog Visibility
   const handleToggleActive = async () => {
     if (!product) return;
     const nextActive = !product.active;
@@ -157,16 +145,16 @@ export const AdminProductDetailPage: React.FC = () => {
         sessionStorage.removeItem('kauntact_backend_catalog_cache');
         window.dispatchEvent(new CustomEvent('catalog:updated'));
       }
-      setSuccessMessage(`Product visibility set to ${nextActive ? 'Live in Store' : 'Hidden from Store'}`);
+      setSuccessMessage(`Product visibility set to ${nextActive ? 'Live' : 'Hidden'}`);
       setTimeout(() => setSuccessMessage(null), 3000);
       await fetchProduct();
     } catch (err: any) {
       setProduct({ ...product, active: product.active });
-      setError(err.message || 'Failed to update product visibility status');
+      setError(err.message || 'Failed to update visibility');
     }
   };
 
-  // Save Product-level changes to PATCH /api/admin/catalog/products/:id
+  // Save Product-level changes
   const handleSaveProduct = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!product) return;
@@ -181,7 +169,7 @@ export const AdminProductDetailPage: React.FC = () => {
     }
     const basePricePaise = Math.round(parseFloat(productFormData.basePriceRupees || '0') * 100);
     if (isNaN(basePricePaise) || basePricePaise < 0) {
-      setError('Please enter a valid base price');
+      setError('Please enter a valid price');
       return;
     }
 
@@ -192,11 +180,8 @@ export const AdminProductDetailPage: React.FC = () => {
         name: productFormData.name.trim(),
         slug: productFormData.slug.trim().toLowerCase(),
         description: productFormData.description.trim(),
-        // Note: product type is excluded from edits to prevent backend schema corruption
         basePrice: basePricePaise,
         imageUrl: productFormData.imageUrl.trim() || null,
-        darkImageUrl: productFormData.darkImageUrl.trim() || null,
-        lightImageUrl: productFormData.lightImageUrl.trim() || null,
         isFeatured: productFormData.isFeatured,
         displayOrder: Number(productFormData.displayOrder) || 0,
         weightGrams: Number(productFormData.weightGrams) || 0,
@@ -207,27 +192,25 @@ export const AdminProductDetailPage: React.FC = () => {
 
       await adminApi.updateCatalogProduct(product.id, payload);
       setIsEditingProduct(false);
-      setSuccessMessage('Product overview & specifications updated successfully');
+      setSuccessMessage('Product updated successfully');
       setTimeout(() => setSuccessMessage(null), 3500);
 
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('kauntact_backend_catalog_cache');
         window.dispatchEvent(new CustomEvent('catalog:updated'));
       }
-      // Re-fetch product from backend to verify actual persisted state
       await fetchProduct();
     } catch (err: any) {
-      setError(err.message || 'Failed to update product specifications');
+      setError(err.message || 'Failed to update specifications');
     } finally {
       setIsSavingProduct(false);
     }
   };
 
-  // Start Variant & Component editing
+  // Open Variant Editor
   const handleOpenVariantEditor = (v: ProductVariant) => {
     setIsAddingVariant(false);
     setEditingVariant(v);
-    setVariantPreviewUrl(v.imageUrl || null);
     setVariantFormData({
       sku: v.sku,
       name: v.name,
@@ -244,11 +227,10 @@ export const AdminProductDetailPage: React.FC = () => {
     });
   };
 
-  // Open Add New Variant Modal
+  // Open Add Variant
   const handleOpenAddVariant = () => {
     setEditingVariant(null);
     setIsAddingVariant(true);
-    setVariantPreviewUrl(null);
     const existingVariantsCount = product?.variants?.length || 0;
     const defaultSku = `${product?.sku || 'SKU'}-V${existingVariantsCount + 1}`;
     setVariantFormData({
@@ -271,10 +253,9 @@ export const AdminProductDetailPage: React.FC = () => {
   const handleCloseVariantEditor = () => {
     setEditingVariant(null);
     setIsAddingVariant(false);
-    setVariantPreviewUrl(null);
   };
 
-  // Save Variant-level changes & Bill of Materials components
+  // Save Variant
   const handleSaveVariant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAddingVariant && (!editingVariant || !editingVariant.id)) return;
@@ -289,11 +270,10 @@ export const AdminProductDetailPage: React.FC = () => {
     }
     const pricePaise = Math.round(parseFloat(variantFormData.priceRupees || '0') * 100);
     if (isNaN(pricePaise) || pricePaise < 0) {
-      setError('Please enter a valid price for the variant');
+      setError('Please enter a valid variant price');
       return;
     }
 
-    // Validate components
     for (let i = 0; i < variantFormData.components.length; i++) {
       const comp = variantFormData.components[i];
       if (!comp.name.trim()) {
@@ -328,7 +308,7 @@ export const AdminProductDetailPage: React.FC = () => {
 
         await adminApi.addProductVariant(product.id, payload);
         setIsAddingVariant(false);
-        setSuccessMessage(`New variant "${variantFormData.name}" added successfully`);
+        setSuccessMessage(`Variant "${variantFormData.name}" added`);
       } else if (editingVariant && editingVariant.id) {
         const payload = {
           name: variantFormData.name.trim(),
@@ -347,7 +327,7 @@ export const AdminProductDetailPage: React.FC = () => {
 
         await adminApi.updateCatalogVariant(editingVariant.id, payload);
         setEditingVariant(null);
-        setSuccessMessage(`Variant "${variantFormData.name}" & components updated successfully`);
+        setSuccessMessage(`Variant "${variantFormData.name}" updated`);
       }
 
       setTimeout(() => setSuccessMessage(null), 3500);
@@ -356,19 +336,17 @@ export const AdminProductDetailPage: React.FC = () => {
         sessionStorage.removeItem('kauntact_backend_catalog_cache');
         window.dispatchEvent(new CustomEvent('catalog:updated'));
       }
-      // Re-fetch product from backend to verify actual persisted state
       await fetchProduct();
     } catch (err: any) {
-      setError(err.message || 'Failed to save variant and components');
+      setError(err.message || 'Failed to save variant');
     } finally {
       setIsSavingVariant(false);
     }
   };
 
-  const formatPrice = (paise?: number, formatted?: string) => {
-    if (formatted) return formatted;
-    if (paise === undefined || paise === null) return '₹0.00';
-    return `₹${(paise / 100).toFixed(2)}`;
+  const formatPrice = (paise?: number) => {
+    if (paise === undefined || paise === null) return '₹0';
+    return `₹${(paise / 100).toFixed(0)}`;
   };
 
   const getInitialFolderForType = (type?: string) => {
@@ -380,89 +358,63 @@ export const AdminProductDetailPage: React.FC = () => {
     return 'general';
   };
 
-  const handleSelectArtworkAsset = (objectPath: string, previewUrl?: string) => {
+  const handleSelectArtworkAsset = (objectPath: string) => {
     if (imagePickerTarget === 'variant') {
       setVariantFormData((prev) => ({ ...prev, imageUrl: objectPath }));
-      setVariantPreviewUrl(previewUrl || objectPath);
-    } else if (imagePickerTarget === 'default') {
+    } else {
       setProductFormData((prev) => ({ ...prev, imageUrl: objectPath }));
-      if (previewUrl) setPreviewUrls((prev) => ({ ...prev, default: previewUrl }));
-    } else if (imagePickerTarget === 'dark') {
-      setProductFormData((prev) => ({ ...prev, darkImageUrl: objectPath }));
-      if (previewUrl) setPreviewUrls((prev) => ({ ...prev, dark: previewUrl }));
-    } else if (imagePickerTarget === 'light') {
-      setProductFormData((prev) => ({ ...prev, lightImageUrl: objectPath }));
-      if (previewUrl) setPreviewUrls((prev) => ({ ...prev, light: previewUrl }));
     }
     setImagePickerTarget(null);
   };
 
-  // Preview artwork tones
-  const previewDarkImg = (isEditingProduct ? (previewUrls.dark || productFormData.darkImageUrl) : product?.darkImageUrl) ||
-    (isEditingProduct ? (previewUrls.default || productFormData.imageUrl) : product?.imageUrl) ||
-    DEFAULT_PRODUCT_IMAGE;
-  const previewLightImg = (isEditingProduct ? (previewUrls.light || productFormData.lightImageUrl) : product?.lightImageUrl) ||
-    (isEditingProduct ? (previewUrls.default || productFormData.imageUrl) : product?.imageUrl) ||
-    DEFAULT_PRODUCT_IMAGE;
-  const currentArtworkUrl = activeTone === 'dark' ? previewDarkImg : previewLightImg;
-  const isArtworkPlaceholder = currentArtworkUrl === DEFAULT_PRODUCT_IMAGE;
-
-  // Calculate total historical orders across variants
-  const totalSalesCount = product?.variants?.reduce(
-    (acc, v) => acc + (v._count?.orderItems || 0),
-    0
-  ) ?? 0;
+  // Single default image (no dark/light distinction)
+  const displayImageUrl =
+    (isEditingProduct ? productFormData.imageUrl : product?.imageUrl) || DEFAULT_PRODUCT_IMAGE;
 
   return (
     <AdminLayout>
-      <div className="space-y-8 max-w-5xl mx-auto pb-20">
-        {/* Navigation & Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+      <div className="max-w-6xl mx-auto pb-24 px-4 sm:px-6">
+        {/* ── Top Bar: Clean Breadcrumbs & Primary Actions ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-b border-border">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/admin/catalog')}
-              className="p-1.5 rounded-md border border-border bg-surface hover:bg-bg hover:border-ink transition-colors cursor-pointer text-muted hover:text-ink shrink-0"
+              className="p-1.5 rounded-md hover:bg-surface text-muted hover:text-ink transition-colors cursor-pointer"
               title="Back to Catalog"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-muted uppercase">Catalog / Product Detail</span>
-                <span className="text-muted">·</span>
-                <span className="font-mono text-xs font-bold text-ink">{product?.sku || id}</span>
+              <div className="flex items-center gap-2 text-xs text-muted font-sans">
+                <span className="hover:text-ink cursor-pointer" onClick={() => navigate('/admin/catalog')}>
+                  Catalog
+                </span>
+                <span>/</span>
+                <span className="text-ink">{product?.name || 'Product'}</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink mt-0.5">
-                {product?.name || (isLoading ? 'Loading Product...' : 'Product Details')}
-              </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={fetchProduct}
               disabled={isLoading || isSavingProduct}
-              className="p-2 rounded-md border border-border bg-surface hover:border-ink text-muted hover:text-ink transition-colors cursor-pointer"
-              title="Refresh product from backend"
+              className="p-1.5 rounded-md hover:bg-surface text-muted hover:text-ink transition-colors cursor-pointer"
+              title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
 
             {product && !isEditingProduct && (
               <button
                 type="button"
                 onClick={handleToggleActive}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium border cursor-pointer transition-colors ${
-                  product.active
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                    : 'border-zinc-300 bg-zinc-100 text-zinc-700'
-                }`}
-                title="Toggle Storefront Visibility"
+                className="px-2.5 py-1 rounded-md text-xs font-sans text-ink hover:bg-surface border border-border inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                {product.active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                <span>{product.active ? 'Live in Store' : 'Hidden'}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${product.active ? 'bg-emerald-600' : 'bg-muted/50'}`} />
+                <span>{product.active ? 'Live in store' : 'Draft (hidden)'}</span>
               </button>
             )}
 
@@ -478,21 +430,21 @@ export const AdminProductDetailPage: React.FC = () => {
                     setIsEditingProduct(true);
                   }
                 }}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-mono font-medium border cursor-pointer transition-colors ${
+                className={`px-3 py-1 rounded-md text-xs font-sans font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
                   isEditingProduct
-                    ? 'border-zinc-400 bg-zinc-200 text-zinc-800 hover:bg-zinc-300'
-                    : 'border-ink bg-ink text-surface hover:opacity-90 shadow-2xs'
+                    ? 'border border-border text-ink hover:bg-surface'
+                    : 'bg-ink text-surface hover:opacity-90'
                 }`}
               >
                 {isEditingProduct ? (
                   <>
                     <X className="w-3.5 h-3.5" />
-                    <span>Cancel Edit</span>
+                    <span>Cancel edit</span>
                   </>
                 ) : (
                   <>
                     <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit Specifications</span>
+                    <span>Edit product</span>
                   </>
                 )}
               </button>
@@ -500,872 +452,536 @@ export const AdminProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Feedback Notifications */}
+        {/* ── Status Notifications ── */}
         {error && (
-          <div className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 flex items-center justify-between">
+          <div className="mt-4 p-3 rounded-md bg-surface border border-red-500/20 text-xs text-ink flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
-            <button onClick={() => setError(null)} className="p-1 text-red-600 hover:text-red-800 cursor-pointer">
+            <button onClick={() => setError(null)} className="p-1 text-muted hover:text-ink cursor-pointer">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
         {successMessage && (
-          <div className="p-3.5 rounded-lg border border-emerald-200 bg-emerald-50 text-xs text-emerald-800 flex items-center justify-between">
+          <div className="mt-4 p-3 rounded-md bg-surface border border-emerald-500/20 text-xs text-ink flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{successMessage}</span>
+              <span>{successMessage}</span>
             </div>
-            <button onClick={() => setSuccessMessage(null)} className="p-1 text-emerald-600 hover:text-emerald-800 cursor-pointer">
+            <button onClick={() => setSuccessMessage(null)} className="p-1 text-muted hover:text-ink cursor-pointer">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
         {isLoading && !product ? (
-          <div className="py-24 text-center text-xs text-muted flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="w-6 h-6 animate-spin text-muted" />
-            <span>Loading verified product data from backend...</span>
+          <div className="py-24 text-center text-xs text-muted flex flex-col items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-ink" />
+            <span>Loading product...</span>
           </div>
         ) : !product ? (
-          <div className="py-20 text-center text-xs text-muted border border-border rounded-xl">
-            Product not found.
+          <div className="py-20 text-center text-xs text-muted">
+            Product not found or has been removed.
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* ============================================================== */}
-            {/* SECTION 1: OVERVIEW                                             */}
-            {/* ============================================================== */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-ink" />
-                  <h2 className="text-sm font-semibold text-ink uppercase tracking-wider font-mono">
-                    1. Product Overview &amp; Specifications
-                  </h2>
-                </div>
-                <span className="text-xs font-mono text-muted">ID: {product.id}</span>
-              </div>
-
-              {isEditingProduct ? (
-                /* EDIT PRODUCT SPECIFICATIONS FORM */
-                <form onSubmit={handleSaveProduct} className="p-5 rounded-xl border border-border bg-surface shadow-2xs space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Artwork Configuration Column */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-semibold text-muted uppercase">Artwork Preview</span>
-                        <div className="flex items-center rounded border border-border bg-bg p-0.5 text-[11px] font-mono">
-                          <button
-                            type="button"
-                            onClick={() => setActiveTone('dark')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              activeTone === 'dark' ? 'bg-ink text-surface font-semibold' : 'text-muted'
-                            }`}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTone('light')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              activeTone === 'light' ? 'bg-ink text-surface font-semibold' : 'text-muted'
-                            }`}
-                          >
-                            Light
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="aspect-[16/9] w-full rounded-lg border border-border overflow-hidden bg-bg/80 flex items-center justify-center relative">
-                        <img
-                          src={currentArtworkUrl}
-                          alt="Artwork Preview"
-                          className="w-full h-full object-contain p-2"
-                        />
-                        {isArtworkPlaceholder && (
-                          <div className="absolute inset-x-2 bottom-2 bg-amber-500/90 text-white text-[10px] font-mono font-medium py-1 px-2 rounded text-center backdrop-blur-xs">
-                            No {activeTone} artwork configured (Placeholder shown)
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3 pt-2">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[11px] font-mono text-muted">Default Image Asset</label>
-                            <button
-                              type="button"
-                              onClick={() => setImagePickerTarget('default')}
-                              className="inline-flex items-center gap-1 text-[11px] font-mono text-ink underline cursor-pointer hover:text-muted"
-                            >
-                              <Upload className="w-3 h-3" />
-                              <span>Pick / Upload</span>
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={productFormData.imageUrl}
-                            onChange={(e) => setProductFormData({ ...productFormData, imageUrl: e.target.value })}
-                            className="w-full px-2.5 py-1.5 rounded border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-hidden"
-                            placeholder="product_images/... or URL"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[11px] font-mono text-muted">Dark Finish Asset</label>
-                            <button
-                              type="button"
-                              onClick={() => setImagePickerTarget('dark')}
-                              className="inline-flex items-center gap-1 text-[11px] font-mono text-ink underline cursor-pointer hover:text-muted"
-                            >
-                              <Upload className="w-3 h-3" />
-                              <span>Pick / Upload</span>
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={productFormData.darkImageUrl}
-                            onChange={(e) => setProductFormData({ ...productFormData, darkImageUrl: e.target.value })}
-                            className="w-full px-2.5 py-1.5 rounded border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-hidden"
-                            placeholder="product_images/... or URL"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[11px] font-mono text-muted">Light Finish Asset</label>
-                            <button
-                              type="button"
-                              onClick={() => setImagePickerTarget('light')}
-                              className="inline-flex items-center gap-1 text-[11px] font-mono text-ink underline cursor-pointer hover:text-muted"
-                            >
-                              <Upload className="w-3 h-3" />
-                              <span>Pick / Upload</span>
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={productFormData.lightImageUrl}
-                            onChange={(e) => setProductFormData({ ...productFormData, lightImageUrl: e.target.value })}
-                            className="w-full px-2.5 py-1.5 rounded border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-hidden"
-                            placeholder="product_images/... or URL"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Form Fields Column */}
-                    <div className="lg:col-span-2 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-ink mb-1 font-mono">Product Name *</label>
-                          <input
-                            type="text"
-                            required
-                            value={productFormData.name}
-                            onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
-                            className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-sm focus:border-ink focus:outline-hidden"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-ink mb-1 font-mono">Slug (URL Path) *</label>
-                          <input
-                            type="text"
-                            required
-                            value={productFormData.slug}
-                            onChange={(e) => setProductFormData({ ...productFormData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                            className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-sm font-mono focus:border-ink focus:outline-hidden"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-ink mb-1 font-mono">Product Type (Locked)</label>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-bg/80 text-xs font-mono text-muted">
-                            <Lock className="w-3.5 h-3.5 text-muted shrink-0" />
-                            <span className="font-bold text-ink">{product.type}</span>
-                            <span className="text-[10px] text-muted truncate">(Locked to preserve SKU integrity)</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-ink mb-1 font-mono">Base Price (₹) *</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-2 text-sm text-muted font-mono">₹</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              required
-                              value={productFormData.basePriceRupees}
-                              onChange={(e) => setProductFormData({ ...productFormData, basePriceRupees: e.target.value })}
-                              className="w-full pl-7 pr-3 py-2 rounded-md border border-border bg-bg text-ink text-sm font-mono focus:border-ink focus:outline-hidden"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-ink mb-1 font-mono">Description</label>
-                        <textarea
-                          rows={3}
-                          value={productFormData.description}
-                          onChange={(e) => setProductFormData({ ...productFormData, description: e.target.value })}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-sm focus:border-ink focus:outline-hidden leading-relaxed"
-                          placeholder="Comprehensive details describing the product features and contents..."
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-border/80">
-                        <div>
-                          <label className="block text-xs font-medium text-ink mb-1 font-mono">
-                            Display Order (Sort weight on storefront)
-                          </label>
-                          <input
-                            type="number"
-                            value={productFormData.displayOrder}
-                            onChange={(e) => setProductFormData({ ...productFormData, displayOrder: parseInt(e.target.value, 10) || 0 })}
-                            className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-sm font-mono focus:border-ink focus:outline-hidden"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-6">
-                          <label className="flex items-center gap-2 cursor-pointer text-xs font-mono text-ink">
-                            <input
-                              type="checkbox"
-                              checked={productFormData.isFeatured}
-                              onChange={(e) => setProductFormData({ ...productFormData, isFeatured: e.target.checked })}
-                              className="rounded border-border text-ink focus:ring-ink w-4 h-4 cursor-pointer"
-                            />
-                            <span>Featured on Storefront</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (product) initProductFormData(product);
-                            setIsEditingProduct(false);
-                          }}
-                          disabled={isSavingProduct}
-                          className="px-4 py-2 rounded-md border border-border bg-surface text-ink text-xs font-mono hover:bg-bg cursor-pointer transition-colors"
-                        >
-                          Cancel
-                        </button>
-
-                        <button
-                          type="submit"
-                          disabled={isSavingProduct}
-                          className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-ink text-surface text-xs font-mono font-medium hover:opacity-90 shadow-2xs cursor-pointer transition-opacity"
-                        >
-                          {isSavingProduct ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Save className="w-3.5 h-3.5" />
-                          )}
-                          <span>{isSavingProduct ? 'Saving...' : 'Save Product Specifications'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                /* VIEW PRODUCT OVERVIEW CARD */
-                <div className="p-5 rounded-xl border border-border bg-surface shadow-2xs space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Artwork Display Box */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-semibold text-muted uppercase">Artwork</span>
-                        <div className="flex items-center rounded border border-border bg-bg p-0.5 text-[11px] font-mono">
-                          <button
-                            type="button"
-                            onClick={() => setActiveTone('dark')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              activeTone === 'dark' ? 'bg-ink text-surface font-semibold' : 'text-muted'
-                            }`}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTone('light')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              activeTone === 'light' ? 'bg-ink text-surface font-semibold' : 'text-muted'
-                            }`}
-                          >
-                            Light
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="aspect-[16/9] w-full rounded-lg border border-border overflow-hidden bg-bg/80 flex items-center justify-center relative">
-                        <img
-                          src={currentArtworkUrl}
-                          alt={product.name}
-                          className="w-full h-full object-contain p-2"
-                        />
-                        {isArtworkPlaceholder && (
-                          <div className="absolute inset-x-2 bottom-2 bg-amber-500/90 text-white text-[10px] font-mono font-medium py-1 px-2 rounded text-center backdrop-blur-xs">
-                            No {activeTone} artwork configured (Placeholder shown)
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="pt-2 border-t border-border/60 flex flex-wrap gap-1.5 text-[10px] font-mono">
-                        {product.imageUrl ? (
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            ✓ Default Image
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                            No Default Image
-                          </span>
-                        )}
-                        {product.darkImageUrl ? (
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            ✓ Dark Image
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                            Missing Dark Image
-                          </span>
-                        )}
-                        {product.lightImageUrl ? (
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            ✓ Light Image
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                            Missing Light Image
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Metadata Overview Column */}
-                    <div className="lg:col-span-2 space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-ink text-surface">
-                              {product.type || 'PRODUCT'}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded font-mono font-semibold text-[10px] ${
-                                product.active
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : 'bg-zinc-100 text-zinc-600 border border-zinc-300'
-                              }`}
-                            >
-                              {product.active ? 'LIVE IN STORE' : 'HIDDEN'}
-                            </span>
-                            {product.isFeatured && (
-                              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-mono font-bold">
-                                ★ FEATURED
-                              </span>
-                            )}
-                          </div>
-                          <h2 className="text-xl font-semibold text-ink mt-2">{product.name}</h2>
-                          <p className="font-mono text-xs text-muted mt-0.5">Slug: /{product.slug}</p>
-                        </div>
-
-                        <div className="text-left sm:text-right">
-                          <span className="font-mono text-xl font-bold text-ink">
-                            {formatPrice(product.basePrice, product.basePriceFormatted)}
-                          </span>
-                          <p className="text-[11px] text-muted font-mono">{product.currency || 'INR'}</p>
-                          <span className="text-[11px] text-muted font-mono block mt-1">
-                            Store Position: #{product.displayOrder ?? 0}
-                          </span>
-                        </div>
-                      </div>
-
-                      {product.description && (
-                        <div className="p-3.5 rounded-lg bg-bg/50 border border-border/80 text-xs text-ink leading-relaxed">
-                          <span className="font-mono text-[10px] text-muted uppercase block font-semibold mb-1">
-                            Description:
-                          </span>
-                          {product.description}
-                        </div>
-                      )}
-
-                      {/* Keys */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/60 text-xs font-mono">
-                        <div className="p-2.5 rounded bg-bg/40 border border-border flex items-center justify-between">
-                          <div>
-                            <span className="text-[10px] text-muted uppercase block">Product SKU</span>
-                            <span className="font-bold text-ink">{product.sku}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(product.sku, 'sku')}
-                            className="p-1 text-muted hover:text-ink cursor-pointer"
-                            title="Copy SKU"
-                          >
-                            {copiedKey === 'sku' ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="p-2.5 rounded bg-bg/40 border border-border flex items-center justify-between">
-                          <div>
-                            <span className="text-[10px] text-muted uppercase block">Internal Product ID</span>
-                            <span className="font-bold text-ink truncate max-w-[150px] inline-block align-bottom">
-                              {product.id}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(product.id, 'id')}
-                            className="p-1 text-muted hover:text-ink cursor-pointer"
-                            title="Copy ID"
-                          >
-                            {copiedKey === 'id' ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* ============================================================== */}
-            {/* SECTION 2: VARIANTS                                             */}
-            {/* ============================================================== */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-ink" />
-                  <h2 className="text-sm font-semibold text-ink uppercase tracking-wider font-mono">
-                    2. Product Variants ({product.variants?.length || 0})
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleOpenAddVariant}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-ink text-surface hover:opacity-90 text-xs font-mono font-medium cursor-pointer shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Add Variant</span>
-                </button>
-              </div>
-
-              {(!product.variants || product.variants.length === 0) ? (
-                <div className="p-8 text-center text-xs text-muted border border-dashed border-border rounded-xl bg-surface">
-                  No variants found on this product.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {product.variants.map((v, idx) => (
-                    <div
-                      key={v.id || idx}
-                      className="p-5 rounded-xl border border-border bg-surface shadow-2xs space-y-4"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg overflow-hidden border border-border bg-black/10 shrink-0 flex items-center justify-center">
-                            <img
-                              src={v.imageUrl || product.imageUrl || DEFAULT_PRODUCT_IMAGE}
-                              alt={v.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-                              }}
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-sm text-ink">{v.name}</h3>
-                              <span className="font-mono text-xs px-2 py-0.5 rounded bg-bg border border-border font-bold text-muted">
-                                SKU: {v.sku}
-                              </span>
-                              <span
-                                className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
-                                  v.active !== false
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                    : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-                                }`}
-                              >
-                                {v.active !== false ? 'Active' : 'Inactive'}
-                              </span>
-                              {v.imageUrl ? (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                  Variant Artwork
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500 border border-zinc-200">
-                                  Inherits Product Art
-                                </span>
-                              )}
-                            </div>
-                            <p className="font-mono text-[11px] text-muted">Variant UUID: {v.id}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="font-mono font-bold text-base text-ink">
-                              {formatPrice(v.price)}
-                            </span>
-                            <p className="text-[10px] font-mono text-muted">Checkout Price</p>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleOpenVariantEditor(v)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface hover:border-ink text-xs font-mono text-ink cursor-pointer transition-colors shadow-2xs"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>Edit Variant &amp; BOM</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Component Overview inside Variant Card */}
-                      <div className="space-y-2">
-                        <span className="font-mono text-[11px] font-semibold text-muted uppercase tracking-wider block">
-                          Included BOM Components ({v.components?.length || 0}):
-                        </span>
-
-                        {(!v.components || v.components.length === 0) ? (
-                          <p className="text-xs text-muted italic">
-                            No physical or digital components configured for this variant.
-                          </p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                            {v.components.map((c, cIdx) => (
-                              <div
-                                key={c.id || cIdx}
-                                className="p-3 rounded-lg bg-bg/50 border border-border flex items-center justify-between gap-2 text-xs"
-                              >
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-ink truncate">{c.name}</p>
-                                  <p className="font-mono text-[10px] text-muted mt-0.5">
-                                    {c.componentType === 'DIGITAL_ENTITLEMENT'
-                                      ? `Digital: ${c.plusDurationMonths || 12}M Entitlement`
-                                      : c.inventorySku
-                                      ? `Inventory SKU: ${c.inventorySku}`
-                                      : c.componentType}
-                                  </p>
-                                </div>
-                                <span className="font-mono font-bold text-ink px-2 py-0.5 rounded bg-surface border border-border text-xs shrink-0">
-                                  ×{c.quantity}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* ============================================================== */}
-            {/* SECTION 3: SHIPPING AND PACKAGING SPECIFICATIONS               */}
-            {/* ============================================================== */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-ink" />
-                  <h2 className="text-sm font-semibold text-ink uppercase tracking-wider font-mono">
-                    3. Shipping and Packaging
-                  </h2>
-                </div>
-                <span className="text-xs text-muted">Used for fulfillment weight &amp; courier calculations</span>
-              </div>
-
-              <div className="p-5 rounded-xl border border-border bg-surface shadow-2xs">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
-                  <div className="p-3 rounded-lg bg-bg/40 border border-border">
-                    <span className="text-muted block text-[10px] uppercase">Shipping Weight</span>
-                    <span className="text-sm font-bold text-ink mt-0.5 block">{product.weightGrams ?? 0} g</span>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-bg/40 border border-border">
-                    <span className="text-muted block text-[10px] uppercase">Package Length</span>
-                    <span className="text-sm font-bold text-ink mt-0.5 block">{product.lengthCm ?? 0} cm</span>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-bg/40 border border-border">
-                    <span className="text-muted block text-[10px] uppercase">Package Breadth</span>
-                    <span className="text-sm font-bold text-ink mt-0.5 block">{product.breadthCm ?? 0} cm</span>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-bg/40 border border-border">
-                    <span className="text-muted block text-[10px] uppercase">Package Height</span>
-                    <span className="text-sm font-bold text-ink mt-0.5 block">{product.heightCm ?? 0} cm</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ============================================================== */}
-            {/* SECTION 4: ACTIVITY AND SALES                                   */}
-            {/* ============================================================== */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-ink" />
-                  <h2 className="text-sm font-semibold text-ink uppercase tracking-wider font-mono">
-                    4. Activity and Sales
-                  </h2>
-                </div>
-                <span className="text-xs text-muted">Historical sales &amp; audit records</span>
-              </div>
-
-              <div className="p-5 rounded-xl border border-border bg-surface shadow-2xs space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
-                  <div className="p-3.5 rounded-lg bg-bg/40 border border-border flex items-center justify-between">
-                    <div>
-                      <span className="text-muted block text-[10px] uppercase">Total Orders Fulfilled</span>
-                      <span className="text-base font-bold text-ink mt-0.5 block">{totalSalesCount} units</span>
-                    </div>
-                    <Package className="w-5 h-5 text-muted" />
-                  </div>
-
-                  <div className="p-3.5 rounded-lg bg-bg/40 border border-border flex items-center justify-between">
-                    <div>
-                      <span className="text-muted block text-[10px] uppercase">Created At</span>
-                      <span className="font-bold text-ink mt-0.5 block">
-                        {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                    <Calendar className="w-5 h-5 text-muted" />
-                  </div>
-
-                  <div className="p-3.5 rounded-lg bg-bg/40 border border-border flex items-center justify-between">
-                    <div>
-                      <span className="text-muted block text-[10px] uppercase">Last Updated</span>
-                      <span className="font-bold text-ink mt-0.5 block">
-                        {product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                    <RefreshCw className="w-5 h-5 text-muted" />
-                  </div>
-                </div>
-
-                {/* Per-variant sales breakdown if available */}
-                {product.variants && product.variants.some((v) => v._count?.orderItems !== undefined) && (
-                  <div className="pt-3 border-t border-border/60">
-                    <span className="font-mono text-[10px] uppercase font-semibold text-muted block mb-2">
-                      Sales Breakdown by Variant:
-                    </span>
-                    <div className="divide-y divide-border/60 text-xs font-mono">
-                      {product.variants.map((v, i) => (
-                        <div key={v.id || i} className="py-2 flex items-center justify-between">
-                          <span className="text-ink">{v.name} ({v.sku}):</span>
-                          <span className="font-bold text-ink">{v._count?.orderItems ?? 0} orders</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VARIANT & BOM COMPONENT EDIT / ADD MODAL                       */}
-        {/* ============================================================== */}
-        {(editingVariant || isAddingVariant) && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="w-full max-w-2xl rounded-xl border border-border bg-surface shadow-2xl p-6 space-y-6 my-8">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-ink" />
-                  <div>
-                    <h3 className="font-semibold text-base text-ink">
-                      {isAddingVariant ? 'Add New Variant & Components' : 'Edit Variant & Components'}
-                    </h3>
-                    <p className="font-mono text-xs text-muted">
-                      {isAddingVariant
-                        ? `Adding variant to ${product?.name || 'Product'}`
-                        : `SKU: ${editingVariant?.sku} · ID: ${editingVariant?.id}`}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCloseVariantEditor}
-                  className="p-1 rounded-md text-muted hover:text-ink cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveVariant} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {isAddingVariant ? (
-                    <div>
-                      <label className="block text-xs font-medium text-ink mb-1 font-mono">
-                        Variant SKU *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={variantFormData.sku || ''}
-                        onChange={(e) => setVariantFormData({ ...variantFormData, sku: e.target.value })}
-                        className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-hidden"
-                        placeholder="e.g. KT-VS-SGL-DRK"
-                      />
-                    </div>
-                  ) : null}
-
-                  <div>
-                    <label className="block text-xs font-medium text-ink mb-1 font-mono">
-                      Variant Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={variantFormData.name}
-                      onChange={(e) => setVariantFormData({ ...variantFormData, name: e.target.value })}
-                      className="w-full px-3 py-2 rounded-md border border-border bg-bg text-ink text-xs focus:border-ink focus:outline-hidden"
-                      placeholder="e.g. Dark"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-ink mb-1 font-mono">
-                      Variant Price (₹) *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-xs text-muted font-mono">₹</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={variantFormData.priceRupees}
-                        onChange={(e) => setVariantFormData({ ...variantFormData, priceRupees: e.target.value })}
-                        className="w-full pl-7 pr-3 py-2 rounded-md border border-border bg-bg text-ink text-xs font-mono focus:border-ink focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-6">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-mono text-ink">
-                      <input
-                        type="checkbox"
-                        checked={variantFormData.active}
-                        onChange={(e) => setVariantFormData({ ...variantFormData, active: e.target.checked })}
-                        className="rounded border-border text-ink focus:ring-ink w-4 h-4 cursor-pointer"
-                      />
-                      <span>Active for Purchase</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Variant Image Configuration (Replace / Remove) */}
-                <div className="space-y-2.5 pt-3 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-mono text-xs font-bold text-ink uppercase tracking-wider">
-                        Variant Specific Image
-                      </h4>
-                      <p className="text-[11px] text-muted">
-                        Shown when this specific variant (e.g. Light or Dark finish) is selected.
-                      </p>
-                    </div>
-                  </div>
-
-                  {variantFormData.imageUrl ? (
-                    <div className="flex items-center gap-4 p-3 rounded-lg border border-border bg-bg/50">
-                      <div className="w-16 h-16 rounded-md overflow-hidden border border-border bg-black/10 shrink-0 relative flex items-center justify-center">
-                        <img
-                          src={variantPreviewUrl || variantFormData.imageUrl}
-                          alt={variantFormData.name || 'Variant artwork'}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <span
-                          className="font-mono text-xs font-semibold text-ink block truncate"
-                          title={variantFormData.imageUrl}
-                        >
-                          {variantFormData.imageUrl}
-                        </span>
-                        <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded inline-block">
-                          Active Variant Artwork
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setImagePickerTarget('variant')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-border bg-surface hover:border-ink text-xs font-mono text-ink cursor-pointer transition-colors shadow-2xs"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Replace</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVariantFormData((prev) => ({ ...prev, imageUrl: null }));
-                            setVariantPreviewUrl(null);
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-mono text-red-600 cursor-pointer transition-colors"
-                          title="Remove variant image (reverts to parent product image)"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-dashed border-border bg-bg/30 text-xs">
-                      <div className="space-y-0.5">
-                        <p className="font-medium text-ink">No variant-specific image set</p>
-                        <p className="text-muted text-[11px]">
-                          This variant will automatically inherit the parent product's default image.
-                        </p>
-                      </div>
+          /* ── Main Viewport Split Layout ── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pt-6">
+            {/* ── Image Column: Full Viewport Prominence ── */}
+            <div className="lg:col-span-6">
+              <div className="lg:sticky lg:top-20 space-y-3">
+                <div className="w-full aspect-square rounded-lg border border-border overflow-hidden relative">
+                  <img
+                    src={displayImageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {isEditingProduct && (
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent flex justify-center">
                       <button
                         type="button"
-                        onClick={() => setImagePickerTarget('variant')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface hover:border-ink text-xs font-mono text-ink cursor-pointer shadow-2xs shrink-0"
+                        onClick={() => setImagePickerTarget('product')}
+                        className="px-3 py-1.5 rounded-md bg-surface text-ink text-xs font-sans font-medium inline-flex items-center gap-1.5 shadow-sm hover:bg-bg cursor-pointer transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>Select / Upload Variant Image</span>
+                        <span>Change product image</span>
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* BOM Components Editor */}
-                <div className="space-y-3 pt-3 border-t border-border">
-                  <div className="flex items-center justify-between">
+                {isEditingProduct && (
+                  <div className="text-[11px] text-muted flex items-center justify-between px-1">
+                    <span className="truncate max-w-[320px]">
+                      {productFormData.imageUrl || 'No custom image set'}
+                    </span>
+                    {productFormData.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setProductFormData({ ...productFormData, imageUrl: '' })}
+                        className="text-red-600 hover:underline cursor-pointer"
+                      >
+                        Reset image
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Details & Controls Column ── */}
+            <div className="lg:col-span-6 space-y-8">
+              {isEditingProduct ? (
+                /* EDIT MODE FORM */
+                <form onSubmit={handleSaveProduct} className="space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-sm font-medium text-ink">Edit product details</h2>
+
                     <div>
-                      <h4 className="font-mono text-xs font-bold text-ink uppercase tracking-wider">
-                        Bill of Materials (BOM) Components
-                      </h4>
-                      <p className="text-[11px] text-muted">
-                        Physical QR tags, package contents, or digital subscriptions included in this variant.
-                      </p>
+                      <label className="block text-xs text-muted mb-1 font-sans">Product name</label>
+                      <input
+                        type="text"
+                        required
+                        value={productFormData.name}
+                        onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-surface text-ink text-sm font-sans focus:outline-none focus:border-ink transition-colors"
+                      />
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-muted mb-1 font-sans">Base price (₹)</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          required
+                          value={productFormData.basePriceRupees}
+                          onChange={(e) => setProductFormData({ ...productFormData, basePriceRupees: e.target.value })}
+                          className="w-full px-3 py-2 rounded-md border border-border bg-surface text-ink text-sm font-satoshi font-medium focus:outline-none focus:border-ink transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-muted mb-1 font-sans">Slug (URL path)</label>
+                        <input
+                          type="text"
+                          required
+                          value={productFormData.slug}
+                          onChange={(e) =>
+                            setProductFormData({
+                              ...productFormData,
+                              slug: e.target.value.toLowerCase().replace(/\s+/g, '-'),
+                            })
+                          }
+                          className="w-full px-3 py-2 rounded-md border border-border bg-surface text-ink text-sm font-satoshi font-medium focus:outline-none focus:border-ink transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-muted mb-1 font-sans">Description</label>
+                      <textarea
+                        rows={3}
+                        value={productFormData.description}
+                        onChange={(e) => setProductFormData({ ...productFormData, description: e.target.value })}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-surface text-ink text-sm font-sans focus:outline-none focus:border-ink transition-colors leading-relaxed"
+                        placeholder="Product features, contents and usage..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-xs text-muted mb-1 font-sans">Storefront display order</label>
+                        <input
+                          type="number"
+                          value={productFormData.displayOrder}
+                          onChange={(e) => setProductFormData({ ...productFormData, displayOrder: parseInt(e.target.value, 10) || 0 })}
+                          className="w-full px-3 py-2 rounded-md border border-border bg-surface text-ink text-sm font-satoshi font-medium focus:outline-none focus:border-ink transition-colors"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-ink font-sans">
+                          <input
+                            type="checkbox"
+                            checked={productFormData.isFeatured}
+                            onChange={(e) => setProductFormData({ ...productFormData, isFeatured: e.target.checked })}
+                            className="rounded border-border text-ink focus:ring-0 cursor-pointer"
+                          />
+                          <span>Feature on storefront</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Shipping Dimensions Form */}
+                    <div className="pt-4 border-t border-border space-y-3">
+                      <h3 className="text-xs font-medium text-ink font-sans">Shipping & packaging dimensions</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-[11px] text-muted mb-1 font-sans">Weight (g)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={productFormData.weightGrams}
+                            onChange={(e) => setProductFormData({ ...productFormData, weightGrams: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-surface text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-muted mb-1 font-sans">Length (cm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={productFormData.lengthCm}
+                            onChange={(e) => setProductFormData({ ...productFormData, lengthCm: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-surface text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-muted mb-1 font-sans">Breadth (cm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={productFormData.breadthCm}
+                            onChange={(e) => setProductFormData({ ...productFormData, breadthCm: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-surface text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-sans text-muted mb-1">Height (cm)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={productFormData.heightCm}
+                            onChange={(e) => setProductFormData({ ...productFormData, heightCm: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-surface text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-border flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (product) initProductFormData(product);
+                        setIsEditingProduct(false);
+                      }}
+                      disabled={isSavingProduct}
+                      className="px-3.5 py-1.5 rounded-md border border-border bg-surface text-ink text-xs font-sans hover:bg-bg cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingProduct}
+                      className="px-4 py-1.5 rounded-md bg-ink text-surface text-xs font-sans font-medium hover:opacity-90 inline-flex items-center gap-1.5 cursor-pointer transition-opacity"
+                    >
+                      {isSavingProduct ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>{isSavingProduct ? 'Saving...' : 'Save changes'}</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* VIEW MODE INFORMATION */
+                <div className="space-y-8">
+                  {/* Title & Primary Pricing */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-ink">
+                          {product.name}
+                        </h1>
+                        <p className="text-xs text-muted font-sans">
+                          /{product.slug} · {product.active ? 'Live on store' : 'Draft'}
+                          {product.isFeatured && ' · Featured'}
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="font-satoshi font-medium text-2xl sm:text-3xl text-ink">
+                          {formatPrice(product.basePrice)}
+                        </span>
+                        <p className="text-[11px] text-muted font-sans">Base price</p>
+                      </div>
+                    </div>
+
+                    {product.description && (
+                      <p className="text-xs sm:text-sm text-ink/80 leading-relaxed font-sans pt-2">
+                        {product.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Variants & Kit Contents List */}
+                  <div className="pt-6 border-t border-border space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xs font-medium uppercase tracking-wider text-muted font-sans">
+                          Variants & kit contents
+                        </h2>
+                        <p className="text-xs text-muted font-sans">
+                          {product.variants?.length || 0} variant{(product.variants?.length || 0) === 1 ? '' : 's'} available
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenAddVariant}
+                        className="px-2.5 py-1 rounded-md text-xs font-sans font-medium text-ink hover:bg-surface border border-border inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add variant</span>
+                      </button>
+                    </div>
+
+                    {(!product.variants || product.variants.length === 0) ? (
+                      <p className="text-xs text-muted py-4">No variants configured for this product.</p>
+                    ) : (
+                      <div className="divide-y divide-border border-y border-border">
+                        {product.variants.map((v) => (
+                          <div key={v.id} className="py-3.5 flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded border border-border bg-surface/50 overflow-hidden shrink-0 flex items-center justify-center p-1">
+                                <img
+                                  src={v.imageUrl || product.imageUrl || DEFAULT_PRODUCT_IMAGE}
+                                  alt={v.name}
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                                  }}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm text-ink">{v.name}</span>
+                                  <span className="text-xs font-satoshi font-medium text-muted">
+                                    {v.sku}
+                                  </span>
+                                  {v.active === false && (
+                                    <span className="text-[10px] text-muted font-sans">
+                                      (Inactive)
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Components summary */}
+                                {v.components && v.components.length > 0 && (
+                                  <div className="text-xs text-muted font-sans flex flex-wrap gap-x-2">
+                                    {v.components.map((c, i) => (
+                                      <span key={i}>
+                                        <span className="font-satoshi font-medium">{c.quantity}</span>× {c.name}
+                                        {i < v.components.length - 1 ? ' · ' : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="font-satoshi font-medium text-sm sm:text-base text-ink">
+                                {formatPrice(v.price)}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenVariantEditor(v)}
+                                className="px-2.5 py-1 rounded-md text-xs font-sans text-muted hover:text-ink hover:bg-surface border border-transparent hover:border-border transition-colors cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Logistics & Packaging Specifications */}
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h2 className="text-xs font-medium uppercase tracking-wider text-muted font-sans">
+                      Shipping & packaging
+                    </h2>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2 text-xs font-sans">
+                      <div>
+                        <span className="text-muted block text-[11px]">Weight</span>
+                        <span className="font-satoshi font-medium text-sm text-ink mt-0.5 block">
+                          {product.weightGrams ?? 0} g
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted block text-[11px]">Length</span>
+                        <span className="font-satoshi font-medium text-sm text-ink mt-0.5 block">
+                          {product.lengthCm ?? 0} cm
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted block text-[11px]">Breadth</span>
+                        <span className="font-satoshi font-medium text-sm text-ink mt-0.5 block">
+                          {product.breadthCm ?? 0} cm
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted block text-[11px]">Height</span>
+                        <span className="font-satoshi font-medium text-sm text-ink mt-0.5 block">
+                          {product.heightCm ?? 0} cm
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quiet Technical Metadata */}
+                  <div className="pt-6 border-t border-border flex flex-wrap items-center justify-between gap-y-2 text-[11px] text-muted font-satoshi font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>SKU: {product.sku}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(product.sku, 'sku')}
+                        className="p-1 hover:text-ink cursor-pointer"
+                        title="Copy SKU"
+                      >
+                        {copiedKey === 'sku' ? (
+                          <Check className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                      <span>·</span>
+                      <span className="font-sans">Rank: #{product.displayOrder ?? 0}</span>
+                    </div>
+
+                    <div className="text-muted/70">
+                      ID: <span className="font-satoshi">{product.id.slice(0, 8)}...</span>
+                      {product.updatedAt && (
+                        <span> · Updated {new Date(product.updatedAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Variant & Components Edit Modal ── */}
+        {(editingVariant || isAddingVariant) && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="w-full max-w-xl rounded-lg border border-border bg-surface shadow-lg p-6 space-y-5 my-8">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <h3 className="font-medium text-sm text-ink font-sans">
+                  {isAddingVariant ? 'Add variant' : `Edit variant: ${editingVariant?.name}`}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCloseVariantEditor}
+                  className="p-1 text-muted hover:text-ink cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveVariant} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {isAddingVariant && (
+                    <div>
+                      <label className="block text-xs text-muted mb-1 font-sans">SKU *</label>
+                      <input
+                        type="text"
+                        required
+                        value={variantFormData.sku || ''}
+                        onChange={(e) => setVariantFormData({ ...variantFormData, sku: e.target.value })}
+                        className="w-full px-2.5 py-1.5 rounded-md border border-border bg-bg text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                        placeholder="KT-VS-SGL-DRK"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs text-muted mb-1 font-sans">Variant name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={variantFormData.name}
+                      onChange={(e) => setVariantFormData({ ...variantFormData, name: e.target.value })}
+                      className="w-full px-2.5 py-1.5 rounded-md border border-border bg-bg text-ink text-xs font-sans focus:outline-none focus:border-ink"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-muted mb-1 font-sans">Price (₹) *</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      required
+                      value={variantFormData.priceRupees}
+                      onChange={(e) => setVariantFormData({ ...variantFormData, priceRupees: e.target.value })}
+                      className="w-full px-2.5 py-1.5 rounded-md border border-border bg-bg text-ink text-xs font-satoshi font-medium focus:outline-none focus:border-ink"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-ink font-sans">
+                    <input
+                      type="checkbox"
+                      checked={variantFormData.active}
+                      onChange={(e) => setVariantFormData({ ...variantFormData, active: e.target.checked })}
+                      className="rounded border-border text-ink focus:ring-0 cursor-pointer"
+                    />
+                    <span>Active for purchase</span>
+                  </label>
+                </div>
+
+                {/* Variant-specific image override */}
+                <div className="pt-3 border-t border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-muted font-sans">Variant artwork</label>
+                    <button
+                      type="button"
+                      onClick={() => setImagePickerTarget('variant')}
+                      className="text-xs text-ink underline hover:opacity-80 cursor-pointer"
+                    >
+                      {variantFormData.imageUrl ? 'Change image' : 'Select custom image'}
+                    </button>
+                  </div>
+
+                  {variantFormData.imageUrl ? (
+                    <div className="flex items-center justify-between p-2 rounded-md border border-border bg-bg text-xs">
+                      <span className="truncate max-w-[280px] font-satoshi text-[11px] text-ink">
+                        {variantFormData.imageUrl}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setVariantFormData({ ...variantFormData, imageUrl: null })}
+                        className="text-muted hover:text-red-600 text-xs cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted font-sans">
+                      Inherits default product image.
+                    </p>
+                  )}
+                </div>
+
+                {/* Included Components */}
+                <div className="pt-3 border-t border-border space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs text-muted font-sans">Included components</h4>
                     <button
                       type="button"
                       onClick={() =>
@@ -1375,45 +991,40 @@ export const AdminProductDetailPage: React.FC = () => {
                             ...variantFormData.components,
                             {
                               componentType: 'SERIALIZED_QR_TAG',
-                              name: 'Physical QR Tag',
+                              name: 'Vehicle QR Tag',
                               quantity: 1,
                               inventorySku: 'TAG-CAR-01',
                             },
                           ],
                         })
                       }
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-bg hover:bg-border/60 border border-border text-xs font-mono font-medium text-ink cursor-pointer"
+                      className="text-xs text-ink hover:underline cursor-pointer inline-flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
-                      <span>Add Component</span>
+                      <span>Add component</span>
                     </button>
                   </div>
 
                   {variantFormData.components.length === 0 ? (
-                    <div className="p-4 rounded-lg border border-dashed border-border text-center text-xs text-muted">
-                      No components defined. Click "Add Component" above to specify items.
-                    </div>
+                    <p className="text-xs text-muted py-2">No components defined.</p>
                   ) : (
-                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {variantFormData.components.map((c, cIdx) => (
-                        <div key={cIdx} className="p-3 rounded-lg border border-border bg-bg/50 space-y-2.5 text-xs">
+                        <div key={cIdx} className="p-2.5 rounded-md border border-border bg-bg space-y-2 text-xs">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-[10px] text-muted font-bold">#{cIdx + 1}</span>
-                              <select
-                                value={c.componentType}
-                                onChange={(e) => {
-                                  const updated = [...variantFormData.components];
-                                  updated[cIdx].componentType = e.target.value as ProductComponentType;
-                                  setVariantFormData({ ...variantFormData, components: updated });
-                                }}
-                                className="px-2 py-1 rounded border border-border bg-surface text-ink text-xs font-mono"
-                              >
-                                <option value="SERIALIZED_QR_TAG">SERIALIZED_QR_TAG (Physical Tag)</option>
-                                <option value="PHYSICAL_ITEM">PHYSICAL_ITEM (Kit Item)</option>
-                                <option value="DIGITAL_ENTITLEMENT">DIGITAL_ENTITLEMENT (Plus Months)</option>
-                              </select>
-                            </div>
+                            <select
+                              value={c.componentType}
+                              onChange={(e) => {
+                                const updated = [...variantFormData.components];
+                                updated[cIdx].componentType = e.target.value as ProductComponentType;
+                                setVariantFormData({ ...variantFormData, components: updated });
+                              }}
+                              className="px-2 py-1 rounded border border-border bg-surface text-ink text-xs font-sans"
+                            >
+                              <option value="SERIALIZED_QR_TAG">Physical QR Tag</option>
+                              <option value="PHYSICAL_ITEM">Kit Item</option>
+                              <option value="DIGITAL_ENTITLEMENT">Digital Entitlement</option>
+                            </select>
 
                             <button
                               type="button"
@@ -1422,93 +1033,51 @@ export const AdminProductDetailPage: React.FC = () => {
                                 setVariantFormData({ ...variantFormData, components: updated });
                               }}
                               className="p-1 text-muted hover:text-red-600 cursor-pointer"
-                              title="Remove component"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-mono text-muted mb-0.5">Component Name *</label>
-                              <input
-                                type="text"
-                                required
-                                value={c.name}
-                                onChange={(e) => {
-                                  const updated = [...variantFormData.components];
-                                  updated[cIdx].name = e.target.value;
-                                  setVariantFormData({ ...variantFormData, components: updated });
-                                }}
-                                className="w-full px-2.5 py-1 rounded border border-border bg-surface text-ink text-xs"
-                                placeholder="e.g. Vehicle Sticker QR Tag"
-                              />
-                            </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              required
+                              value={c.name}
+                              onChange={(e) => {
+                                const updated = [...variantFormData.components];
+                                updated[cIdx].name = e.target.value;
+                                setVariantFormData({ ...variantFormData, components: updated });
+                              }}
+                              className="px-2 py-1 rounded border border-border bg-surface text-ink text-xs font-sans"
+                              placeholder="Name"
+                            />
 
-                            <div>
-                              <label className="block text-[10px] font-mono text-muted mb-0.5">Quantity (Units) *</label>
-                              <input
-                                type="number"
-                                min="1"
-                                required
-                                value={c.quantity}
-                                onChange={(e) => {
-                                  const updated = [...variantFormData.components];
-                                  updated[cIdx].quantity = parseInt(e.target.value, 10) || 1;
-                                  setVariantFormData({ ...variantFormData, components: updated });
-                                }}
-                                className="w-full px-2.5 py-1 rounded border border-border bg-surface text-ink text-xs font-mono"
-                              />
-                            </div>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={c.quantity}
+                              onChange={(e) => {
+                                const updated = [...variantFormData.components];
+                                updated[cIdx].quantity = parseInt(e.target.value, 10) || 1;
+                                setVariantFormData({ ...variantFormData, components: updated });
+                              }}
+                              className="px-2 py-1 rounded border border-border bg-surface text-ink text-xs font-satoshi font-medium"
+                              placeholder="Qty"
+                            />
                           </div>
-
-                          {c.componentType !== 'DIGITAL_ENTITLEMENT' ? (
-                            <div>
-                              <label className="block text-[10px] font-mono text-muted mb-0.5">
-                                Inventory SKU (Bound to serialized warehouse tags)
-                              </label>
-                              <input
-                                type="text"
-                                value={c.inventorySku || ''}
-                                onChange={(e) => {
-                                  const updated = [...variantFormData.components];
-                                  updated[cIdx].inventorySku = e.target.value;
-                                  setVariantFormData({ ...variantFormData, components: updated });
-                                }}
-                                className="w-full px-2.5 py-1 rounded border border-border bg-surface text-ink text-xs font-mono"
-                                placeholder="e.g. TAG-CAR-01"
-                              />
-                            </div>
-                          ) : (
-                            <div>
-                              <label className="block text-[10px] font-mono text-muted mb-0.5">
-                                Digital Entitlement Duration (Months)
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={c.plusDurationMonths || 12}
-                                onChange={(e) => {
-                                  const updated = [...variantFormData.components];
-                                  updated[cIdx].plusDurationMonths = parseInt(e.target.value, 10) || 12;
-                                  setVariantFormData({ ...variantFormData, components: updated });
-                                }}
-                                className="w-full px-2.5 py-1 rounded border border-border bg-surface text-ink text-xs font-mono"
-                              />
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
+                <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={handleCloseVariantEditor}
                     disabled={isSavingVariant}
-                    className="px-4 py-2 rounded-md border border-border text-xs font-mono text-muted hover:text-ink cursor-pointer"
+                    className="px-3 py-1.5 rounded-md border border-border text-xs font-sans text-muted hover:text-ink cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -1516,20 +1085,9 @@ export const AdminProductDetailPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSavingVariant}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-md bg-ink text-surface text-xs font-mono font-medium hover:opacity-90 shadow-2xs cursor-pointer"
+                    className="px-4 py-1.5 rounded-md bg-ink text-surface text-xs font-sans font-medium hover:opacity-90 cursor-pointer"
                   >
-                    {isSavingVariant ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Save className="w-3.5 h-3.5" />
-                    )}
-                    <span>
-                      {isSavingVariant
-                        ? 'Saving Variant...'
-                        : isAddingVariant
-                        ? 'Create & Add Variant'
-                        : 'Save Variant & Components'}
-                    </span>
+                    {isSavingVariant ? 'Saving...' : 'Save variant'}
                   </button>
                 </div>
               </form>
@@ -1537,7 +1095,7 @@ export const AdminProductDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Catalog Image Library & Direct GCS Uploader Modal */}
+        {/* ── Catalog Image Library Modal ── */}
         {imagePickerTarget && (
           <CatalogImagePickerModal
             isOpen={Boolean(imagePickerTarget)}
@@ -1545,12 +1103,8 @@ export const AdminProductDetailPage: React.FC = () => {
             onSelectImage={handleSelectArtworkAsset}
             title={
               imagePickerTarget === 'variant'
-                ? `Select Artwork for Variant: ${variantFormData.name || 'Variant'}`
-                : imagePickerTarget === 'dark'
-                ? 'Select Dark Finish Artwork'
-                : imagePickerTarget === 'light'
-                ? 'Select Light Finish Artwork'
-                : 'Select Default Product Artwork'
+                ? `Select Artwork for ${variantFormData.name || 'Variant'}`
+                : 'Select Product Artwork'
             }
             initialFolder={getInitialFolderForType(product?.type)}
           />

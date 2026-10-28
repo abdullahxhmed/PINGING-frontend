@@ -21,8 +21,15 @@ import {
   Minus,
   Plus,
   Loader2,
+  CheckCircle2,
 } from 'lucide-react';
-import { startCheckoutFlow, getOrderStatus, pollOrderStatus } from '../../services/checkout';
+import {
+  startCheckoutFlow,
+  getOrderStatus,
+  pollOrderStatus,
+  fetchShippingRates,
+} from '../../services/checkout';
+import type { ShippingRateResponseData } from '../../types/orders';
 import { useStoreCatalog } from '../../features/store/useStoreCatalog';
 import { useToast } from '../../components/ui/Toast';
 
@@ -192,6 +199,120 @@ export const CheckoutPage: React.FC = () => {
     });
   };
 
+  // ── SHIPPING RATE CALCULATION STATE (8-STATE HANDLING) ─────────────────────
+  type ShippingRateStatus =
+    | 'IDLE' // No 6-digit pincode yet
+    | 'CALCULATING' // Request in flight
+    | 'SUCCESS' // Serviceable quote retrieved
+    | 'UNSERVICEABLE' // Pincode unserviceable
+    | 'ERROR'; // API or network failure
+
+  const [shippingStatus, setShippingStatus] = useState<ShippingRateStatus>('IDLE');
+  const [shippingQuote, setShippingQuote] = useState<ShippingRateResponseData | null>(null);
+  const [shippingError, setShippingError] = useState<string | null>(null);
+
+  const isFreeEligible = cartCalc.subtotal >= 400;
+
+  const quoteShippingFeeRupees =
+    shippingQuote && shippingQuote.isServiceable && shippingQuote.shippingFee !== null
+      ? Math.round(shippingQuote.shippingFee / 100)
+      : null;
+
+  const effectiveShippingFee =
+    shippingStatus === 'SUCCESS' && quoteShippingFeeRupees !== null
+      ? quoteShippingFeeRupees
+      : isFreeEligible
+      ? 0
+      : null;
+
+  const totalPayable =
+    effectiveShippingFee !== null ? cartCalc.subtotal + effectiveShippingFee : cartCalc.subtotal;
+
+  const runRateCalculation = async (pinToTest: string) => {
+    const cleanPin = pinToTest.replace(/\D/g, '');
+    if (!/^[1-9][0-9]{5}$/.test(cleanPin)) {
+      setShippingStatus('IDLE');
+      setShippingQuote(null);
+      setShippingError(null);
+      return;
+    }
+
+    const checkoutItems = cartCalc.items
+      .filter((it) => it.quantity > 0 && (it.variantId || it.productId || it.id))
+      .map((it) => {
+        let resolvedVariantId = it.variantId;
+        if (!resolvedVariantId && backendCatalog && backendCatalog.length > 0) {
+          const prod = backendCatalog.find(
+            (p) => p.id === it.productId || p.id === it.id || p.sku === it.id
+          );
+          if (prod && prod.variants && prod.variants.length > 0) {
+            resolvedVariantId = prod.variants[0].id;
+          }
+        }
+        return {
+          variantId: resolvedVariantId || it.productId || it.id,
+          productId: it.productId || it.id,
+          quantity: it.quantity,
+        };
+      });
+
+    if (checkoutItems.length === 0) {
+      setShippingStatus('IDLE');
+      setShippingQuote(null);
+      return;
+    }
+
+    setShippingStatus('CALCULATING');
+    setShippingError(null);
+
+    try {
+      const response = await fetchShippingRates({
+        items: checkoutItems,
+        deliveryPincode: cleanPin,
+        paymentMethod: 'PREPAID',
+      });
+
+      setShippingQuote(response);
+
+      if (response.isServiceable) {
+        setShippingStatus('SUCCESS');
+        setShippingError(null);
+        if (errors.pincode) {
+          setErrors((prev) => ({ ...prev, pincode: '' }));
+        }
+      } else {
+        setShippingStatus('UNSERVICEABLE');
+        const reason =
+          response.unserviceableReason ||
+          `Delivery is currently not available for postal code ${cleanPin}.`;
+        setShippingError(reason);
+        setErrors((prev) => ({ ...prev, pincode: reason }));
+      }
+    } catch (err: any) {
+      setShippingStatus('ERROR');
+      const msg = err.message || 'Unable to calculate shipping rates. Please retry.';
+      setShippingError(msg);
+    }
+  };
+
+  useEffect(() => {
+    const cleanPin = pincode.replace(/\D/g, '');
+    if (!/^[1-9][0-9]{5}$/.test(cleanPin) || cartCalc.itemCount === 0) {
+      if (shippingStatus !== 'IDLE') {
+        setShippingStatus('IDLE');
+        setShippingQuote(null);
+        setShippingError(null);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      runRateCalculation(cleanPin);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [pincode, cartCalc.subtotal, cartCalc.itemCount]);
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
 
@@ -223,8 +344,14 @@ export const CheckoutPage: React.FC = () => {
     }
 
     const cleanPin = pincode.replace(/\D/g, '');
-    if (!cleanPin || cleanPin.length !== 6) {
+    if (!cleanPin || cleanPin.length !== 6 || !/^[1-9][0-9]{5}$/.test(cleanPin)) {
       errs.pincode = 'Please enter a valid 6-digit postal PIN code.';
+    } else if (shippingStatus === 'UNSERVICEABLE') {
+      errs.pincode = shippingError || `Delivery is not serviceable for postal code ${cleanPin}.`;
+    } else if (shippingStatus === 'ERROR') {
+      errs.pincode = 'Delivery rate check failed. Please click retry.';
+    } else if (shippingStatus === 'CALCULATING') {
+      errs.pincode = 'Checking delivery rate, please wait a moment.';
     }
 
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -264,12 +391,23 @@ export const CheckoutPage: React.FC = () => {
 
     // Resolve exact checkout items from cart with accurate variant and product IDs
     const checkoutItems = cartCalc.items
-      .filter((it) => it.quantity > 0 && it.variantId)
-      .map((it) => ({
-        variantId: it.variantId!,
-        quantity: it.quantity,
-        productId: it.productId,
-      }));
+      .filter((it) => it.quantity > 0 && (it.variantId || it.productId || it.id))
+      .map((it) => {
+        let resolvedVariantId = it.variantId;
+        if (!resolvedVariantId && backendCatalog && backendCatalog.length > 0) {
+          const prod = backendCatalog.find(
+            (p) => p.id === it.productId || p.id === it.id || p.sku === it.id
+          );
+          if (prod && prod.variants && prod.variants.length > 0) {
+            resolvedVariantId = prod.variants[0].id;
+          }
+        }
+        return {
+          variantId: resolvedVariantId || it.productId || it.id,
+          productId: it.productId || it.id,
+          quantity: it.quantity,
+        };
+      });
 
     if (checkoutItems.length === 0) {
       const msg = 'Unable to resolve the product variant ID for items in your cart. Please try re-adding items from the store.';
@@ -346,8 +484,8 @@ export const CheckoutPage: React.FC = () => {
           itemCount: cartCalc.itemCount,
           totalTags: cartCalc.totalTags,
           subtotal: cartCalc.subtotal,
-          shippingFee: cartCalc.shippingFee,
-          total: cartCalc.total,
+          shippingFee: effectiveShippingFee ?? 0,
+          total: totalPayable,
           customer,
           status: 'CONFIRMED',
           paymentGatewayStatus: 'PAID',
@@ -678,25 +816,61 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="pincode" className="block uppercase tracking-wider font-medium text-ink mb-1">
-                    PIN Code <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    id="pincode"
-                    type="text"
-                    maxLength={6}
-                    autoComplete="postal-code"
-                    value={pincode}
-                    onChange={(e) => {
-                      setPincode(e.target.value);
-                      if (errors.pincode) setErrors((prev) => ({ ...prev, pincode: '' }));
-                    }}
-                    placeholder="400001"
-                    className={`w-full px-3 py-2.5 text-sm bg-bg border rounded-md focus:outline-none transition-colors ${
-                      errors.pincode ? 'border-danger focus:border-danger' : 'border-border focus:border-ink'
-                    }`}
-                  />
-                  {errors.pincode && <p className="text-danger mt-1">{errors.pincode}</p>}
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="pincode" className="block uppercase tracking-wider font-medium text-ink">
+                      PIN Code <span className="text-danger">*</span>
+                    </label>
+                    {shippingStatus === 'CALCULATING' && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-muted">
+                        <Loader2 className="w-3 h-3 animate-spin text-ink" />
+                        <span>Checking rate...</span>
+                      </span>
+                    )}
+                    {shippingStatus === 'SUCCESS' && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 font-medium">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>{shippingQuote?.isFreeShipping ? 'Free shipping' : `₹${quoteShippingFeeRupees}`}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="pincode"
+                      type="text"
+                      maxLength={6}
+                      autoComplete="postal-code"
+                      value={pincode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setPincode(val);
+                        if (errors.pincode) setErrors((prev) => ({ ...prev, pincode: '' }));
+                      }}
+                      placeholder="400001"
+                      className={`w-full px-3 py-2.5 text-sm bg-bg border rounded-md focus:outline-none transition-colors ${
+                        errors.pincode || shippingStatus === 'UNSERVICEABLE'
+                          ? 'border-danger focus:border-danger'
+                          : 'border-border focus:border-ink'
+                      }`}
+                    />
+                    {shippingStatus === 'ERROR' && (
+                      <button
+                        type="button"
+                        onClick={() => runRateCalculation(pincode)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-ink underline hover:text-muted cursor-pointer"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                  {errors.pincode && <p className="text-danger text-xs mt-1">{errors.pincode}</p>}
+                  {shippingStatus === 'UNSERVICEABLE' && !errors.pincode && (
+                    <p className="text-danger text-xs mt-1">{shippingError}</p>
+                  )}
+                  {shippingStatus === 'SUCCESS' && (
+                    <p className="text-[11px] text-muted font-mono mt-1">
+                      Estimated Delivery: {shippingQuote?.courier?.estimatedDeliveryDays || '3–5 business days'}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -745,16 +919,30 @@ export const CheckoutPage: React.FC = () => {
               {/* Secure Checkout Button */}
               <button
                 type="submit"
-                disabled={isSubmitting || cartCalc.itemCount === 0}
-                className="w-full min-h-[44px] py-3 px-4 bg-ink text-surface text-sm font-medium rounded-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={
+                  isSubmitting ||
+                  cartCalc.itemCount === 0 ||
+                  shippingStatus === 'CALCULATING' ||
+                  shippingStatus === 'UNSERVICEABLE'
+                }
+                className="w-full min-h-[44px] py-3 px-4 bg-ink text-surface text-sm font-medium rounded-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-accent" />
                     <span>{progressStatus || 'Connecting to payment gateway...'}</span>
                   </span>
+                ) : shippingStatus === 'CALCULATING' ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                    <span>Calculating delivery rate...</span>
+                  </span>
+                ) : shippingStatus === 'UNSERVICEABLE' ? (
+                  <span>Delivery Unavailable for {pincode || 'Postal Code'}</span>
+                ) : shippingStatus === 'ERROR' && pincode.replace(/\D/g, '').length === 6 ? (
+                  <span>Retry Delivery Rate Check</span>
                 ) : (
-                  <span>Pay ₹{cartCalc.total} via Razorpay</span>
+                  <span>Pay ₹{totalPayable} via Razorpay</span>
                 )}
               </button>
             </form>
@@ -853,11 +1041,53 @@ export const CheckoutPage: React.FC = () => {
                   <span className="font-mono text-ink">₹{cartCalc.subtotal}</span>
                 </div>
 
-                <div className="flex justify-between text-muted">
-                  <span>Delivery</span>
-                  <span className="font-mono text-ink">
-                    {cartCalc.isShippingFree ? 'Free' : `₹${cartCalc.shippingFee}`}
-                  </span>
+                <div className="flex justify-between items-start text-muted">
+                  <div className="space-y-0.5">
+                    <span>Delivery</span>
+                    {shippingStatus === 'SUCCESS' && (
+                      <p className="text-[10px] text-muted font-sans">
+                        Standard Delivery{shippingQuote?.courier?.estimatedDeliveryDays ? ` (${shippingQuote.courier.estimatedDeliveryDays})` : ' (3–5 business days)'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {shippingStatus === 'CALCULATING' ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-xs text-muted">
+                        <Loader2 className="w-3 h-3 animate-spin text-ink" />
+                        Calculating...
+                      </span>
+                    ) : shippingStatus === 'UNSERVICEABLE' ? (
+                      <span className="font-mono text-xs text-danger font-medium">
+                        Unavailable
+                      </span>
+                    ) : shippingStatus === 'ERROR' ? (
+                      <span className="font-mono text-xs text-danger">
+                        Check failed ·{' '}
+                        <button
+                          type="button"
+                          onClick={() => runRateCalculation(pincode)}
+                          className="underline hover:text-ink cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </span>
+                    ) : shippingStatus === 'SUCCESS' ? (
+                      effectiveShippingFee === 0 ? (
+                        <span className="font-mono text-emerald-600 font-semibold">Free</span>
+                      ) : (
+                        <span className="font-mono text-ink font-semibold">₹{effectiveShippingFee}</span>
+                      )
+                    ) : isFreeEligible ? (
+                      <div>
+                        <span className="font-mono text-emerald-600 font-semibold">Free</span>
+                        <p className="text-[10px] text-muted font-sans">Orders ₹400+</p>
+                      </div>
+                    ) : (
+                      <span className="font-mono text-muted text-[11px]">
+                        Enter PIN code
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pt-2.5 border-t border-border flex justify-between items-baseline font-medium text-sm">
@@ -866,7 +1096,13 @@ export const CheckoutPage: React.FC = () => {
                     <span className="text-[11px] text-muted ml-1.5 font-normal">(GST included)</span>
                   </div>
                   <span className="font-mono text-base font-semibold text-ink">
-                    ₹{cartCalc.total}
+                    {shippingStatus === 'CALCULATING' ? (
+                      <span className="text-muted text-xs font-mono">Calculating...</span>
+                    ) : shippingStatus === 'UNSERVICEABLE' ? (
+                      <span className="text-danger text-xs font-mono">Delivery unavailable</span>
+                    ) : (
+                      `₹${totalPayable}`
+                    )}
                   </span>
                 </div>
               </div>

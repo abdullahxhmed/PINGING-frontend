@@ -1,4 +1,5 @@
 import { request } from './api';
+import type { AdminOverviewResponse, OverviewPeriod } from '../types/admin.overview.types';
 import type {
   AdminDashboardData,
   AdminUsersResponse,
@@ -81,6 +82,18 @@ function getAdminHeaders(customHeaders: Record<string, string> = {}): Record<str
 }
 
 export const adminApi = {
+  /**
+   * Consolidated operational overview endpoint (Zoned executive dashboard)
+   */
+  getOverview: async (period: OverviewPeriod = '7d', includeTest = false): Promise<AdminOverviewResponse> => {
+    const query = new URLSearchParams();
+    query.set('period', period);
+    if (includeTest) query.set('includeTest', '1');
+    return request<AdminOverviewResponse>(`/api/admin/overview?${query.toString()}`, {
+      headers: getAdminHeaders(),
+    });
+  },
+
   /**
    * High-level system overview snapshot
    */

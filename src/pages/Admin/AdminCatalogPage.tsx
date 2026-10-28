@@ -10,24 +10,23 @@ import {
   RefreshCw,
   Copy,
   Check,
-  ExternalLink,
-  Layers,
-  LayoutGrid,
   ChevronLeft,
   ChevronRight,
+  Layers,
+  LayoutGrid,
 } from 'lucide-react';
 
-// Map product type to readable label only (no colors)
+// Map product type to readable sentence-case label
 const getProductTypeLabel = (type?: string) => {
   switch (type) {
-    case 'PHYSICAL_TAG_PACK': return 'Physical Bundle';
-    case 'COMBO_PACK': return 'Combo Pack';
-    case 'VEHICLE_STICKER': return 'Vehicle Sticker';
-    case 'KEYCHAIN': return 'Keychain Tag';
-    case 'MINI_STICKER': return 'Mini Sticker';
+    case 'PHYSICAL_TAG_PACK': return 'Physical bundle';
+    case 'COMBO_PACK': return 'Combo pack';
+    case 'VEHICLE_STICKER': return 'Vehicle sticker';
+    case 'KEYCHAIN': return 'Keychain tag';
+    case 'MINI_STICKER': return 'Mini sticker';
     case 'SUBSCRIPTION_ONLY': return 'Subscription';
     case 'MERCHANDISE': return 'Merchandise';
-    default: return type || 'Standard';
+    default: return type ? type.replace(/_/g, ' ').toLowerCase() : 'Standard';
   }
 };
 
@@ -111,19 +110,18 @@ export const AdminCatalogPage: React.FC = () => {
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, active: product.active } : p))
       );
-      setError(err.message || 'Failed to update product visibility');
+      setError(err.message || 'Failed to update visibility');
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const formatPrice = (paise?: number, formatted?: string) => {
-    if (formatted) return formatted;
-    if (paise === undefined || paise === null) return '₹0.00';
-    return `₹${(paise / 100).toFixed(2)}`;
+  const formatPrice = (paise?: number) => {
+    if (paise === undefined || paise === null) return '₹0';
+    return `₹${(paise / 100).toFixed(0)}`;
   };
 
-  // Summarize included bundle components
+  // Summarize included components
   const summarizeComponents = (product: AdminProduct) => {
     const variants = product.variants || [];
     if (!variants.length) return '—';
@@ -137,25 +135,25 @@ export const AdminCatalogPage: React.FC = () => {
         }
         return `${c.quantity}× ${c.name}`;
       })
-      .join(', ');
+      .join(' · ');
   };
 
   return (
     <AdminLayout>
-      <div className="space-y-5">
-        {/* ── 1. Page Header & Primary Actions ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+      <div className="max-w-6xl mx-auto pb-24 px-4 sm:px-6 space-y-6">
+        {/* ── 1. Page Header & Actions ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-b border-border">
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">
-                Products & Catalog
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-ink font-sans">
+                Products &amp; Catalog
               </h1>
-              <span className="text-xs px-2 py-0.5 rounded bg-bg border border-border text-muted font-mono">
-                {total}
+              <span className="text-xs text-muted font-satoshi font-medium">
+                ({total})
               </span>
             </div>
-            <p className="text-xs text-muted mt-0.5">
-              Manage catalog items, inventory packaging BOM, and product status.
+            <p className="text-xs text-muted font-sans mt-0.5">
+              Manage items, pricing, kit contents, and storefront visibility.
             </p>
           </div>
 
@@ -164,17 +162,16 @@ export const AdminCatalogPage: React.FC = () => {
               type="button"
               onClick={fetchProducts}
               disabled={isLoading}
-              className="h-8 px-2.5 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Reload catalog products"
+              className="p-1.5 rounded-md hover:bg-surface text-muted hover:text-ink transition-colors cursor-pointer"
+              title="Refresh catalog"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-muted ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/storefront')}
-              className="h-8 px-3 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md border border-border bg-surface hover:bg-bg text-ink text-xs font-sans font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <LayoutGrid className="w-3.5 h-3.5 text-muted" />
               <span>Storefront</span>
@@ -183,45 +180,45 @@ export const AdminCatalogPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/bundles/new')}
-              className="h-8 px-3 rounded border border-border hover:border-ink bg-surface text-ink text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md border border-border bg-surface hover:bg-bg text-ink text-xs font-sans font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Layers className="w-3.5 h-3.5 text-muted" />
-              <span>New Bundle</span>
+              <span>New bundle</span>
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/admin/catalog/products/new')}
-              className="h-8 px-3 rounded bg-ink text-surface text-xs font-medium inline-flex items-center gap-1.5 hover:bg-black transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-md bg-ink text-surface text-xs font-sans font-medium inline-flex items-center gap-1.5 hover:opacity-90 transition-opacity cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Product</span>
+              <span>New product</span>
             </button>
           </div>
         </div>
 
         {/* ── 2. Search & Filter Bar ── */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search Box */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-sm">
             <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by SKU, name, or slug..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded border border-border bg-surface text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none transition-colors"
+              placeholder="Search by name, SKU, or slug..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-border bg-surface text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none transition-colors font-sans"
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Status Filter */}
-            <div className="flex items-center rounded border border-border bg-surface p-0.5 text-xs font-mono">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Status Filter Tabs */}
+            <div className="flex items-center rounded-md border border-border bg-surface p-0.5 text-xs font-sans">
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
                 className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
-                  statusFilter === 'ALL' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
+                  statusFilter === 'ALL' ? 'bg-ink text-surface font-medium' : 'text-muted hover:text-ink'
                 }`}
               >
                 All
@@ -230,7 +227,7 @@ export const AdminCatalogPage: React.FC = () => {
                 type="button"
                 onClick={() => setStatusFilter('LIVE')}
                 className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
-                  statusFilter === 'LIVE' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
+                  statusFilter === 'LIVE' ? 'bg-ink text-surface font-medium' : 'text-muted hover:text-ink'
                 }`}
               >
                 Live
@@ -239,7 +236,7 @@ export const AdminCatalogPage: React.FC = () => {
                 type="button"
                 onClick={() => setStatusFilter('HIDDEN')}
                 className={`px-2.5 py-1 rounded cursor-pointer transition-colors ${
-                  statusFilter === 'HIDDEN' ? 'bg-ink text-surface font-semibold' : 'text-muted hover:text-ink'
+                  statusFilter === 'HIDDEN' ? 'bg-ink text-surface font-medium' : 'text-muted hover:text-ink'
                 }`}
               >
                 Hidden
@@ -253,14 +250,14 @@ export const AdminCatalogPage: React.FC = () => {
                 setTypeFilter(e.target.value as any);
                 setPage(1);
               }}
-              className="h-8 px-2.5 bg-surface border border-border rounded text-xs text-ink focus:outline-none focus:border-ink cursor-pointer"
+              className="h-8 px-2.5 bg-surface border border-border rounded-md text-xs text-ink focus:outline-none focus:border-ink cursor-pointer font-sans"
             >
-              <option value="ALL">All Types</option>
-              <option value="PHYSICAL_TAG_PACK">Physical Bundles</option>
-              <option value="COMBO_PACK">Combo Packs</option>
-              <option value="VEHICLE_STICKER">Vehicle Stickers</option>
+              <option value="ALL">All types</option>
+              <option value="PHYSICAL_TAG_PACK">Physical bundles</option>
+              <option value="COMBO_PACK">Combo packs</option>
+              <option value="VEHICLE_STICKER">Vehicle stickers</option>
               <option value="KEYCHAIN">Keychains</option>
-              <option value="MINI_STICKER">Mini Stickers</option>
+              <option value="MINI_STICKER">Mini stickers</option>
               <option value="SUBSCRIPTION_ONLY">Subscriptions</option>
               <option value="MERCHANDISE">Merchandise</option>
             </select>
@@ -268,287 +265,229 @@ export const AdminCatalogPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="p-3 border border-danger/30 bg-danger/5 text-xs text-danger rounded flex items-center justify-between">
+          <div className="p-3 bg-surface border border-red-500/20 text-xs text-ink rounded-md flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={fetchProducts} className="underline font-bold cursor-pointer">
+            <button onClick={fetchProducts} className="underline font-medium cursor-pointer">
               Retry
             </button>
           </div>
         )}
 
-        {/* ── 3. Desktop Products Data Table ── */}
-        <div className="hidden md:block border border-border rounded-lg bg-surface overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-border bg-bg/60 text-muted font-mono uppercase text-[10px] tracking-wider">
-                  <th className="py-2.5 px-3 w-14 text-center">Art</th>
-                  <th className="py-2.5 px-4 w-36">SKU</th>
-                  <th className="py-2.5 px-4 min-w-[200px]">Product</th>
-                  <th className="py-2.5 px-4 w-32">Type</th>
-                  <th className="py-2.5 px-4 w-28 text-right">Price</th>
-                  <th className="py-2.5 px-4 min-w-[180px]">Components</th>
-                  <th className="py-2.5 px-3 w-20 text-center">Order</th>
-                  <th className="py-2.5 px-3 w-28 text-center">Status</th>
-                  <th className="py-2.5 px-3 w-28 text-center">Stock</th>
-                  <th className="py-2.5 px-4 w-24 text-right">Action</th>
+        {/* ── 3. Desktop Table (Clean Line Divider Table, No Bulky Outer Card) ── */}
+        <div className="hidden md:block border-y border-border overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-border text-muted font-sans text-xs">
+                <th className="py-2.5 px-3 w-12 text-center font-normal">Image</th>
+                <th className="py-2.5 px-3 min-w-[200px] font-normal">Product</th>
+                <th className="py-2.5 px-3 w-36 font-normal">SKU</th>
+                <th className="py-2.5 px-3 w-32 font-normal">Type</th>
+                <th className="py-2.5 px-3 w-28 text-right font-normal">Price</th>
+                <th className="py-2.5 px-3 min-w-[180px] font-normal">Inclusions</th>
+                <th className="py-2.5 px-3 w-28 text-center font-normal">Status</th>
+                <th className="py-2.5 px-3 w-28 text-right font-normal">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading && products.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-xs text-muted">
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-ink" />
+                      <span>Loading products...</span>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {isLoading && products.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-16 text-center text-xs text-muted">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4 animate-spin text-muted" />
-                        <span>Loading catalog...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : products.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-16 text-center text-xs text-muted">
-                      No products found.
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((p) => {
-                    const imgUrl = p.imageUrl || p.darkImageUrl || p.lightImageUrl || DEFAULT_PRODUCT_IMAGE;
-                    const hasAnyImage = Boolean(p.imageUrl || p.darkImageUrl || p.lightImageUrl);
-                    const isMissingLight = Boolean(p.darkImageUrl && !p.lightImageUrl);
-                    const isMissingDark = Boolean(p.lightImageUrl && !p.darkImageUrl);
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-xs text-muted">
+                    No products found.
+                  </td>
+                </tr>
+              ) : (
+                products.map((p) => {
+                  const imgUrl = p.imageUrl || DEFAULT_PRODUCT_IMAGE;
 
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => navigate(`/admin/catalog/products/${p.id}`)}
-                        className="hover:bg-bg/40 transition-colors cursor-pointer group"
-                      >
-                        {/* Artwork Preview */}
-                        <td className="py-2.5 px-3 text-center">
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => navigate(`/admin/catalog/products/${p.id}`)}
+                      className="hover:bg-surface/50 transition-colors cursor-pointer group"
+                    >
+                      {/* Product Thumbnail */}
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="w-9 h-9 rounded border border-border overflow-hidden mx-auto bg-surface/50 flex items-center justify-center">
                           <img
                             src={imgUrl}
                             alt={p.name}
-                            className="w-9 h-9 object-cover rounded border border-border bg-bg mx-auto"
-                            onError={(e) => ((e.target as HTMLElement).style.display = 'none')}
-                          />
-                        </td>
-
-                        {/* SKU */}
-                        <td className="py-2.5 px-4">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopy(p.sku, p.id);
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                             }}
-                            className="font-mono font-semibold text-[11px] text-ink hover:underline inline-flex items-center gap-1"
-                            title="Click to copy SKU"
-                          >
-                            <span>{p.sku}</span>
-                            {copiedId === p.id ? (
-                              <Check className="w-3 h-3 text-ink" />
-                            ) : (
-                              <Copy className="w-3 h-3 text-muted/40 group-hover:text-ink transition-colors" />
-                            )}
-                          </button>
-                        </td>
+                          />
+                        </div>
+                      </td>
 
-                        {/* Name & Slug */}
-                        <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium text-ink">{p.name}</span>
+                      {/* Name & Slug */}
+                      <td className="py-2.5 px-3">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-ink text-sm font-sans">{p.name}</span>
                             {p.isFeatured && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-bg text-muted border border-border">
-                                Featured
-                              </span>
-                            )}
-                            {!hasAnyImage && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
-                                No Artwork
-                              </span>
-                            )}
-                            {isMissingLight && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
-                                No Light
-                              </span>
-                            )}
-                            {isMissingDark && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
-                                No Dark
+                              <span className="text-[10px] text-muted font-sans">
+                                · Featured
                               </span>
                             )}
                           </div>
-                          <div className="font-mono text-[11px] text-muted truncate max-w-xs">
+                          <div className="text-xs text-muted font-sans">
                             /{p.slug}
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Type */}
-                        <td className="py-2.5 px-4 font-mono text-[11px]">
-                          <span className="px-2 py-0.5 rounded border border-border bg-bg text-muted text-[10px]">
-                            {getProductTypeLabel(p.type)}
-                          </span>
-                        </td>
-
-                        {/* Base Price */}
-                        <td className="py-2.5 px-4 text-right font-mono">
-                          <span className="font-semibold text-ink">
-                            {formatPrice(p.basePrice, p.basePriceFormatted)}
-                          </span>
-                        </td>
-
-                        {/* Bundle Components Summary */}
-                        <td className="py-2.5 px-4 text-[11px] text-muted">
-                          <span className="truncate block max-w-xs">{summarizeComponents(p)}</span>
-                        </td>
-
-                        {/* Display Order */}
-                        <td className="py-2.5 px-3 text-center font-mono text-muted text-[11px]">
-                          #{p.displayOrder ?? 0}
-                        </td>
-
-                        {/* Catalog Visibility (Live / Hidden) */}
-                        <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => handleToggleActive(p, e)}
-                            disabled={updatingId === p.id}
-                            className="inline-flex items-center gap-1.5 text-[11px] font-mono cursor-pointer transition-colors hover:text-ink text-muted"
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                p.active ? 'bg-ink' : 'bg-border-strong'
-                              }`}
-                            />
-                            <span className={p.active ? 'text-ink' : 'text-muted'}>
-                              {p.active ? 'Live' : 'Hidden'}
-                            </span>
-                          </button>
-                        </td>
-
-                        {/* Inventory Availability */}
-                        <td className="py-2.5 px-3 text-center font-mono text-[10px] text-muted">
-                          {p.inStock !== false ? 'In Stock' : (
-                            <span className="text-danger">Out of Stock</span>
+                      {/* SKU with quick copy */}
+                      <td className="py-2.5 px-3">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopy(p.sku, p.id);
+                          }}
+                          className="font-satoshi font-medium text-xs text-muted hover:text-ink inline-flex items-center gap-1 transition-colors"
+                          title="Copy SKU"
+                        >
+                          <span>{p.sku}</span>
+                          {copiedId === p.id ? (
+                            <Check className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                           )}
-                        </td>
+                        </button>
+                      </td>
 
-                        {/* Open Details Action */}
-                        <td className="py-2.5 px-4 text-right">
-                          <span className="text-[11px] font-medium text-muted group-hover:text-ink inline-flex items-center gap-1">
-                            <span>Details</span>
-                            <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                      {/* Type */}
+                      <td className="py-2.5 px-3 text-xs text-muted font-sans">
+                        {getProductTypeLabel(p.type)}
+                      </td>
+
+                      {/* Base Price */}
+                      <td className="py-2.5 px-3 text-right">
+                        <span className="font-satoshi font-medium text-sm text-ink">
+                          {formatPrice(p.basePrice)}
+                        </span>
+                      </td>
+
+                      {/* Included Components */}
+                      <td className="py-2.5 px-3 text-xs text-muted font-sans">
+                        <span className="truncate block max-w-xs">{summarizeComponents(p)}</span>
+                      </td>
+
+                      {/* Visibility Toggle */}
+                      <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleActive(p, e)}
+                          disabled={updatingId === p.id}
+                          className="inline-flex items-center gap-1.5 text-xs font-sans text-ink hover:text-black cursor-pointer transition-colors"
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              p.active ? 'bg-emerald-600' : 'bg-muted/40'
+                            }`}
+                          />
+                          <span>{p.active ? 'Live' : 'Draft'}</span>
+                        </button>
+                      </td>
+
+                      {/* Stock Status */}
+                      <td className="py-2.5 px-3 text-right text-xs font-sans text-muted">
+                        {p.inStock !== false ? (
+                          <span>In stock</span>
+                        ) : (
+                          <span className="text-red-700">Out of stock</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* ── 4. Mobile Card View ── */}
-        <div className="block md:hidden space-y-2">
+        {/* ── 4. Mobile View: Flush Separator-Line List (No Boxed Cards) ── */}
+        <div className="block md:hidden">
           {isLoading && products.length === 0 ? (
             <div className="py-16 text-center text-xs text-muted flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-muted" />
-              <span>Loading catalog...</span>
+              <RefreshCw className="w-4 h-4 animate-spin text-ink" />
+              <span>Loading products...</span>
             </div>
           ) : products.length === 0 ? (
-            <div className="py-12 text-center text-xs text-muted border border-border rounded bg-surface">
+            <div className="py-12 text-center text-xs text-muted border-y border-border">
               No products found.
             </div>
           ) : (
-            products.map((p) => {
-              const imgUrl = p.imageUrl || p.darkImageUrl || p.lightImageUrl || DEFAULT_PRODUCT_IMAGE;
-              const hasAnyImage = Boolean(p.imageUrl || p.darkImageUrl || p.lightImageUrl);
+            <div className="divide-y divide-border border-y border-border">
+              {products.map((p) => {
+                const imgUrl = p.imageUrl || DEFAULT_PRODUCT_IMAGE;
 
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => navigate(`/admin/catalog/products/${p.id}`)}
-                  className="p-3.5 rounded border border-border bg-surface space-y-3 cursor-pointer hover:bg-bg/40 transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={imgUrl}
-                        alt={p.name}
-                        className="w-10 h-10 object-cover rounded border border-border bg-bg shrink-0"
-                      />
-                      <div>
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => navigate(`/admin/catalog/products/${p.id}`)}
+                    className="py-3.5 flex items-start justify-between gap-3 cursor-pointer hover:bg-surface/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded border border-border overflow-hidden bg-surface/50 shrink-0 flex items-center justify-center">
+                        <img
+                          src={imgUrl}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-ink">{p.sku}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopy(p.sku, p.id);
-                            }}
-                            className="p-1 text-muted hover:text-ink cursor-pointer"
-                          >
-                            {copiedId === p.id ? (
-                              <Check className="w-3 h-3 text-ink" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-bg font-mono text-muted">
-                            {getProductTypeLabel(p.type)}
-                          </span>
-                          {!hasAnyImage && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-bg text-muted border border-border">
-                              No Artwork
-                            </span>
+                          <h3 className="font-medium text-sm text-ink truncate font-sans">{p.name}</h3>
+                          {p.isFeatured && (
+                            <span className="text-[10px] text-muted font-sans shrink-0">· Featured</span>
                           )}
                         </div>
+                        <p className="text-xs text-muted font-satoshi font-medium truncate">
+                          {p.sku} · {getProductTypeLabel(p.type)}
+                        </p>
+                        <p className="text-xs text-muted/80 font-sans truncate">
+                          {summarizeComponents(p)}
+                        </p>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleActive(p, e)}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-mono cursor-pointer text-muted hover:text-ink transition-colors"
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                          p.active ? 'bg-ink' : 'bg-border-strong'
-                        }`}
-                      />
-                      <span>{p.active ? 'Live' : 'Hidden'}</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div>
-                      <h3 className="font-medium text-ink text-xs">{p.name}</h3>
-                      <p className="font-mono text-[11px] text-muted">/{p.slug}</p>
+                    <div className="text-right shrink-0 space-y-1">
+                      <div className="font-satoshi font-medium text-sm text-ink">
+                        {formatPrice(p.basePrice)}
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 text-xs text-muted font-sans">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            p.active ? 'bg-emerald-600' : 'bg-muted/40'
+                          }`}
+                        />
+                        <span>{p.active ? 'Live' : 'Draft'}</span>
+                      </div>
                     </div>
-                    <span className="font-mono font-bold text-ink text-xs">
-                      {formatPrice(p.basePrice, p.basePriceFormatted)}
-                    </span>
                   </div>
-
-                  <div className="text-[11px] text-muted flex items-center justify-between pt-1 border-t border-border/60">
-                    <span className="truncate max-w-[200px]">{summarizeComponents(p)}</span>
-                    <span className="font-mono text-[10px] text-ink font-semibold flex items-center gap-1 shrink-0 ml-2">
-                      <span>View</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
 
         {/* ── 5. Pagination Controls ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-mono text-muted">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-muted font-sans">
+          <div className="font-satoshi font-medium">
             {products.length > 0 ? (page - 1) * limit + 1 : 0}–
             {Math.min(page * limit, total)} of {total} products
           </div>
@@ -558,18 +497,18 @@ export const AdminCatalogPage: React.FC = () => {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded border border-border bg-surface hover:bg-bg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md border border-border bg-surface hover:bg-bg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-2 py-1 rounded bg-bg border border-border font-medium text-ink">
+            <span className="px-2.5 py-1 rounded-md bg-surface border border-border font-satoshi font-medium text-ink">
               {page} / {totalPages}
             </span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded border border-border bg-surface hover:bg-bg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md border border-border bg-surface hover:bg-bg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

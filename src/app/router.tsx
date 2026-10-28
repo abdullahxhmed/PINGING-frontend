@@ -16,7 +16,7 @@ import { QrResolverPage } from '../pages/QrResolver/QrResolverPage';
 import { QrPairPage } from '../pages/QrPair/QrPairPage';
 import { AdminGuard } from '../features/admin/AdminGuard';
 import { AdminLoginPage } from '../pages/Admin/AdminLoginPage';
-import { AdminDashboardPage } from '../pages/Admin/AdminDashboardPage';
+import { OverviewPage } from '../pages/Admin/overview/OverviewPage';
 import { AdminUsersPage } from '../pages/Admin/AdminUsersPage';
 import { AdminQrInventoryPage } from '../pages/Admin/AdminQrInventoryPage';
 import { AdminCatalogPage } from '../pages/Admin/AdminCatalogPage';
@@ -226,9 +226,13 @@ export const router = createBrowserRouter([
     path: '/admin',
     element: (
       <AdminGuard>
-        <AdminDashboardPage />
+        <OverviewPage />
       </AdminGuard>
     ),
+  },
+  {
+    path: '/admin/v2',
+    element: <Navigate to="/admin" replace />,
   },
   {
     path: '/admin/orders',

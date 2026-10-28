@@ -27,6 +27,12 @@ export function resolveImageSource(urlOrPath?: string | null): string {
     trimmed.startsWith('data:') ||
     trimmed.startsWith('blob:')
   ) {
+    // If the URL is hosted on Google Cloud Storage, strip any presigned query tokens.
+    // Since the bucket is public, GCS rejects requests with expired signed tokens (400 ExpiredToken),
+    // but succeeds immediately with 200 OK when requested via the clean public object path.
+    if (trimmed.includes('storage.googleapis.com')) {
+      return (trimmed.split('?')[0] || '').split('#')[0] || '';
+    }
     return trimmed;
   }
   if (trimmed.startsWith('product_images/') || trimmed.startsWith('/product_images/')) {

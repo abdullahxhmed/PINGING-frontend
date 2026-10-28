@@ -11,6 +11,8 @@ import type {
   OrderStatusData,
   ClaimOtpResponseData,
   UnifiedOrderTrackingData,
+  ShippingRateRequestInput,
+  ShippingRateResponseData,
 } from '../types/orders';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || '';
@@ -96,7 +98,8 @@ export const fetchPublicCatalogDetailed = async (force = false): Promise<PublicC
       const data = Array.isArray(json) ? json : json.data || [];
       return { data, slots: json.slots, activeSlots: json.activeSlots };
     },
-    { ttlMs: 60 * 1000, force }
+    // Cache until page refresh (session lifetime), unless force=true is requested
+    { ttlMs: 24 * 60 * 60 * 1000, force }
   );
 };
 
@@ -161,6 +164,25 @@ export const reserveInventory = async (
     ...result,
     checkoutSessionId: result.checkoutSessionId || sessionId,
   };
+};
+
+/**
+ * Calculate Authoritative Shipping Rates & Courier Serviceability
+ * Endpoint: POST /api/shipping/rates
+ */
+export const fetchShippingRates = async (
+  payload: ShippingRateRequestInput
+): Promise<ShippingRateResponseData> => {
+  const res = await fetch(`${BACKEND_URL}/api/shipping/rates`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || data.message || 'Failed to calculate shipping rates');
+  }
+  return data.data || data;
 };
 
 /**

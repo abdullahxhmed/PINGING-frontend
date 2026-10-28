@@ -126,6 +126,52 @@ export const AdminFulfillmentPage: React.FC = () => {
     }
   };
 
+  const getStatusDot = (status: string) => {
+    switch (status) {
+      case 'PAID':
+      case 'DELIVERED':
+      case 'SHIPPED':
+        return 'bg-emerald-600';
+      case 'PAYMENT_PENDING':
+        return 'bg-amber-500';
+      case 'PACKING':
+      case 'PACKED':
+        return 'bg-ink/70';
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return 'bg-rose-500';
+      case 'RECONCILIATION_REQUIRED':
+        return 'bg-amber-600';
+      default:
+        return 'bg-muted/40';
+    }
+  };
+
+  const formatStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PAYMENT_PENDING':
+        return 'Pending';
+      case 'PAID':
+        return 'Paid';
+      case 'PACKING':
+        return 'Packing';
+      case 'PACKED':
+        return 'Packed';
+      case 'SHIPPED':
+        return 'Shipped';
+      case 'DELIVERED':
+        return 'Delivered';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'REFUNDED':
+        return 'Refunded';
+      case 'RECONCILIATION_REQUIRED':
+        return 'Reconciliation';
+      default:
+        return status;
+    }
+  };
+
   // Summary counts
   const waitingToPackCount = orders.filter((o) => o.status === 'PAID').length;
   const packingCount = orders.filter((o) => o.status === 'PACKING').length;
@@ -206,14 +252,14 @@ export const AdminFulfillmentPage: React.FC = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-4 w-full">
+      <div className="space-y-6 w-full max-w-5xl mx-auto">
         {/* ── 1. Flush Header (System-Wide Admin Theme) ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-ink font-sans">
               Fulfillment
             </h1>
-            <p className="text-xs text-muted mt-0.5 font-satoshi font-medium">
+            <p className="text-xs text-muted mt-0.5 font-sans">
               Pick-to-scan packing queue and serialized tag allocation
             </p>
           </div>
@@ -223,12 +269,12 @@ export const AdminFulfillmentPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setAudioMuted(!audioMuted)}
-              className="btn btn-secondary !min-h-[34px] !py-0 !px-2.5 text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md hover:bg-surface text-muted hover:text-ink text-xs font-sans transition-colors cursor-pointer shrink-0"
               title={audioMuted ? 'Unmute scan audio' : 'Mute scan audio'}
               aria-label={audioMuted ? 'Unmute scan audio' : 'Mute scan audio'}
             >
               {audioMuted ? <VolumeX className="w-3.5 h-3.5 text-muted" /> : <Volume2 className="w-3.5 h-3.5 text-ink" />}
-              <span className="hidden sm:inline font-satoshi">{audioMuted ? 'Muted' : 'Audio'}</span>
+              <span className="hidden sm:inline font-sans">{audioMuted ? 'Muted' : 'Audio'}</span>
             </button>
 
             {/* Refresh Queue: System-wide secondary button */}
@@ -236,116 +282,74 @@ export const AdminFulfillmentPage: React.FC = () => {
               type="button"
               onClick={() => loadOrders()}
               disabled={isLoading}
-              className="btn btn-secondary !min-h-[34px] !py-0 !px-3 text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
-              title="Refresh Queue"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md hover:bg-surface text-muted hover:text-ink text-xs font-sans transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+              title="Refresh queue"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline font-satoshi">Refresh</span>
+              <span className="hidden sm:inline font-sans">Refresh</span>
             </button>
           </div>
         </div>
 
-        {/* ── 2. Compact Summary: Deliberate 2-col on narrow, 1-row on desktop ── */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-6 gap-y-1.5 py-1.5 text-xs text-muted border-b border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Waiting to pack</span>
-            <span className="font-mono text-ink font-semibold">{waitingToPackCount}</span>
+        {/* ── 2. Metric Columns ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-1">
+          <div className="space-y-0.5">
+            <span className="text-xs text-muted font-sans block">Waiting to pack</span>
+            <span className="font-satoshi font-medium text-2xl text-ink tracking-tight block">
+              {waitingToPackCount}
+            </span>
           </div>
-          <span className="text-border select-none hidden sm:inline">·</span>
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Packing</span>
-            <span className="font-mono text-ink font-semibold">{packingCount}</span>
+
+          <div className="space-y-0.5">
+            <span className="text-xs text-muted font-sans block">Packing</span>
+            <span className="font-satoshi font-medium text-2xl text-ink tracking-tight block">
+              {packingCount}
+            </span>
           </div>
-          <span className="text-border select-none hidden sm:inline">·</span>
-          <div className="flex items-center gap-2">
-            <span className="text-muted">Ready to ship</span>
-            <span className="font-mono text-ink font-semibold">{readyToShipCount}</span>
+
+          <div className="space-y-0.5">
+            <span className="text-xs text-muted font-sans block">Ready to ship</span>
+            <span className="font-satoshi font-medium text-2xl text-ink tracking-tight block">
+              {readyToShipCount}
+            </span>
           </div>
-          <span className="text-border select-none hidden sm:inline">·</span>
-          <button
-            type="button"
-            onClick={() => setActiveQueueTab('EXCEPTIONS')}
-            className={`flex items-center gap-2 text-left cursor-pointer transition-colors ${
-              exceptionsCount > 0 ? 'text-ink font-medium' : 'text-muted hover:text-ink'
-            }`}
-          >
-            <span>Exceptions</span>
-            <span className="font-mono font-semibold">{exceptionsCount}</span>
-          </button>
+
+          <div className="space-y-0.5">
+            <span className="text-xs text-muted font-sans block">Exceptions</span>
+            <span className={`font-satoshi font-medium text-2xl tracking-tight block ${exceptionsCount > 0 ? 'text-rose-600' : 'text-ink'}`}>
+              {exceptionsCount}
+            </span>
+          </div>
         </div>
 
-        {/* ── 3. Compact Toolbar: Horizontally Scrollable Tabs + Search ── */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-0.5">
-          {/* Horizontally scrollable Queue Tab Buttons with no clipped labels */}
-          <div className="flex items-center gap-1 p-0.5 rounded border border-border bg-surface text-xs font-mono overflow-x-auto shrink-0 max-w-full">
-            <button
-              type="button"
-              onClick={() => setActiveQueueTab('TO_PACK')}
-              className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                activeQueueTab === 'TO_PACK'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              To pack ({waitingToPackCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveQueueTab('PACKING')}
-              className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                activeQueueTab === 'PACKING'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              Packing {packingCount > 0 ? `(${packingCount})` : ''}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveQueueTab('READY_TO_SHIP')}
-              className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                activeQueueTab === 'READY_TO_SHIP'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              Ready to ship ({readyToShipCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveQueueTab('SHIPPED')}
-              className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                activeQueueTab === 'SHIPPED'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              Shipped
-            </button>
-            {exceptionsCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveQueueTab('EXCEPTIONS')}
-                className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                  activeQueueTab === 'EXCEPTIONS'
-                    ? 'bg-ink text-surface'
-                    : 'text-muted hover:text-ink'
-                }`}
-              >
-                Exceptions ({exceptionsCount})
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setActiveQueueTab('ALL')}
-              className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                activeQueueTab === 'ALL'
-                  ? 'bg-ink text-surface'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              All
-            </button>
+        {/* ── 3. Filters: Tabs + Search ── */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+          {/* Horizontally scrollable Queue Tab Buttons with clean rectangular active styling */}
+          <div className="flex items-center gap-1 overflow-x-auto shrink-0 max-w-full pb-1 sm:pb-0">
+            {[
+              { id: 'TO_PACK', label: `To pack (${waitingToPackCount})` },
+              { id: 'PACKING', label: packingCount > 0 ? `Packing (${packingCount})` : 'Packing' },
+              { id: 'READY_TO_SHIP', label: `Ready to ship (${readyToShipCount})` },
+              { id: 'SHIPPED', label: 'Shipped' },
+              ...(exceptionsCount > 0 ? [{ id: 'EXCEPTIONS', label: `Exceptions (${exceptionsCount})` }] : []),
+              { id: 'ALL', label: 'All' },
+            ].map((tab) => {
+              const active = activeQueueTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveQueueTab(tab.id as QueueTab)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-sans whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                    active
+                      ? 'bg-ink text-surface font-medium'
+                      : 'text-muted hover:text-ink hover:bg-surface'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Search Box */}
@@ -356,7 +360,7 @@ export const AdminFulfillmentPage: React.FC = () => {
               placeholder="Search orders..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-7 py-1 text-xs rounded bg-surface border border-border text-ink placeholder:text-muted focus:outline-none focus:border-ink font-mono"
+              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-md bg-surface border border-border text-ink placeholder:text-muted focus:outline-none focus:border-ink font-sans transition-colors"
             />
             {searchTerm && (
               <button
@@ -372,14 +376,14 @@ export const AdminFulfillmentPage: React.FC = () => {
 
         {/* Muted FIFO Rule Note */}
         {activeQueueTab === 'TO_PACK' && (
-          <p className="text-[11px] text-muted font-mono">
-            Orders sorted oldest first (FIFO). Pick and pack from the top down.
+          <p className="text-xs text-muted font-sans">
+            Orders sorted oldest first. Pick and pack.
           </p>
         )}
 
         {/* ── 4. Error Display (System Theme) ── */}
         {error && (
-          <div className="my-2 p-3 border-y border-red-500/30 text-xs text-danger font-medium flex items-center justify-between">
+          <div className="my-2 p-3 border border-red-500/30 rounded-md text-xs text-danger font-medium flex items-center justify-between font-sans">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-danger" />
               <span>{error}</span>
@@ -387,22 +391,22 @@ export const AdminFulfillmentPage: React.FC = () => {
             <button
               type="button"
               onClick={() => loadOrders()}
-              className="underline font-bold uppercase tracking-wider text-[11px] cursor-pointer"
+              className="underline font-sans text-xs cursor-pointer"
             >
               Retry
             </button>
           </div>
         )}
 
-        {/* ── 5. Simplified Order Queue: 3 Compact Sections ── */}
+        {/* ── 5. Simplified Order Queue: Clean Line Rows ── */}
         {isLoading && orders.length === 0 ? (
-          <div className="py-20 text-center text-muted font-satoshi space-y-2">
+          <div className="py-20 text-center text-muted font-sans space-y-2">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto text-ink" />
             <p className="text-xs">Loading fulfillment queue...</p>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="py-16 text-center border border-border rounded bg-surface p-6 space-y-1 font-satoshi">
-            <p className="text-sm font-semibold text-ink">No orders in this queue</p>
+          <div className="py-16 text-center border-y border-border py-12 space-y-1 font-sans">
+            <p className="text-sm font-medium text-ink">No orders in this queue</p>
             <p className="text-xs text-muted max-w-sm mx-auto">
               {activeQueueTab === 'TO_PACK'
                 ? 'All paid orders have been packed.'
@@ -412,7 +416,7 @@ export const AdminFulfillmentPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="border-y border-border divide-y divide-border bg-surface">
+          <div className="border-y border-border divide-y divide-border">
             {filteredOrders.map((order) => {
               const isPacking = order.status === 'PACKING';
               const isPacked = order.status === 'PACKED';
@@ -428,75 +432,74 @@ export const AdminFulfillmentPage: React.FC = () => {
               return (
                 <div
                   key={order.id}
-                  className="p-3 sm:py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 hover:bg-bg/50 transition-colors"
+                  className="py-3.5 px-1 sm:px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:bg-surface/50 transition-colors"
                 >
                   {/* Left Block: 3 Structured Sections */}
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    {/* Section 1: Order ID on left, subtle Payment Status on right */}
+                  <div className="space-y-1 min-w-0 flex-1">
+                    {/* Section 1: Order ID on left, subtle Status Dot on right */}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1 font-mono text-xs font-semibold text-ink">
+                      <div className="flex items-center gap-1 font-satoshi font-medium text-xs text-ink">
                         <span>{order.orderNumber}</span>
                         <button
                           type="button"
                           onClick={(e) => handleCopy(order.orderNumber, order.id, e)}
-                          className="p-0.5 text-muted hover:text-ink cursor-pointer"
+                          className="p-1 text-muted hover:text-ink cursor-pointer transition-colors rounded"
                           title="Copy Order ID"
                         >
                           {copiedId === order.id ? (
-                            <Check className="w-3 h-3 text-ink" />
+                            <Check className="w-3 h-3 text-emerald-600" />
                           ) : (
                             <Copy className="w-3 h-3 text-muted/40 hover:text-ink" />
                           )}
                         </button>
                       </div>
 
-                      {/* Subtle Secondary Payment/Order State Badge */}
-                      <span
-                        className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-bg text-muted border border-border"
-                      >
-                        {order.status === 'PAID' ? 'Paid' : order.status === 'PACKING' ? 'Packing' : order.status === 'PACKED' ? 'Packed' : order.status}
+                      {/* Text-only status with indicator dot */}
+                      <span className="inline-flex items-center gap-1.5 text-xs font-sans text-muted">
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(order.status)}`} />
+                        <span>{formatStatusLabel(order.status)}</span>
                       </span>
                     </div>
 
-                    {/* Section 2: Customer Name · Phone, followed by City, State wrapping cleanly */}
+                    {/* Section 2: Customer Name · Phone, followed by City, State */}
                     <div className="text-xs text-ink leading-normal">
                       <div>
-                        <span className="font-medium">{customerName}</span>
-                        {phone && <span className="text-muted font-mono ml-2 font-normal">{phone}</span>}
-                        {location && <span className="text-muted ml-2 hidden sm:inline">· {location}</span>}
+                        <span className="font-sans font-medium">{customerName}</span>
+                        {phone && <span className="text-muted font-satoshi ml-2 font-normal">{phone}</span>}
+                        {location && <span className="text-muted font-satoshi ml-2 hidden sm:inline">· {location}</span>}
                       </div>
                       {location && (
-                        <div className="text-muted text-[11px] sm:hidden mt-0.5">
+                        <div className="text-muted font-satoshi text-xs sm:hidden mt-0.5">
                           {location}
                         </div>
                       )}
                     </div>
 
                     {/* Section 3: Product Name, Amount, Time Elapsed */}
-                    <div className="text-[11px] text-muted flex flex-wrap items-center gap-x-2 pt-0.5">
+                    <div className="text-xs text-muted flex flex-wrap items-center gap-x-2 pt-0.5 font-sans">
                       <span className="text-ink font-medium">
                         {primaryVariant} {itemsCount > 1 ? `× ${itemsCount}` : ''}
                       </span>
                       <span>·</span>
-                      <span className="font-mono text-ink">
+                      <span className="font-satoshi font-medium text-ink">
                         ₹{Math.round(order.totalAmount / 100)}
                       </span>
                       {elapsed && (
                         <>
                           <span>·</span>
-                          <span className="font-mono">{elapsed}</span>
+                          <span className="font-satoshi text-muted">{elapsed}</span>
                         </>
                       )}
                     </div>
                   </div>
 
-                  {/* Right Action: Single Contextual Action Button with reduced height on mobile */}
+                  {/* Right Action: Clean Contextual Action Button */}
                   <div className="mt-1 sm:mt-0 sm:self-center shrink-0 w-full sm:w-auto">
                     {isPacking ? (
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded bg-ink hover:opacity-90 text-surface text-xs font-medium cursor-pointer transition-opacity text-center"
+                        className="w-full sm:w-auto px-3.5 py-1.5 rounded-md bg-ink hover:opacity-90 text-surface text-xs font-sans font-medium cursor-pointer transition-opacity text-center"
                       >
                         Resume packing →
                       </button>
@@ -504,7 +507,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded bg-ink hover:opacity-90 text-surface text-xs font-medium cursor-pointer transition-opacity text-center"
+                        className="w-full sm:w-auto px-3.5 py-1.5 rounded-md bg-ink hover:opacity-90 text-surface text-xs font-sans font-medium cursor-pointer transition-opacity text-center"
                       >
                         Start packing →
                       </button>
@@ -512,7 +515,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-bg text-ink text-xs font-medium cursor-pointer transition-colors text-center"
+                        className="w-full sm:w-auto px-3 py-1.5 rounded-md border border-border bg-surface hover:bg-bg text-ink text-xs font-sans font-medium cursor-pointer transition-colors text-center"
                       >
                         Create shipment →
                       </button>
@@ -520,7 +523,7 @@ export const AdminFulfillmentPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActivePackingOrderId(order.id)}
-                        className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded border border-border bg-surface hover:bg-bg text-muted hover:text-ink text-xs font-medium cursor-pointer transition-colors text-center"
+                        className="w-full sm:w-auto px-3 py-1.5 rounded-md border border-border bg-surface hover:bg-bg text-muted hover:text-ink text-xs font-sans font-medium cursor-pointer transition-colors text-center"
                       >
                         View manifest →
                       </button>
@@ -531,7 +534,6 @@ export const AdminFulfillmentPage: React.FC = () => {
             })}
           </div>
         )}
-
       </div>
     </AdminLayout>
   );

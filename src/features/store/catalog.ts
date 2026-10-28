@@ -167,7 +167,7 @@ function buildDynamicSetProduct(
     name: prod.name,
     tagline: prod.description || `${prod.name} (${prod.sku})`,
     price: priceInRupees,
-    shippingFee: priceInRupees >= 499 ? 0 : 40,
+    shippingFee: priceInRupees >= 400 ? 0 : 49,
     featured: Boolean(prod.isFeatured),
     image: darkImg,
     images: {
@@ -545,6 +545,23 @@ export function getLiveProducts(): BackendCatalogProduct[] {
   return liveProducts;
 }
 
+export const SESSION_SLOT_CACHE_KEY = 'kauntact_slot_catalog_v1';
+
+// Synchronously hydrate from sessionStorage if available so products exist at t=0
+try {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    const raw = window.sessionStorage.getItem(SESSION_SLOT_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+        updateLiveCatalog(parsed.data, parsed.slots, parsed.activeSlots);
+      }
+    }
+  }
+} catch {
+  // Ignore storage access or parsing errors
+}
+
 export interface CartItemDetail {
   id: string; // The cart key (targetId)
   productId?: string;
@@ -559,6 +576,8 @@ export interface CartItemDetail {
   tagsCount: number;
   isSet?: boolean;
 }
+
+export const FREE_SHIPPING_THRESHOLD = 400;
 
 export interface CartCalculation {
   items: CartItemDetail[];
@@ -667,9 +686,10 @@ export function calculateCart(
   const itemCount = items.reduce((sum, it) => sum + it.quantity, 0);
   const subtotal = items.reduce((sum, it) => sum + it.totalPrice, 0);
 
-  // Delivery rule: Free if subtotal >= 499 (or subtotal === 0). Otherwise ₹40 standard delivery.
-  const isShippingFree = subtotal >= 499 || subtotal === 0;
-  const shippingFee = isShippingFree || subtotal === 0 ? 0 : 40;
+  // Delivery rule: Orders with merchandise subtotal >= ₹400 qualify for free shipping.
+  // Before pincode is provided, customer fee is ₹0 for qualifying carts, or calculated at checkout.
+  const isShippingFree = subtotal >= 400;
+  const shippingFee = isShippingFree || subtotal === 0 ? 0 : 0;
   const total = subtotal + shippingFee;
 
   return {

@@ -203,11 +203,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <footer className="border-t border-border bg-surface/50 py-4">
         <Container className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-ink">PingIn Console</span>
+            <span className="font-medium text-ink">KaunTact Console</span>
             <span className="text-border">•</span>
-            <span>Operations & Inventory Control</span>
+            <span>Operations &amp; Inventory Control</span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono">
+          <div className="flex items-center gap-2 text-xs font-sans">
             <span>Signed in as {user?.name || 'Admin'}</span>
           </div>
         </Container>
