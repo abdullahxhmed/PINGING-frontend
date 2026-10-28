@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { KauntactLogo } from '../brand/KauntactLogo';
+import { UpiIcon, RazorpayIcon } from './PaymentTrustBadges';
 
 export const StoreFooter: React.FC = () => {
   return (
@@ -67,19 +68,36 @@ export const StoreFooter: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-muted/70">
-          <div>
-            © {new Date().getFullYear()} Kauntact. All rights reserved. Built with privacy by design.
+        {/* Bottom Bar: Copyright & Links on Left, Payment Badges on Right */}
+        <div className="pt-6 border-t border-border/80 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-[11px] font-mono text-muted/70 text-center sm:text-left">
+            <span>© {new Date().getFullYear()} Kauntact. All rights reserved.</span>
+            <span className="hidden sm:inline">•</span>
+            <div className="flex items-center gap-4">
+              <Link to="/login" className="hover:text-ink transition-colors whitespace-nowrap">
+                Account Login
+              </Link>
+              <span>•</span>
+              <Link to="/pair" className="hover:text-ink transition-colors whitespace-nowrap">
+                Pair Received Tag
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="hover:text-ink transition-colors">
-              Account Login
-            </Link>
-            <span>•</span>
-            <Link to="/pair" className="hover:text-ink transition-colors">
-              Pair Received Tag
-            </Link>
+
+          {/* Payment Badges - Larger & Optically Balanced */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div
+              className="flex items-center px-3 py-1.5 rounded-sm border border-border/80 bg-surface shadow-2xs"
+              title="Instant UPI Payments via GPay, PhonePe, Paytm, BHIM"
+            >
+              <UpiIcon height={18} className="h-[18px] w-auto" />
+            </div>
+            <div
+              className="flex items-center px-3 py-1.5 rounded-sm border border-border/80 bg-surface shadow-2xs"
+              title="Secured by Razorpay"
+            >
+              <RazorpayIcon height={18} />
+            </div>
           </div>
         </div>
       </div>

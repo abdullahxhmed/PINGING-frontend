@@ -426,11 +426,12 @@ export const StorefrontPage: React.FC = () => {
                 </div>
               )
             ) : (
-              primaryPacks.map((product) => {
+              primaryPacks.map((product, index) => {
                 const packId = product.id;
                 const tone = packTones[packId] || 'light';
                 const isCardFlipped = Boolean(flipped[packId]);
                 const cardQty = cart.sets[packId] || 0;
+                const isSecondPack = index === 1;
 
                 return (
                   <StorePackCard
@@ -442,7 +443,8 @@ export const StorefrontPage: React.FC = () => {
                     onQuantityChange={(delta) => setSetQty(packId, delta)}
                     isFlipped={isCardFlipped}
                     onToggleFlip={() => toggleFlip(packId)}
-                    isFeatured={Boolean(product.featured)}
+                    isFeatured={Boolean(product.featured) || isSecondPack}
+                    isRecommended={isSecondPack}
                     canAddMore={canAddMore}
                   />
                 );

@@ -4,3 +4,4 @@ export * from './FinishPillSwitch';
 export * from './ProductArtwork';
 export * from './StorePackCard';
 export * from './StoreAddonCard';
+export * from './PaymentTrustBadges';

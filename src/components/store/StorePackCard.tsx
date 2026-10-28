@@ -14,6 +14,7 @@ export interface StorePackCardProps {
   isFlipped: boolean;
   onToggleFlip: () => void;
   isFeatured?: boolean;
+  isRecommended?: boolean;
   canAddMore?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
   isFlipped,
   onToggleFlip,
   isFeatured = false,
+  isRecommended = false,
   canAddMore = true,
 }) => {
   const isDark = tone === 'dark';
@@ -52,14 +54,14 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
         {/* ── FRONT SIDE ──────────────────────────────────────────────── */}
         <div
           className={`col-start-1 row-start-1 w-full rounded-lg ${
-            isFeatured ? 'border-2' : 'border'
-          } p-4 sm:p-5 flex flex-col justify-between space-y-3.5 transition-colors duration-300 ${
+            isRecommended || isFeatured ? 'border-2' : 'border'
+          } p-4 sm:p-5 flex flex-col justify-between space-y-3.5 transition-all duration-300 ${
             isDark
-              ? isFeatured
-                ? 'border-[#383730] bg-[#151513] text-[#f5f4ee] shadow-2xl shadow-black/40 ring-1 ring-white/10'
+              ? isRecommended || isFeatured
+                ? 'border-[#525046] bg-[#151513] text-[#f5f4ee] shadow-2xl shadow-black/40 ring-1 ring-white/15'
                 : 'border-[#2d2c26] bg-[#151513] text-[#f5f4ee] shadow-xl shadow-black/30'
-              : isFeatured
-              ? 'border-[#1c1b18] bg-[#f0eee6] text-ink shadow-lg shadow-black/8 ring-1 ring-black/5'
+              : isRecommended || isFeatured
+              ? 'border-ink bg-surface text-ink shadow-md shadow-black/5 ring-1 ring-ink/10'
               : 'border-border bg-surface text-ink shadow-2xs'
           }`}
           style={{
@@ -78,13 +80,24 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
               }`}
             >
               <div>
-                <h2
-                  className={`font-display font-semibold text-xl tracking-tight ${
-                    isDark ? 'text-[#f5f4ee]' : 'text-ink'
-                  }`}
-                >
-                  {product.name}
-                </h2>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <h2
+                    className={`font-display font-semibold text-xl tracking-tight ${
+                      isDark ? 'text-[#f5f4ee]' : 'text-ink'
+                    }`}
+                  >
+                    {product.name}
+                  </h2>
+                  {isRecommended && (
+                    <span
+                      className={`text-[11px] font-mono uppercase tracking-[0.16em] font-medium select-none ${
+                        isDark ? 'text-white/70' : 'text-muted'
+                      }`}
+                    >
+                      Recommended
+                    </span>
+                  )}
+                </div>
                 <p className={`text-[13px] ${isDark ? 'text-[#929087]' : 'text-muted'}`}>
                   {product.tagline}
                 </p>
@@ -276,14 +289,14 @@ export const StorePackCard: React.FC<StorePackCardProps> = ({
         {/* ── BACK SIDE ───────────────────────────────────────────────── */}
         <div
           className={`col-start-1 row-start-1 w-full rounded-lg ${
-            isFeatured ? 'border-2' : 'border'
-          } p-4 sm:p-5 flex flex-col justify-between space-y-4 transition-colors duration-300 ${
+            isRecommended || isFeatured ? 'border-2' : 'border'
+          } p-4 sm:p-5 flex flex-col justify-between space-y-4 transition-all duration-300 ${
             isDark
-              ? isFeatured
-                ? 'border-[#383730] bg-[#151513] text-[#f5f4ee] shadow-2xl shadow-black/40'
+              ? isRecommended || isFeatured
+                ? 'border-[#525046] bg-[#151513] text-[#f5f4ee] shadow-2xl shadow-black/40 ring-1 ring-white/15'
                 : 'border-[#2d2c26] bg-[#151513] text-[#f5f4ee] shadow-xl shadow-black/30'
-              : isFeatured
-              ? 'border-[#1c1b18] bg-[#f0eee6] text-ink shadow-lg shadow-black/8'
+              : isRecommended || isFeatured
+              ? 'border-ink bg-surface text-ink shadow-md shadow-black/5 ring-1 ring-ink/10'
               : 'border-border bg-surface text-ink shadow-2xs'
           }`}
           style={{

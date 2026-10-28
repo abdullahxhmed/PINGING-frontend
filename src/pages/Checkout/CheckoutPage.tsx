@@ -945,6 +945,12 @@ export const CheckoutPage: React.FC = () => {
                   <span>Pay ₹{totalPayable} via Razorpay</span>
                 )}
               </button>
+
+              {/* Payment Security Note */}
+              <div className="pt-2 flex items-center justify-center sm:justify-start gap-1.5 text-[11px] font-mono text-muted/80">
+                <ShieldCheck className="w-3.5 h-3.5 text-muted shrink-0" />
+                <span>Encrypted checkout via Razorpay • PCI-DSS compliant • No payment details stored</span>
+              </div>
             </form>
           </div>
 
