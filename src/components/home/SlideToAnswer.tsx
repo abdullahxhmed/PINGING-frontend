@@ -49,9 +49,9 @@ export const SlideToAnswer: React.FC<SlideToAnswerProps> = ({ onAnswer, disabled
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-emerald-50 border border-emerald-400 rounded-full flex items-center justify-center text-[11px] font-mono text-emerald-900 tracking-widest uppercase pointer-events-none"
+          className="absolute inset-0 bg-[#11110F] text-[#F4F3EE] rounded-full flex items-center justify-center text-[12px] font-sans font-medium pointer-events-none"
         >
-          Connecting audio...
+          Connecting…
         </motion.div>
       )}
 

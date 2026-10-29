@@ -6,118 +6,105 @@ import {
   Cat,
   Key,
   Backpack,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { PingInSvgLogo } from '../brand/PingInLogo';
 
 const textVariants: Variants = {
   enter: (dir: number) => ({
     opacity: 0,
-    y: dir * 36,
+    y: dir * 18,
   }),
   center: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.7,
+      duration: 0.35,
       ease: [0.16, 1, 0.3, 1],
     },
   },
   exit: (dir: number) => ({
     opacity: 0,
-    y: dir * -28,
+    y: dir * -14,
     transition: {
-      duration: 0.35,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  }),
-};
-
-const cardVariants: Variants = {
-  enter: (dir: number) => ({
-    opacity: 0,
-    y: dir * 32,
-    scale: 0.92,
-  }),
-  center: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.7,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-  exit: (dir: number) => ({
-    opacity: 0,
-    y: dir * -24,
-    scale: 1.04,
-    transition: {
-      duration: 0.35,
+      duration: 0.2,
       ease: [0.16, 1, 0.3, 1],
     },
   }),
 };
 
 interface Scenario {
-  number: string;
-  tag: string;
+  id: string;
   moment: string;
   description: string;
   meta: string;
+  tagId: string;
   cardName: string;
+  objectType: string;
+  actionLabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const SCENARIOS: Scenario[] = [
   {
-    number: '01',
-    tag: 'YOUR CAR',
-    moment: 'When you block someone in.',
+    id: 'car',
+    moment: 'Blocked in',
     description:
-      'They scan the sticker to ask you to move your vehicle. Neither person ever sees the other’s phone number.',
-    meta: 'WINDSHIELD STICKER',
-    cardName: 'YOUR VEHICLE',
+      'A windshield sticker lets someone ask you to move your vehicle without knowing your phone number.',
+    meta: 'Windshield sticker',
+    tagId: 'KT-4421',
+    cardName: 'Hyundai i20',
+    objectType: 'Vehicle',
+    actionLabel: 'Call owner',
     icon: Car,
   },
-    {
-    number: '02',
-    tag: 'YOUR PET',
-    moment: 'When your pet wanders off.',
+  {
+    id: 'door',
+    moment: 'Package at the gate',
     description:
-      'Whoever finds them scans the collar to call you with one tap. Your home address and phone number stay private.',
-    meta: 'COLLAR TAG',
-    cardName: 'BRUNO',
+      'Delivery personnel can reach you through their browser to confirm where to drop a package.',
+    meta: 'Door sticker',
+    tagId: 'KT-8812',
+    cardName: 'Flat 402',
+    objectType: 'Front door',
+    actionLabel: 'Call resident',
+    icon: Home,
+  },
+  {
+    id: 'pet',
+    moment: 'Lost pet',
+    description:
+      'Anyone who finds your dog or cat can scan their collar to reach you with one tap.',
+    meta: 'Collar tag',
+    tagId: 'KT-1904',
+    cardName: 'Bruno',
+    objectType: 'Pet collar',
+    actionLabel: 'Contact owner',
     icon: Cat,
   },
   {
-    number: '03',
-    tag: 'YOUR HOME',
-    moment: 'When someone is at your door.',
+    id: 'keys',
+    moment: 'Dropped keys',
     description:
-      'Delivery or maintenance personel can reach you directly without having your private number.',
-    meta: 'DOOR / GATE STICKER',
-    cardName: 'FLAT 402',
-    icon: Home,
-  },
-
-  {
-    number: '04',
-    tag: 'YOUR KEYS',
-    moment: 'When you drop your keys.',
-    description:
-      'The person who finds them can contact you immediately to return them, without knowing where you live.',
-    meta: 'KEYCHAIN FOB',
-    cardName: 'KEYS',
+      'Whoever finds your keys can contact you directly to arrange a return.',
+    meta: 'Key fob',
+    tagId: 'KT-6231',
+    cardName: 'House keys',
+    objectType: 'Keychain',
+    actionLabel: 'Message owner',
     icon: Key,
   },
   {
-    number: '05',
-    tag: 'YOUR BACKPACK OR PERSONAL BELONGINGS',
-    moment: 'When you leave your backpack or personal belongings behind.',
+    id: 'backpack',
+    moment: 'Left behind',
     description:
-      'Attach a keychain or sticker to your backpack, laptop bag, or any personal belonging. If it gets lost or misplaced, the finder can instantly reach you.',
-    meta: 'ZIPPER PULL TAG / KEYCHAIN / STICKER',
-    cardName: 'BACKPACK',
+      'A tag on your backpack or luggage lets the finder notify you immediately.',
+    meta: 'Luggage tag',
+    tagId: 'KT-3095',
+    cardName: 'Travel bag',
+    objectType: 'Backpack',
+    actionLabel: 'Notify owner',
     icon: Backpack,
   },
 ];
@@ -127,9 +114,13 @@ export const UseCasesStack: React.FC = () => {
   const [direction, setDirection] = useState<number>(1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const prevStepRef = useRef(0);
+  const isProgrammaticScroll = useRef(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
+      if (isProgrammaticScroll.current) return;
       const container = scrollRef.current;
       if (!container) return;
 
@@ -157,11 +148,13 @@ export const UseCasesStack: React.FC = () => {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, []);
 
   const currentScenario = SCENARIOS[activeStep];
-  const ActiveIcon = currentScenario.icon;
 
   const scrollToStep = (index: number) => {
     const container = scrollRef.current;
@@ -170,8 +163,15 @@ export const UseCasesStack: React.FC = () => {
     const rect = container.getBoundingClientRect();
     const windowH = window.innerHeight;
     const totalScrollable = rect.height - windowH;
+    if (totalScrollable <= 0) return;
     const stepSize = totalScrollable / SCENARIOS.length;
     const target = window.scrollY + rect.top + stepSize * (index + 0.5);
+
+    isProgrammaticScroll.current = true;
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = window.setTimeout(() => {
+      isProgrammaticScroll.current = false;
+    }, 750);
 
     setDirection(index >= activeStep ? 1 : -1);
     prevStepRef.current = index;
@@ -179,67 +179,65 @@ export const UseCasesStack: React.FC = () => {
     window.scrollTo({ top: target, behavior: 'smooth' });
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    if (deltaX < -45 && activeStep < SCENARIOS.length - 1) {
+      scrollToStep(activeStep + 1);
+    } else if (deltaX > 45 && activeStep > 0) {
+      scrollToStep(activeStep - 1);
+    }
+    touchStartX.current = null;
+  };
+
   return (
     // ── SCROLL RUNWAY: Pins section with generous scroll travel ──
     <div ref={scrollRef} className="relative h-[650vh]">
       
-      {/* ── THE PINNED STAGE (Clean horizontal framing, no outer card box) ── */}
-      <div className="sticky top-16 sm:top-20 lg:top-[12vh] w-full select-none">
+      {/* ── THE PINNED STAGE ── */}
+      <div className="sticky top-16 sm:top-20 lg:top-[12vh] w-full select-none overflow-x-clip">
         
         {/* Horizontal Divider Line Top */}
         <div className="border-t border-border" />
 
-        <div className="py-4 sm:py-8 lg:py-14 min-h-0 lg:min-h-[440px] flex flex-col justify-center">
+        <div className="py-6 sm:py-10 lg:py-16 min-h-0 lg:min-h-[460px] flex flex-col justify-center">
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center">
             
-            {/* ── LEFT: Clear Everyday Language ──────────────────────── */}
-            <div className="lg:col-span-6 flex flex-col justify-between min-h-0 lg:min-h-[340px]">
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="font-display font-medium text-2xl sm:text-3xl text-border leading-none select-none">
-                    02
-                  </span>
-                  <span className="text-border">/</span>
-                  <span className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-muted">
-                    USE CASES
-                  </span>
-                </div>
-                <h2 className="font-display font-medium text-3xl sm:text-4xl lg:text-[3rem] text-ink tracking-tight uppercase leading-[0.98]">
-                  ONE CONTACT FOR EVERYTHING YOU OWN.
+            {/* ── LEFT: Text format stays exactly the same ──────────── */}
+            <div className="lg:col-span-5 flex flex-col justify-between min-h-0 lg:min-h-[320px]">
+              <div className="space-y-2">
+                <h2 className="font-display font-medium text-2xl sm:text-3xl lg:text-4xl text-ink tracking-tight leading-tight">
+                  Things you can tag
                 </h2>
-                <p className="text-xs sm:text-base font-sans text-muted leading-relaxed">
-                  Put a private tag on each of your belongings.<br className="hidden sm:inline" />
-                  Anyone can reach you without knowing your phone number.
-                </p>
               </div>
 
               {/* Dynamic Moment: Slower, graceful travel with scroll */}
-              <div className="py-3 sm:py-6 my-auto">
+              <div className="py-4 sm:py-6 my-auto">
                 <AnimatePresence mode="wait" custom={direction}>
                   <motion.div
-                    key={currentScenario.number}
+                    key={currentScenario.id}
                     custom={direction}
                     variants={textVariants}
                     initial="enter"
                     animate="center"
                     exit="exit"
-                    className="space-y-1.5 sm:space-y-2.5"
+                    className="space-y-2"
                   >
-                    <span className="font-mono text-xs tracking-[0.2em] uppercase text-muted block">
-                      {currentScenario.tag}
-                    </span>
-
-                    <h3 className="font-display font-medium text-xl sm:text-2xl lg:text-3xl text-ink tracking-tight uppercase leading-snug">
+                    <h3 className="font-display font-medium text-xl sm:text-[22px] text-ink tracking-tight leading-snug">
                       {currentScenario.moment}
                     </h3>
 
-                    <p className="text-xs sm:text-sm font-sans text-muted leading-relaxed max-w-md">
+                    <p className="font-satoshi text-sm sm:text-base text-[#3A3A36] leading-relaxed max-w-md">
                       {currentScenario.description}
                     </p>
 
-                    <div className="pt-1.5">
-                      <span className="font-mono text-[10px] tracking-widest uppercase text-ink/70 bg-surface border border-border px-2.5 py-1 rounded-xs inline-block">
+                    <div className="pt-2">
+                      <span className="font-sans text-[11px] font-medium tracking-wide text-muted border border-border px-2.5 py-1 rounded-xs inline-block">
                         {currentScenario.meta}
                       </span>
                     </div>
@@ -247,100 +245,146 @@ export const UseCasesStack: React.FC = () => {
                 </AnimatePresence>
               </div>
 
-              {/* Persistent Minimal Counter */}
-              <div className="flex items-center gap-3 text-xs font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                <span className="text-ink font-semibold">
-                  0{activeStep + 1} / 0{SCENARIOS.length}
-                </span>
+              {/* Minimal step indicators + prev/next controls */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-2">
+                  {SCENARIOS.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => scrollToStep(idx)}
+                      className="py-1 cursor-pointer focus:outline-none"
+                      aria-label={`Jump to ${SCENARIOS[idx].cardName}`}
+                    >
+                      <span
+                        className={`block h-1 rounded-full transition-all duration-300 ${
+                          activeStep === idx ? 'w-6 bg-surface-dark' : 'w-2 bg-border hover:bg-muted'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep(Math.max(0, activeStep - 1))}
+                    disabled={activeStep === 0}
+                    className="w-7 h-7 rounded-sm border border-border flex items-center justify-center text-ink disabled:opacity-25 disabled:cursor-not-allowed hover:bg-surface active:scale-95 transition-all cursor-pointer"
+                    aria-label="Previous card"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToStep(Math.min(SCENARIOS.length - 1, activeStep + 1))}
+                    disabled={activeStep === SCENARIOS.length - 1}
+                    className="w-7 h-7 rounded-sm border border-border flex items-center justify-center text-ink disabled:opacity-25 disabled:cursor-not-allowed hover:bg-surface active:scale-95 transition-all cursor-pointer"
+                    aria-label="Next card"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* ── RIGHT: The Hero Physical PingIn Tag ────────────────── */}
-            <div className="lg:col-span-5 flex items-center justify-center">
-              <div
-                className="w-full max-w-[250px] sm:max-w-[280px] lg:max-w-[310px] bg-[#F4F3EE] border-[1.5px] border-[#D8D5CC] rounded-2xl p-6 sm:p-7 lg:p-8 shadow-2xl shadow-ink/5 flex flex-col justify-between items-center text-center relative select-none"
-                style={{ aspectRatio: '1 / 1.34' }}
-              >
-                {/* Tag Top Bar */}
-                <div className="w-full flex items-center justify-between pb-3 sm:pb-3.5 border-b border-[#D8D5CC]">
-                  <PingInSvgLogo height={14} className="text-ink" />
-                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-accent border-[1.5px] border-ink" />
-                </div>
+            {/* ── RIGHT: Fun Animated Sticky Carousel of Cards ────────── */}
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="lg:col-span-7 flex items-center justify-center relative min-h-[360px] sm:min-h-[400px] lg:min-h-[430px] overflow-hidden py-4 touch-pan-y"
+            >
+              <div className="relative w-full h-full flex items-center justify-center">
+                {SCENARIOS.map((scenario, index) => {
+                  const offset = index - activeStep;
+                  const isActive = offset === 0;
+                  const isVisible = Math.abs(offset) <= 2;
+                  const Icon = scenario.icon;
 
-                {/* Tag Center: The Changing Glyph & Object Name */}
-                <div className="my-auto py-3.5 sm:py-5 flex flex-col items-center justify-center space-y-3 sm:space-y-4">
-                  <AnimatePresence mode="wait" custom={direction}>
+                  return (
                     <motion.div
-                      key={currentScenario.number}
-                      custom={direction}
-                      variants={cardVariants}
-                      initial="enter"
-                      animate="center"
-                      exit="exit"
-                      className="flex flex-col items-center justify-center space-y-3 sm:space-y-4"
+                      key={scenario.id}
+                      onClick={() => {
+                        if (!isActive) scrollToStep(index);
+                      }}
+                      className={`absolute w-[245px] sm:w-[270px] lg:w-[290px] bg-white border border-[#D8D5CC] rounded-xl p-5 sm:p-6 select-none flex flex-col justify-between transition-shadow duration-300 ${
+                        isActive
+                          ? 'shadow-xl shadow-ink/8 ring-1 ring-ink/5 cursor-default'
+                          : 'cursor-pointer hover:border-ink/40 shadow-sm'
+                      }`}
+                      style={{
+                        aspectRatio: '1 / 1.32',
+                        zIndex: 30 - Math.abs(offset) * 5,
+                        pointerEvents: isVisible ? (isActive ? 'auto' : 'auto') : 'none',
+                      }}
+                      initial={false}
+                      animate={{
+                        x: `${offset * 62}%`,
+                        scale: isActive ? 1 : Math.max(0.76, 1 - Math.abs(offset) * 0.1),
+                        rotateZ: offset * 3.5,
+                        opacity: isVisible ? (isActive ? 1 : Math.max(0.18, 0.65 - Math.abs(offset) * 0.25)) : 0,
+                        filter: isActive ? 'blur(0px)' : `blur(${Math.min(2, Math.abs(offset) * 0.8)}px)`,
+                      }}
+                      whileHover={
+                        !isActive
+                          ? { scale: Math.max(0.8, 1 - Math.abs(offset) * 0.08) }
+                          : undefined
+                      }
+                      transition={{
+                        type: 'spring',
+                        stiffness: 260,
+                        damping: 26,
+                        mass: 0.8,
+                      }}
                     >
-                      {/* The Changing Icon */}
-                      <div className="p-3.5 sm:p-4 bg-surface rounded-xl border border-dashed border-[#D8D5CC]">
-                        <ActiveIcon className="w-13 h-13 sm:w-14 sm:h-14 lg:w-16 lg:h-16 text-ink stroke-[1.4]" />
+                      {/* Top Bar: Wordmark + Tag ID */}
+                      <div className="w-full flex items-center justify-between pb-2.5">
+                        <PingInSvgLogo height={12} className="text-ink" />
+                        <span className="font-mono text-[10px] text-muted tracking-wide">
+                          {scenario.tagId}
+                        </span>
                       </div>
 
-                      {/* The Object Identity */}
-                      <div>
-                        <p className="font-display font-bold text-base sm:text-lg lg:text-xl text-ink tracking-tight uppercase">
-                          {currentScenario.cardName}
+                      {/* Middle Body */}
+                      <div className="my-auto py-2.5 space-y-3.5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted block">
+                              {scenario.objectType}
+                            </span>
+                            <h4 className="font-display font-medium text-lg sm:text-xl text-ink tracking-tight mt-0.5">
+                              {scenario.cardName}
+                            </h4>
+                          </div>
+                          <div className="w-8 h-8 rounded-md bg-[#F4F3EE] border border-border flex items-center justify-center text-ink shrink-0">
+                            <Icon className="w-4 h-4 stroke-[1.5]" />
+                          </div>
+                        </div>
+
+                        <div className="w-full py-2.5 px-3.5 bg-ink text-[#f5f4ee] rounded-sm flex items-center justify-between text-xs font-sans font-medium transition-colors">
+                          <span>{scenario.actionLabel}</span>
+                          <span className="text-accent text-[11px]">→</span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Footer */}
+                      <div className="w-full pt-2 flex items-center justify-between">
+                        <p className="font-sans text-[10px] text-muted">
+                          Your number isn’t shown
                         </p>
+                        <span className="font-sans text-[10px] font-medium text-muted/70">
+                          {scenario.meta}
+                        </span>
                       </div>
                     </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* Tag Bottom: Fixed Product Promise */}
-                <div className="w-full pt-3 sm:pt-3.5 border-t border-[#D8D5CC]">
-                  <p className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] font-semibold text-muted uppercase">
-                    PRIVATE CONTACT
-                  </p>
-                </div>
+                  );
+                })}
               </div>
-            </div>
-
-            {/* ── FAR RIGHT: Minimal Vertical Scroll Index ───────────── */}
-            <div className="hidden lg:flex lg:col-span-1 flex-col items-center justify-center gap-3">
-              {SCENARIOS.map((item, idx) => {
-                const isActive = activeStep === idx;
-                return (
-                  <button
-                    key={item.number}
-                    type="button"
-                    onClick={() => scrollToStep(idx)}
-                    className="group flex items-center gap-2 text-xs font-mono transition-all cursor-pointer py-1"
-                    title={item.tag}
-                  >
-                    <span
-                      className={`transition-colors ${
-                        isActive ? 'text-ink font-semibold' : 'text-muted/40 group-hover:text-ink'
-                      }`}
-                    >
-                      {item.number}
-                    </span>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full transition-all ${
-                        isActive
-                          ? 'bg-accent scale-125'
-                          : 'bg-transparent border border-border group-hover:bg-muted'
-                      }`}
-                    />
-                  </button>
-                );
-              })}
             </div>
 
           </div>
 
         </div>
-
-        {/* Horizontal Divider Line Bottom */}
-        <div className="border-b border-border" />
 
       </div>
 

@@ -95,6 +95,13 @@ async function getRefreshedToken(): Promise<string> {
 
       authStorage.setAccessToken(newAccessToken);
 
+      // Sync rotated refresh token if returned by backend to prevent token reuse violations
+      const newRefreshToken =
+        data.refreshToken || data.data?.refreshToken;
+      if (newRefreshToken) {
+        authStorage.setRefreshToken(newRefreshToken);
+      }
+
       return newAccessToken;
     } catch (err) {
       authStorage.clear();
@@ -130,12 +137,7 @@ export async function request<T = any>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  if (typeof window !== 'undefined') {
-    const adminKey = localStorage.getItem('pingin_admin_key');
-    if (adminKey && !headers.has('x-admin-key')) {
-      headers.set('x-admin-key', adminKey.trim());
-    }
-  }
+
 
   const response = await fetch(url, {
     credentials: 'include',
@@ -143,7 +145,7 @@ export async function request<T = any>(
     headers,
   });
 
-  // Intercept 401 Unauthorized on authenticated requests (never 500 server errors or auth profile checks)
+  // Intercept 401 Unauthorized on authenticated requests (allow token refresh retry on /auth/me and protected routes)
   const isAuthFailure =
     response.status === 401 &&
     Boolean(token) &&
@@ -151,8 +153,7 @@ export async function request<T = any>(
     !endpoint.includes('/auth/login') &&
     !endpoint.includes('/auth/signup') &&
     !endpoint.includes('/auth/verify') &&
-    !endpoint.includes('/auth/refresh') &&
-    !endpoint.includes('/auth/me');
+    !endpoint.includes('/auth/refresh');
 
   if (isAuthFailure) {
     try {

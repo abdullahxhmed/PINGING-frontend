@@ -93,10 +93,64 @@
   /* Layout */
   --content-width: 1280px;
 
-  /* Fonts - Only Clash Display and General Sans */
+  /* Fonts */
   --font-display: "Clash Display", sans-serif;
   --font-sans: "General Sans", sans-serif;
   --font-mono: "General Sans", sans-serif;
+  --font-satoshi: "Satoshi", sans-serif;
+}
+
+.font-satoshi {
+  font-family: var(--font-satoshi), "Satoshi", sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SCOPED ADMIN DARK THEME
+   Strictly isolated to the admin panel subtree.
+   Does not leak to regular users, auth flow, or public storefront.
+───────────────────────────────────────────────────────────────────────────── */
+[data-admin-theme="dark"] {
+  color-scheme: dark;
+
+  /* Backgrounds */
+  --color-bg: #121210;
+  --color-surface: #1a1916;
+  --color-surface-dark: #0d0d0c;
+
+  /* Text */
+  --color-ink: #f5f4ee;
+  --color-muted: #9c998e;
+  --color-subtle: #6b6961;
+
+  /* Borders */
+  --color-border: #282723;
+  --color-border-strong: #3f3e36;
+
+  /* Accent */
+  --color-accent: #d7ff3f;
+  --color-accent-hover: #c7ef2f;
+
+  /* Status */
+  --color-success: #4ade80;
+  --color-danger: #f87171;
+}
+
+[data-admin-theme="dark"] .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+[data-admin-theme="dark"] .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+[data-admin-theme="dark"] .border-emerald-200\/60 {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Modal and dialog backdrops: Ensure overlays remain deep dark scrims instead of whitish haze */
+[data-admin-theme="dark"] [class*="fixed"][class*="inset-0"][class*="bg-ink/"] {
+  background-color: rgba(0, 0, 0, 0.72) !important;
+}
+[data-admin-theme="dark"] [class*="absolute"][class*="inset-0"][class*="bg-ink/"] {
+  background-color: rgba(0, 0, 0, 0.72) !important;
 }
 
 html {

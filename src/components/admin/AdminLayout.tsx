@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Container } from '../layout/Container';
@@ -8,6 +8,8 @@ import {
   LogOut,
   Menu,
   ChevronDown,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -20,6 +22,57 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('kauntact_admin_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    try {
+      localStorage.setItem('kauntact_admin_theme', next);
+    } catch {
+      // Ignore quota errors
+    }
+  };
+
+  // Immediately apply theme before paint to eliminate any white flash
+  useLayoutEffect(() => {
+    try {
+      const saved = localStorage.getItem('kauntact_admin_theme');
+      if (saved === 'dark') {
+        document.documentElement.setAttribute('data-admin-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-admin-theme');
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // Keep document.documentElement synchronized while on admin routes
+  // When navigating away from /admin, remove it so user app and storefront stay light
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-admin-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-admin-theme');
+    }
+
+    return () => {
+      // Only remove if actually navigating away from admin
+      if (!window.location.pathname.startsWith('/admin')) {
+        document.documentElement.removeAttribute('data-admin-theme');
+      }
+    };
+  }, [theme]);
 
   const handleLogout = () => {
     logout();
@@ -50,7 +103,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'A';
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col text-ink font-sans selection:bg-accent selection:text-ink">
+    <div data-admin-theme={theme} className="min-h-screen bg-bg flex flex-col text-ink font-sans selection:bg-accent selection:text-ink">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur-sm">
         <Container className="h-14 flex items-center justify-between gap-4">
@@ -95,6 +148,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               <ExternalLink className="w-3 h-3 text-muted/60" />
             </Link>
 
+            {/* Admin Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-full border border-border hover:border-border-strong bg-surface text-muted hover:text-ink transition-colors cursor-pointer"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-3.5 h-3.5 text-accent" />
+              ) : (
+                <Moon className="w-3.5 h-3.5" />
+              )}
+            </button>
+
             {/* Account Menu Trigger */}
             <div className="relative" ref={accountMenuRef}>
               <button
@@ -119,11 +187,31 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     <p className="font-semibold text-ink truncate">{user?.name || 'Administrator'}</p>
                     <p className="font-mono text-[11px] text-muted truncate mt-0.5">{user?.mobileNumber || ''}</p>
                     <span className="inline-block mt-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-medium uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                      Role: ADMIN
+                      ADMIN
                     </span>
                   </div>
 
                   <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleTheme();
+                        setAccountMenuOpen(false);
+                      }}
+                      className="w-full px-3.5 py-2 flex items-center justify-between text-muted hover:text-ink hover:bg-bg transition-colors text-left cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        {theme === 'dark' ? (
+                          <Sun className="w-3.5 h-3.5 text-accent" />
+                        ) : (
+                          <Moon className="w-3.5 h-3.5" />
+                        )}
+                        <span>Appearance</span>
+                      </span>
+                      <span className="text-[10px] font-mono uppercase text-muted/70">
+                        {theme === 'dark' ? 'Dark' : 'Light'}
+                      </span>
+                    </button>
                     <Link
                       to="/dashboard"
                       onClick={() => setAccountMenuOpen(false)}
@@ -180,7 +268,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 {item.label}
               </NavLink>
             ))}
-            <div className="pt-2 border-t border-border mt-2">
+            <div className="pt-2 border-t border-border mt-2 space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleTheme();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-ink hover:bg-bg rounded transition-colors text-left cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  {theme === 'dark' ? (
+                    <Sun className="w-3.5 h-3.5 text-accent" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5" />
+                  )}
+                  <span>Appearance</span>
+                </span>
+                <span className="text-[10px] font-mono uppercase text-muted/70">
+                  {theme === 'dark' ? 'Dark' : 'Light'}
+                </span>
+              </button>
               <Link
                 to="/dashboard"
                 onClick={() => setMobileMenuOpen(false)}

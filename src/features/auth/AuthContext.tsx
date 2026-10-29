@@ -10,8 +10,8 @@ interface AuthContextType {
   isLoading: boolean;
   refreshUser: (force?: boolean) => Promise<void>;
   updateUser: (partial: Partial<User>) => void;
-  login: (mobileNumber: string, otpOrPassword: string, isPassword?: boolean) => Promise<void>;
-  loginWithPassword: (mobileNumber: string, password: string) => Promise<void>;
+  login: (mobileNumber: string, otpOrPassword: string, isPassword?: boolean) => Promise<any>;
+  loginWithPassword: (mobileNumber: string, password: string) => Promise<User>;
   loginWithOtp: (mobileNumber: string, otp: string) => Promise<void>;
   signup: (name: string, mobileNumber: string, otp: string, password?: string) => Promise<void>;
   logout: () => void;
@@ -152,11 +152,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const loginWithPassword = async (mobileNumber: string, password: string) => {
+  const loginWithPassword = async (mobileNumber: string, password: string): Promise<User> => {
     setIsLoading(true);
     try {
       const res = await authApi.loginWithPassword(mobileNumber, password);
-      processAuthResponse(res, mobileNumber);
+      return processAuthResponse(res, mobileNumber);
     } finally {
       setIsLoading(false);
     }
@@ -224,10 +224,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const isAdmin = Boolean(
-    user?.role === 'ADMIN' ||
-    (typeof window !== 'undefined' && Boolean(localStorage.getItem('pingin_admin_key')))
-  );
+  const isAdmin = Boolean(user?.role === 'ADMIN');
 
   const value: AuthContextType = {
     user,

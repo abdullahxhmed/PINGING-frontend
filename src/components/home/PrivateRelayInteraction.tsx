@@ -270,7 +270,7 @@ export const PrivateRelayInteraction: React.FC<PrivateRelayInteractionProps> = (
                 }}
                 className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full z-20 transition-all duration-300 ${
                   stage === 'connected'
-                    ? 'bg-emerald-600 shadow-[0_0_12px_rgba(5,150,105,0.5)] ring-4 ring-emerald-500/20'
+                    ? 'bg-[#11110F] ring-4 ring-[#D7FF3F]'
                     : 'bg-[#B0ACA2]'
                 }`}
                 style={{ left: `${CIRCUIT_WIDTH}px` }}
@@ -300,9 +300,9 @@ export const PrivateRelayInteraction: React.FC<PrivateRelayInteractionProps> = (
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="mt-6 flex flex-col items-center gap-3"
           >
-            <div className="flex items-center gap-2 text-xs font-mono font-medium text-emerald-700 tracking-widest uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.6)]" />
-              <span>CONNECTED</span>
+            <div className="flex items-center gap-2 text-xs font-sans font-medium text-[#11110F]">
+              <span className="w-2 h-2 rounded-full bg-[#D7FF3F] ring-2 ring-[#11110F]" />
+              <span>Connected</span>
             </div>
           </motion.div>
         )}

@@ -50,19 +50,8 @@ import type {
 } from '../types/admin';
 
 export const adminStorage = {
-  getAdminKey: (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('pingin_admin_key') || 'pingin_admin_secret_key_2026';
-  },
-  setAdminKey: (key: string): void => {
-    if (typeof window === 'undefined') return;
-    const trimmed = key.trim();
-    if (trimmed) {
-      localStorage.setItem('pingin_admin_key', trimmed);
-    } else {
-      localStorage.removeItem('pingin_admin_key');
-    }
-  },
+  getAdminKey: (): string | null => null,
+  setAdminKey: (_key: string): void => {},
   clearAdminKey: (): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('pingin_admin_key');
@@ -70,15 +59,10 @@ export const adminStorage = {
 };
 
 /**
- * Builds custom admin headers including x-admin-key if present
+ * Builds custom admin headers
  */
 function getAdminHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
-  const headers: Record<string, string> = { ...customHeaders };
-  const adminKey = adminStorage.getAdminKey();
-  if (adminKey) {
-    headers['x-admin-key'] = adminKey;
-  }
-  return headers;
+  return { ...customHeaders };
 }
 
 export const adminApi = {
