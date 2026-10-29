@@ -94,8 +94,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { label: 'Overview', to: '/admin', exact: true },
     { label: 'Orders', to: '/admin/orders' },
     { label: 'Fulfillment', to: '/admin/fulfillment' },
-    { label: 'Inventory & Production', to: '/admin/inventory' },
-    { label: 'Products & Catalog', to: '/admin/catalog' },
+    { label: 'Inventory', to: '/admin/inventory' },
+    { label: 'Products', to: '/admin/catalog' },
     { label: 'Users', to: '/admin/users' },
     { label: 'Communications', to: '/admin/communications' },
   ];
