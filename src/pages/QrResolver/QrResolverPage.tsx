@@ -61,6 +61,12 @@ export const QrResolverPage: React.FC = () => {
           return;
         }
 
+        // Case A2: Paused tag -> Forward to public contact page with status=paused
+        if ((res.action === 'PAUSED' || res.isPaused) && res.contactToken) {
+          navigate(`/contact/${res.contactToken}?status=paused&src=qr_scan`, { replace: true });
+          return;
+        }
+
         // Case B: Suspended -> Show suspended status surface
         if (res.action === 'SUSPENDED' || (res as any).status === 'SUSPENDED') {
           setIsSuspendedPath(true);

@@ -79,11 +79,15 @@ export interface Resource {
   token?: string;
   contactLink?: string | ContactLink | { id?: string; token?: string; active?: boolean };
   tagNumber?: string;
+  isPaused?: boolean;
+  pausedAt?: string | Date | null;
   qrTag?: {
     id: string;
     tagNumber: string;
     status?: string;
     origin?: string;
+    isPaused?: boolean;
+    pausedAt?: string | Date | null;
   };
   recentCalls?: CallRecord[];
   calls?: CallRecord[];
@@ -142,6 +146,10 @@ export interface PublicResourceContact {
   id?: string;
   active?: boolean;
   hasRegistrationNumber?: boolean;
+  isPaused?: boolean;
+  pausedAt?: string | Date | null;
+  tagNumber?: string | null;
+  tagStatus?: string | null;
 }
 
 export interface VerifyRegistrationResponse {
@@ -250,17 +258,52 @@ export interface QrTagLookupResponse {
 
 export interface QrResolveResponse {
   status: 'ASSIGNED' | 'UNASSIGNED' | 'REVOKED' | string;
-  action: 'CONTACT' | 'PAIR' | 'REVOKED' | string;
+  action: 'CONTACT' | 'PAIR' | 'REVOKED' | 'PAUSED' | string;
+  isPaused?: boolean;
   contactToken?: string;
   claimToken?: string;
   tagNumber?: string;
   redirectUrl?: string;
   message?: string;
   resource?: {
+    id?: string;
     name: string;
+    type?: ResourceType;
     registrationNum?: string;
     colour?: string;
+    vehicleColour?: string;
   };
+}
+
+export interface PauseTagPayload {
+  tagId?: string;
+  tagNumber?: string;
+  qrToken?: string;
+  resourceId?: string;
+  paused?: boolean;
+}
+
+export interface PauseTagResponse {
+  success: boolean;
+  message: string;
+  tag: {
+    id: string;
+    tagNumber: string;
+    resourceId: string | null;
+    status: string;
+    isPaused: boolean;
+    pausedAt: string | Date | null;
+    resource?: {
+      id: string;
+      name: string;
+      type?: ResourceType;
+    } | null;
+  };
+  isPaused: boolean;
+  pausedAt: string | Date | null;
+  tagId?: string;
+  tagNumber?: string;
+  resourceId?: string | null;
 }
 
 export interface PairQrPayload {

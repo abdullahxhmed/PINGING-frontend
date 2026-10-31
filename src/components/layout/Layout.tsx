@@ -18,10 +18,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="flex-1 py-6 sm:py-8">
         <Container>
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
-              duration: 0.24,
+              duration: 0.3,
               ease: [0.16, 1, 0.3, 1],
             }}
             className="w-full will-change-[opacity,transform]"

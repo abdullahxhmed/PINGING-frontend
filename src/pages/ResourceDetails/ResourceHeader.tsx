@@ -105,6 +105,10 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
 
   const { label: categoryLabel, icon: CategoryIcon } = getCategoryInfo();
   const isConnected = Boolean(activeTag);
+  const isPaused = Boolean(
+    resource.isPaused ||
+    (typeof resource.qrTag === 'object' && resource.qrTag?.isPaused)
+  );
 
   const tabs: { key: ResourceTabType; label: string; badge?: number }[] = [
     { key: 'overview', label: 'Overview' },
@@ -130,28 +134,36 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
         {/* Category Label (No "SPEC" keyword) & Physical Tag */}
         <div className="flex items-center justify-between gap-2 border-b border-border/70 pb-2.5">
           <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
-            <CategoryIcon className="h-3.5 w-3.5 text-ink/80" />
+            <CategoryIcon className={`h-3.5 w-3.5 ${isPaused ? 'text-muted' : 'text-ink/80'}`} />
             <span>{categoryLabel}</span>
           </div>
 
-          <span className="font-mono text-xs text-muted font-medium">
-            {activeTag ? `#${activeTag}` : 'No tag assigned'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs text-muted font-medium">
+              {activeTag ? `#${activeTag}` : 'No tag assigned'}
+            </span>
+          </div>
         </div>
 
         {/* Resource Name (Sentence/Title case, status dot without "Connected" word) */}
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            {/* Status dot only (word "Connected" removed) */}
+            {/* Status dot: green for active and switch to grey for paused */}
             <span
               className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                 isConnected
-                  ? 'bg-emerald-600 ring-2 ring-emerald-600/20'
+                  ? isPaused
+                    ? 'bg-[#9CA3AF]'
+                    : 'bg-emerald-600 ring-2 ring-emerald-600/20'
                   : 'bg-muted/50'
               }`}
-              title={isConnected ? 'Tag paired' : 'No tag paired'}
+              title={isConnected ? (isPaused ? 'Tag paused' : 'Tag active') : 'No tag paired'}
             />
-            <h1 className="font-display font-medium text-2xl sm:text-3xl text-ink tracking-tight truncate">
+            <h1
+              className={`font-display font-medium text-2xl sm:text-3xl tracking-tight truncate ${
+                isPaused ? 'text-muted' : 'text-ink'
+              }`}
+            >
               {resource.name}
             </h1>
           </div>
@@ -160,7 +172,11 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
           {isVehicle && (last4Plate || colorDisplay) && (
             <div className="flex items-center gap-2 pt-0.5 sm:pt-0">
               {last4Plate && (
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-bg border border-border-strong font-mono text-[11px] font-semibold text-ink">
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs bg-bg border font-mono text-[11px] font-semibold ${
+                    isPaused ? 'border-border text-muted' : 'border-border-strong text-ink'
+                  }`}
+                >
                   <span className="text-[9px] font-sans font-bold text-muted border-r border-border pr-1 tracking-wider">
                     IND
                   </span>
@@ -171,7 +187,9 @@ export const ResourceHeader: React.FC<ResourceHeaderProps> = ({
               {colorDisplay && (
                 <div className="inline-flex items-center gap-1.5 text-xs text-muted font-medium">
                   <span
-                    className="h-2 w-2 rounded-full border border-border-strong shrink-0"
+                    className={`h-2 w-2 rounded-full border shrink-0 ${
+                      isPaused ? 'opacity-40 border-border' : 'border-border-strong'
+                    }`}
                     style={{ backgroundColor: colorHex }}
                   />
                   <span>{colorDisplay}</span>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
-import { authApi, resourcesApi, extractResourceTag, syncResourceTagUpdate } from '../../lib/api';
+import { authApi, resourcesApi, extractResourceTag, syncResourceTagUpdate, resourceCache } from '../../lib/api';
 import type { UserProfile, Resource } from '../../types/api';
 import {
   ArrowLeft,
@@ -84,6 +84,13 @@ export const SettingsPage: React.FC = () => {
   }, []);
 
   const fetchResources = useCallback(async (force = false) => {
+    const cached = resourceCache.getResourcesList();
+    if (cached && !force) {
+      setResources(cached);
+      setIsLoadingResources(false);
+      return;
+    }
+
     setIsLoadingResources(true);
     try {
       const data = await resourcesApi.list(force);

@@ -9,9 +9,10 @@ import { MobileMenu } from '../home/MobileMenu';
 export interface StoreHeaderProps {
   cartCount?: number;
   lastAddedKey?: number;
+  onCartClick?: () => void;
 }
 
-export const StoreHeader: React.FC<StoreHeaderProps> = ({ cartCount, lastAddedKey }) => {
+export const StoreHeader: React.FC<StoreHeaderProps> = ({ cartCount, lastAddedKey, onCartClick }) => {
   const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -62,51 +63,99 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ cartCount, lastAddedKe
                 transition={{ type: 'spring', damping: 20, stiffness: 320 }}
                 className="flex items-center"
               >
-                <Link
-                  to="/checkout"
-                  state={{ from: 'navbar' }}
-                  className="flex items-center gap-1.5 p-1.5 text-ink hover:text-muted active:scale-95 transition-all cursor-pointer group"
-                  aria-label={`Shopping cart with ${cartCount} items`}
-                  title="View Cart"
-                >
-                  {/* Mechanical physical recoil on cart icon */}
-                  <motion.div
-                    key={`cart-icon-${lastAddedKey}`}
-                    animate={
-                      lastAddedKey
-                        ? {
-                            scale: [1, 0.82, 1.18, 0.95, 1],
-                            rotate: [0, -8, 6, -2, 0],
-                          }
-                        : {}
-                    }
-                    transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
-                    className="relative flex items-center justify-center"
+                {onCartClick ? (
+                  <button
+                    type="button"
+                    onClick={onCartClick}
+                    className="flex items-center gap-1.5 p-1.5 text-ink hover:text-muted active:scale-95 transition-all cursor-pointer group bg-transparent border-0"
+                    aria-label={`Open cart with ${cartCount} items`}
+                    title="Open Cart"
                   >
-                    <ShoppingCart className="w-5 h-5 text-ink stroke-[2.2] group-hover:scale-105 transition-transform" />
-                  </motion.div>
+                    {/* Mechanical physical recoil on cart icon */}
+                    <motion.div
+                      key={`cart-icon-${lastAddedKey}`}
+                      animate={
+                        lastAddedKey
+                          ? {
+                              scale: [1, 0.82, 1.18, 0.95, 1],
+                              rotate: [0, -8, 6, -2, 0],
+                            }
+                          : {}
+                      }
+                      transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
+                      className="relative flex items-center justify-center"
+                    >
+                      <ShoppingCart className="w-5 h-5 text-ink stroke-[2.2] group-hover:scale-105 transition-transform" />
+                    </motion.div>
 
-                  {/* Odometer-style mechanical tick for the number */}
-                  <div className="overflow-hidden h-4 min-w-[14px] flex items-center justify-center">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      <motion.span
-                        key={`cart-num-${cartCount}`}
-                        initial={{ y: 12, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -12, opacity: 0 }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 450,
-                          damping: 25,
-                          mass: 0.6,
-                        }}
-                        className="font-mono text-xs font-bold text-ink leading-none block"
-                      >
-                        {cartCount}
-                      </motion.span>
-                    </AnimatePresence>
-                  </div>
-                </Link>
+                    {/* Odometer-style mechanical tick for the number */}
+                    <div className="overflow-hidden h-4 min-w-[14px] flex items-center justify-center">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.span
+                          key={`cart-num-${cartCount}`}
+                          initial={{ y: 12, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          exit={{ y: -12, opacity: 0 }}
+                          transition={{
+                            type: 'spring',
+                            stiffness: 450,
+                            damping: 25,
+                            mass: 0.6,
+                          }}
+                          className="font-mono text-xs font-bold text-ink leading-none block"
+                        >
+                          {cartCount}
+                        </motion.span>
+                      </AnimatePresence>
+                    </div>
+                  </button>
+                ) : (
+                  <Link
+                    to="/checkout"
+                    state={{ from: 'navbar' }}
+                    className="flex items-center gap-1.5 p-1.5 text-ink hover:text-muted active:scale-95 transition-all cursor-pointer group"
+                    aria-label={`Shopping cart with ${cartCount} items`}
+                    title="View Cart"
+                  >
+                    {/* Mechanical physical recoil on cart icon */}
+                    <motion.div
+                      key={`cart-icon-${lastAddedKey}`}
+                      animate={
+                        lastAddedKey
+                          ? {
+                              scale: [1, 0.82, 1.18, 0.95, 1],
+                              rotate: [0, -8, 6, -2, 0],
+                            }
+                          : {}
+                      }
+                      transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
+                      className="relative flex items-center justify-center"
+                    >
+                      <ShoppingCart className="w-5 h-5 text-ink stroke-[2.2] group-hover:scale-105 transition-transform" />
+                    </motion.div>
+
+                    {/* Odometer-style mechanical tick for the number */}
+                    <div className="overflow-hidden h-4 min-w-[14px] flex items-center justify-center">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.span
+                          key={`cart-num-${cartCount}`}
+                          initial={{ y: 12, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          exit={{ y: -12, opacity: 0 }}
+                          transition={{
+                            type: 'spring',
+                            stiffness: 450,
+                            damping: 25,
+                            mass: 0.6,
+                          }}
+                          className="font-mono text-xs font-bold text-ink leading-none block"
+                        >
+                          {cartCount}
+                        </motion.span>
+                      </AnimatePresence>
+                    </div>
+                  </Link>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

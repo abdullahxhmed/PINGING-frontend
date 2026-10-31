@@ -155,7 +155,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
     if (Array.isArray(resource.calls) && resource.calls.length > 0) return resource.calls;
     if (tagId) {
       const cached = resourceCache.getCalls(tagId);
-      if (cached && cached.length > 0) return cached;
+      if (cached !== null) return cached;
     }
     return [];
   });
@@ -175,7 +175,7 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
     }
 
     const cached = resourceCache.getCalls(tagId);
-    if (cached && cached.length > 0) {
+    if (cached !== null) {
       setCalls(cached);
       fetchedCallsRef.current = tagId;
       return;
@@ -193,7 +193,11 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
           resourceCache.setCalls(tagId, list);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (isMounted) {
+          resourceCache.setCalls(tagId, []);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -247,32 +251,56 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
     }
   };
   const BelongingIcon = getBelongingIcon();
+  const isPaused = Boolean(
+    cardResource.isPaused ||
+    (typeof cardResource.qrTag === 'object' && cardResource.qrTag?.isPaused) ||
+    resource.isPaused ||
+    (typeof resource.qrTag === 'object' && resource.qrTag?.isPaused)
+  );
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-4 relative overflow-hidden select-none">
+    <div className={`rounded-xl border p-5 shadow-xs space-y-4 relative overflow-hidden select-none transition-colors ${
+      isPaused ? 'border-border/70 bg-surface/75' : 'border-border bg-surface'
+    }`}>
       {/* Top Section: Category & Tag */}
       <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-3">
         <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
-          <BelongingIcon className="h-3.5 w-3.5 text-ink/80" />
-          <span>{cardResource.type === 'PROPERTY' ? 'PROPERTY SPEC' : (cardResource.type || 'VEHICLE SPEC')}</span>
+          <BelongingIcon className={`h-3.5 w-3.5 ${isPaused ? 'text-muted' : 'text-ink/80'}`} />
+          <span>{cardResource.type === 'PROPERTY' ? 'PROPERTY' : (cardResource.type || 'VEHICLE SPEC')}</span>
         </div>
-        <span className="text-xs text-muted">
-          {tagNumber ? (
-            <span className="font-satoshi font-medium text-ink">#{tagNumber}</span>
-          ) : (
-            'No tag'
-          )}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted">
+            {tagNumber ? (
+              <span className={`font-satoshi font-medium ${isPaused ? 'text-muted' : 'text-ink'}`}>#{tagNumber}</span>
+            ) : (
+              'No tag'
+            )}
+          </span>
+        </div>
       </div>
 
-      {/* Belonging Name with > arrow */}
+      {/* Belonging Name with status dot & arrow */}
       <Link
         to={`/resources/${tagId}`}
         className="group flex items-center justify-between gap-3 pt-0.5 hover:opacity-85 transition-opacity cursor-pointer"
       >
-        <h2 className="font-display font-medium text-xl sm:text-2xl text-ink uppercase tracking-tight leading-snug truncate">
-          {cardResource.name}
-        </h2>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+              tagNumber
+                ? isPaused
+                  ? 'bg-[#9CA3AF]'
+                  : 'bg-emerald-600 ring-2 ring-emerald-600/20'
+                : 'bg-muted/40'
+            }`}
+            title={tagNumber ? (isPaused ? 'Tag paused' : 'Tag active') : 'No tag paired'}
+          />
+          <h2 className={`font-display font-medium text-xl sm:text-2xl uppercase tracking-tight leading-snug truncate ${
+            isPaused ? 'text-muted' : 'text-ink'
+          }`}>
+            {cardResource.name}
+          </h2>
+        </div>
         <ChevronRight className="h-5 w-5 text-muted group-hover:text-ink group-hover:translate-x-1 transition-all shrink-0" />
       </Link>
 
@@ -280,7 +308,9 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
       {(last4Plate || colorDisplay) && (
         <div className="flex items-center justify-between gap-3 pt-0.5">
           {last4Plate ? (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-bg border border-border-strong font-mono text-xs font-semibold text-ink shadow-2xs">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-bg border font-mono text-xs font-semibold ${
+              isPaused ? 'border-border text-muted opacity-60' : 'border-border-strong text-ink shadow-2xs'
+            }`}>
               <span className="text-[9px] font-sans font-bold text-muted border-r border-border pr-1.5 tracking-wider">
                 IND
               </span>
@@ -291,7 +321,9 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
           {colorDisplay && (
             <div className="inline-flex items-center gap-1.5 text-xs text-muted font-sans font-medium">
               <span
-                className="h-2.5 w-2.5 rounded-full border border-border-strong shrink-0"
+                className={`h-2.5 w-2.5 rounded-full border shrink-0 ${
+                  isPaused ? 'border-border opacity-40' : 'border-border-strong'
+                }`}
                 style={{ backgroundColor: colorHex }}
               />
               <span>{colorDisplay}</span>
@@ -301,7 +333,15 @@ const BelongingPlateCard: React.FC<BelongingPlateCardProps> = React.memo(({
       )}
 
       {/* Call Activity Section */}
-      <div className="p-3.5 rounded-lg bg-bg/60 border border-border space-y-2">
+      <div className={`p-3.5 rounded-lg border space-y-2 ${
+        isPaused ? 'bg-bg/40 border-border/70 text-muted' : 'bg-bg/60 border-border'
+      }`}>
+        {isPaused && (
+          <div className="p-2 rounded-xs bg-muted/10 border border-border/60 text-[11px] text-muted flex items-center justify-between">
+            <span>Calls to this tag are paused</span>
+            <span className="font-mono text-[10px] text-muted font-semibold">PAUSED</span>
+          </div>
+        )}
         <div className="flex items-center justify-between text-xs">
           <span className="font-sans font-semibold uppercase tracking-wider text-muted text-[10px]">
             Call Activity

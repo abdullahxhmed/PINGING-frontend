@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Container } from '../layout/Container';
 import { PingInLogo } from '../brand/PingInLogo';
@@ -7,6 +8,7 @@ import {
   ExternalLink,
   LogOut,
   Menu,
+  X,
   ChevronDown,
   Moon,
   Sun,
@@ -177,129 +179,148 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <span className="w-6 h-6 rounded-full bg-ink text-surface text-[11px] font-semibold flex items-center justify-center shrink-0">
                   {userInitial}
                 </span>
-                <ChevronDown className="w-3 h-3 text-muted hidden sm:inline mr-1" />
+                <ChevronDown className={`w-3 h-3 text-muted hidden sm:inline mr-1 transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Account Dropdown */}
-              {accountMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-lg shadow-lg py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3.5 py-2 border-b border-border">
-                    <p className="font-semibold text-ink truncate">{user?.name || 'Administrator'}</p>
-                    <p className="font-mono text-[11px] text-muted truncate mt-0.5">{user?.mobileNumber || ''}</p>
-                    <span className="inline-block mt-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-medium uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                      ADMIN
-                    </span>
-                  </div>
-
-                  <div className="py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toggleTheme();
-                        setAccountMenuOpen(false);
-                      }}
-                      className="w-full px-3.5 py-2 flex items-center justify-between text-muted hover:text-ink hover:bg-bg transition-colors text-left cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        {theme === 'dark' ? (
-                          <Sun className="w-3.5 h-3.5 text-accent" />
-                        ) : (
-                          <Moon className="w-3.5 h-3.5" />
-                        )}
-                        <span>Appearance</span>
+              <AnimatePresence>
+                {accountMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-lg shadow-lg py-1.5 z-50 text-xs origin-top-right"
+                  >
+                    <div className="px-3.5 py-2 border-b border-border">
+                      <p className="font-semibold text-ink truncate">{user?.name || 'Administrator'}</p>
+                      <p className="font-mono text-[11px] text-muted truncate mt-0.5">{user?.mobileNumber || ''}</p>
+                      <span className="inline-block mt-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-medium uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                        ADMIN
                       </span>
-                      <span className="text-[10px] font-mono uppercase text-muted/70">
-                        {theme === 'dark' ? 'Dark' : 'Light'}
-                      </span>
-                    </button>
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setAccountMenuOpen(false)}
-                      className="w-full px-3.5 py-2 flex items-center justify-between text-muted hover:text-ink hover:bg-bg transition-colors"
-                    >
-                      <span>Switch to User App</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-muted/60" />
-                    </Link>
-                  </div>
+                    </div>
 
-                  <div className="pt-1 border-t border-border">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="w-full px-3.5 py-2 flex items-center gap-2 text-danger hover:bg-danger/10 transition-colors text-left font-medium cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Log out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleTheme();
+                          setAccountMenuOpen(false);
+                        }}
+                        className="w-full px-3.5 py-2 flex items-center justify-between text-muted hover:text-ink hover:bg-bg transition-colors text-left cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          {theme === 'dark' ? (
+                            <Sun className="w-3.5 h-3.5 text-accent" />
+                          ) : (
+                            <Moon className="w-3.5 h-3.5" />
+                          )}
+                          <span>Appearance</span>
+                        </span>
+                        <span className="text-[10px] font-mono uppercase text-muted/70">
+                          {theme === 'dark' ? 'Dark' : 'Light'}
+                        </span>
+                      </button>
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setAccountMenuOpen(false)}
+                        className="w-full px-3.5 py-2 flex items-center justify-between text-muted hover:text-ink hover:bg-bg transition-colors"
+                      >
+                        <span>Switch to User App</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-muted/60" />
+                      </Link>
+                    </div>
+
+                    <div className="pt-1 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full px-3.5 py-2 flex items-center gap-2 text-danger hover:bg-danger/10 transition-colors text-left font-medium cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Log out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Mobile Menu Hamburger */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 rounded text-ink border border-border hover:bg-bg"
-              aria-label="Toggle navigation"
+              className="md:hidden p-1.5 rounded text-ink border border-border hover:bg-bg cursor-pointer transition-colors"
+              aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
+              aria-expanded={mobileMenuOpen}
             >
-              <Menu className="w-4 h-4" />
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
           </div>
         </Container>
 
         {/* Mobile Nav Dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-surface px-4 py-3 space-y-1">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.exact}
-                onClick={() => setMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  `block px-3 py-2 rounded text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-ink text-surface font-semibold'
-                      : 'text-muted hover:text-ink hover:bg-bg'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-            <div className="pt-2 border-t border-border mt-2 space-y-1">
-              <button
-                type="button"
-                onClick={() => {
-                  toggleTheme();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-ink hover:bg-bg rounded transition-colors text-left cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  {theme === 'dark' ? (
-                    <Sun className="w-3.5 h-3.5 text-accent" />
-                  ) : (
-                    <Moon className="w-3.5 h-3.5" />
-                  )}
-                  <span>Appearance</span>
-                </span>
-                <span className="text-[10px] font-mono uppercase text-muted/70">
-                  {theme === 'dark' ? 'Dark' : 'Light'}
-                </span>
-              </button>
-              <Link
-                to="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-ink"
-              >
-                <span>Switch to User App</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="md:hidden border-t border-border bg-surface overflow-hidden"
+            >
+              <div className="px-4 py-3 space-y-1">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.exact}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `block px-3 py-2 rounded text-xs font-medium transition-colors ${
+                        isActive
+                          ? 'bg-ink text-surface font-semibold'
+                          : 'text-muted hover:text-ink hover:bg-bg'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+                <div className="pt-2 border-t border-border mt-2 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleTheme();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-ink hover:bg-bg rounded transition-colors text-left cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      {theme === 'dark' ? (
+                        <Sun className="w-3.5 h-3.5 text-accent" />
+                      ) : (
+                        <Moon className="w-3.5 h-3.5" />
+                      )}
+                      <span>Appearance</span>
+                    </span>
+                    <span className="text-[10px] font-mono uppercase text-muted/70">
+                      {theme === 'dark' ? 'Dark' : 'Light'}
+                    </span>
+                  </button>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 text-xs text-muted hover:text-ink"
+                  >
+                    <span>Switch to User App</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Main Content Area */}

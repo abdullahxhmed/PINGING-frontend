@@ -1,5 +1,5 @@
 import { request } from './api';
-import type { AdminOverviewResponse, OverviewPeriod } from '../types/admin.overview.types';
+import type { AdminOverviewResponse, AdminTelephonyOverviewResponse, OverviewPeriod } from '../types/admin.overview.types';
 import type {
   AdminDashboardData,
   AdminUsersResponse,
@@ -74,6 +74,22 @@ export const adminApi = {
     query.set('period', period);
     if (includeTest) query.set('includeTest', '1');
     return request<AdminOverviewResponse>(`/api/admin/overview?${query.toString()}`, {
+      headers: getAdminHeaders(),
+    });
+  },
+
+  /**
+   * Admin-Level Cost Analytics & Telephony Margin Oversight
+   * GET /api/admin/overview/telephony?period=this_month|last_month|last_30d|all_time&provider=EDESY
+   */
+  getTelephonyOverview: async (
+    period: 'this_month' | 'last_month' | 'last_30d' | 'all_time' | string = 'this_month',
+    provider = 'EDESY'
+  ): Promise<AdminTelephonyOverviewResponse> => {
+    const query = new URLSearchParams();
+    query.set('period', period);
+    query.set('provider', provider);
+    return request<AdminTelephonyOverviewResponse>(`/api/admin/overview/telephony?${query.toString()}`, {
       headers: getAdminHeaders(),
     });
   },

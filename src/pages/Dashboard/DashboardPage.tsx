@@ -66,9 +66,15 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Stale-while-revalidate: display cached resources immediately without blocking,
-    // but always fetch fresh server data so tag additions/updates/unpairings are never missed!
-    fetchResources(!cachedList);
+    const isReload = resourceCache.isPageReload();
+    const hasCache = resourceCache.getResourcesList() !== null;
+
+    if (!hasCache || isReload) {
+      fetchResources(!hasCache);
+      if (isReload) {
+        resourceCache.consumeReload();
+      }
+    }
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleUpdate = () => {
@@ -86,7 +92,7 @@ export const DashboardPage: React.FC = () => {
       window.removeEventListener('resource:updated', handleUpdate);
       window.removeEventListener('tag:updated', handleUpdate);
     };
-  }, [fetchResources, cachedList]);
+  }, [fetchResources]);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -316,124 +322,141 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* Main Content Area - Immediate Access to Resources */}
-      {isLoading ? (
-        <DelayedSpinner delay={180}>
-          <div className="py-24 flex flex-col items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
-            <p className="font-sans text-xs text-muted tracking-widest uppercase">
-              Loading tags...
-            </p>
-          </div>
-        </DelayedSpinner>
-      ) : error ? (
-        <div className="py-16 text-center max-w-md mx-auto animate-fade-in">
-          <ShieldAlert className="h-7 w-7 text-danger mx-auto mb-3" />
-          <h3 className="heading-md text-danger text-lg uppercase">Registry Unavailable</h3>
-          <p className="body-sm text-danger/80 mt-1 max-w-md mx-auto mb-6">{error}</p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              fetchResources();
-            }}
-            className="!h-10 text-xs tracking-wider uppercase font-semibold"
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="dashboard-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
           >
-            TRY AGAIN
-          </Button>
-        </div>
-      ) : (
-        <AnimatePresence mode="wait">
-          {isAddingTag ? (
-            /* Reused Setup Flow when user clicks ADD TAG with smooth roll down / up */
-            <motion.div
-              key="add-tag-flow"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{
-                opacity: 1,
-                height: 'auto',
-                transition: {
-                  height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
-                  opacity: { duration: 0.35, delay: 0.08 },
-                },
-                transitionEnd: { overflow: 'visible' },
-              }}
-              exit={{
-                opacity: 0,
-                height: 0,
-                overflow: 'hidden',
-                transition: {
-                  height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
-                  opacity: { duration: 0.2 },
-                },
-              }}
-              className="py-6 sm:py-12"
-            >
-              <TagSetupFlow
-                existingResources={resources}
-                hasExistingTags={resources.length > 0}
-                onComplete={(newRes) => {
-                  handleCreated(newRes);
-                  fetchResources(false);
-                }}
-                onCancel={() => setIsAddingTag(false)}
-              />
-            </motion.div>
-          ) : resources.length === 0 ? (
-            /* Empty State & Initial Onboarding - Clean, quiet, interactive immediately */
-            <motion.div
-              key="empty-setup-flow"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, delay: 0.1, ease: 'easeOut' }}
-              className="py-10 sm:py-16"
-            >
-              <TagSetupFlow
-                existingResources={resources}
-                hasExistingTags={false}
-                onComplete={(newRes) => {
-                  handleCreated(newRes);
-                  fetchResources(false);
-                }}
-              />
-            </motion.div>
-          ) : (
-            /* Returning user tags list with smooth exit and entry */
-            <motion.div
-              key="user-tags-list"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {/* Mobile Single-Tag Focused Experience (< md) */}
-              <div className="md:hidden">
-                <MobileTagDetailView
-                  resources={resources}
-                  selectedIndex={selectedMobileIndex}
-                  onSelectIndex={setSelectedMobileIndex}
-                  onEdit={(r) => setEditingResource(r)}
-                  onDelete={handleDelete}
-                  onAddTag={handleAddTagClick}
-                />
+            <DelayedSpinner delay={180}>
+              <div className="py-24 flex flex-col items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent mb-4" />
+                <p className="font-sans text-xs text-muted tracking-widest uppercase">
+                  Loading tags...
+                </p>
               </div>
-
-              {/* Desktop Multi-Tag Table View (md+) */}
-              <div className="hidden md:block max-w-4xl mx-auto divide-y-0">
-                {resources.map((resource, idx) => (
-                  <ResourceRow
-                    key={resource.id}
-                    index={idx}
-                    resource={resource}
+            </DelayedSpinner>
+          </motion.div>
+        ) : error ? (
+          <motion.div
+            key="dashboard-error"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="py-16 text-center max-w-md mx-auto"
+          >
+            <ShieldAlert className="h-7 w-7 text-danger mx-auto mb-3" />
+            <h3 className="heading-md text-danger text-lg uppercase">Registry Unavailable</h3>
+            <p className="body-sm text-danger/80 mt-1 max-w-md mx-auto mb-6">{error}</p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                fetchResources();
+              }}
+              className="!h-10 text-xs tracking-wider uppercase font-semibold"
+            >
+              TRY AGAIN
+            </Button>
+          </motion.div>
+        ) : (
+          <AnimatePresence mode="wait">
+            {isAddingTag ? (
+              /* Reused Setup Flow when user clicks ADD TAG with smooth roll down / up */
+              <motion.div
+                key="add-tag-flow"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{
+                  opacity: 1,
+                  height: 'auto',
+                  transition: {
+                    height: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.35, delay: 0.08 },
+                  },
+                  transitionEnd: { overflow: 'visible' },
+                }}
+                exit={{
+                  opacity: 0,
+                  height: 0,
+                  overflow: 'hidden',
+                  transition: {
+                    height: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.2 },
+                  },
+                }}
+                className="py-6 sm:py-12"
+              >
+                <TagSetupFlow
+                  existingResources={resources}
+                  hasExistingTags={resources.length > 0}
+                  onComplete={(newRes) => {
+                    handleCreated(newRes);
+                    fetchResources(false);
+                  }}
+                  onCancel={() => setIsAddingTag(false)}
+                />
+              </motion.div>
+            ) : resources.length === 0 ? (
+              /* Empty State & Initial Onboarding - Clean, quiet, interactive immediately */
+              <motion.div
+                key="empty-setup-flow"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, delay: 0.1, ease: 'easeOut' }}
+                className="py-10 sm:py-16"
+              >
+                <TagSetupFlow
+                  existingResources={resources}
+                  hasExistingTags={false}
+                  onComplete={(newRes) => {
+                    handleCreated(newRes);
+                    fetchResources(false);
+                  }}
+                />
+              </motion.div>
+            ) : (
+              /* Returning user tags list with smooth exit and entry */
+              <motion.div
+                key="user-tags-list"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {/* Mobile Single-Tag Focused Experience (< md) */}
+                <div className="md:hidden">
+                  <MobileTagDetailView
+                    resources={resources}
+                    selectedIndex={selectedMobileIndex}
+                    onSelectIndex={setSelectedMobileIndex}
                     onEdit={(r) => setEditingResource(r)}
                     onDelete={handleDelete}
-                    onRefresh={fetchResources}
+                    onAddTag={handleAddTagClick}
                   />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+                </div>
+
+                {/* Desktop Multi-Tag Table View (md+) */}
+                <div className="hidden md:block max-w-4xl mx-auto divide-y-0">
+                  {resources.map((resource, idx) => (
+                    <ResourceRow
+                      key={resource.id}
+                      index={idx}
+                      resource={resource}
+                      onEdit={(r) => setEditingResource(r)}
+                      onDelete={handleDelete}
+                      onRefresh={fetchResources}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
       <CreateResourceModal

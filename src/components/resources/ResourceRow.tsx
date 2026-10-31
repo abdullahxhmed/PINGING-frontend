@@ -40,6 +40,10 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
   const token = extractResourceToken(resource);
   const tagNumber = extractResourceTag(resource);
   const publicUrl = getResourceContactUrl(resource);
+  const isPaused = Boolean(
+    resource.isPaused ||
+    (typeof resource.qrTag === 'object' && resource.qrTag?.isPaused)
+  );
 
   const handleCopyLink = async () => {
     if (!publicUrl) return;
@@ -122,17 +126,35 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
         <div className="flex-1 min-w-0">
           {/* Header Row: Title + Tag Badge + Edit/Delete actions */}
           <div className="flex items-start justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+              {/* Status indicator dot: green for active, grey for paused */}
+              <span
+                className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                  tagNumber
+                    ? isPaused
+                      ? 'bg-[#9CA3AF]'
+                      : 'bg-emerald-600 ring-2 ring-emerald-600/20'
+                    : 'bg-muted/40'
+                }`}
+                title={tagNumber ? (isPaused ? 'Tag paused' : 'Tag active') : 'No tag paired'}
+              />
+
               <Link
                 to={`/resources/${resourceId}`}
-                className="font-display font-medium text-lg sm:text-2xl text-ink uppercase tracking-tight hover:underline truncate"
+                className={`font-display font-medium text-lg sm:text-2xl uppercase tracking-tight hover:underline truncate ${
+                  isPaused ? 'text-muted' : 'text-ink'
+                }`}
               >
                 {resource.name}
               </Link>
 
               {tagNumber ? (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-ink text-surface font-satoshi font-medium text-[11px] tracking-wider shrink-0">
-                  <QrCode className="h-2.5 w-2.5 text-surface" />
+                <span
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs font-satoshi font-medium text-[11px] tracking-wider shrink-0 ${
+                    isPaused ? 'bg-border/60 text-muted' : 'bg-ink text-surface'
+                  }`}
+                >
+                  <QrCode className="h-2.5 w-2.5" />
                   <span>#{tagNumber}</span>
                 </span>
               ) : (
@@ -162,14 +184,14 @@ export const ResourceRow: React.FC<ResourceRowProps> = ({
           {/* Clean Editorial Meta (No repetitive boxes) */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-muted">
             {resource.type && (
-              <span className="capitalize text-ink/75 font-medium">
+              <span className={`capitalize font-medium ${isPaused ? 'text-muted' : 'text-ink/75'}`}>
                 {resource.type.toLowerCase()}
               </span>
             )}
             {reg && (
               <>
                 <span className="text-border select-none">&bull;</span>
-                <span className="font-mono text-ink/80">•••• {reg}</span>
+                <span className={`font-mono ${isPaused ? 'text-muted' : 'text-ink/80'}`}>•••• {reg}</span>
               </>
             )}
             {clr && (

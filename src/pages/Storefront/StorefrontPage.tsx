@@ -24,8 +24,8 @@ import {
   Minus,
   Plus,
   Loader2,
-  Truck,
   MapPin,
+  Trash2,
 } from 'lucide-react';
 import { fetchShippingRates } from '../../services/checkout';
 import type { ShippingRateResponseData } from '../../types/orders';
@@ -319,6 +319,29 @@ export const StorefrontPage: React.FC = () => {
     }
   }, [cartCalc.itemCount, isCartExpanded]);
 
+  // Virtual viewport listener for iOS keyboard lift so pill and PIN field remain visible
+  const [viewportBottomOffset, setViewportBottomOffset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleVisualViewportChange = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setViewportBottomOffset(keyboardHeight);
+    };
+
+    const vv = window.visualViewport;
+    vv.addEventListener('resize', handleVisualViewportChange);
+    vv.addEventListener('scroll', handleVisualViewportChange);
+
+    return () => {
+      vv.removeEventListener('resize', handleVisualViewportChange);
+      vv.removeEventListener('scroll', handleVisualViewportChange);
+    };
+  }, []);
+
   const handleCheckStoreShipping = async (pinOverride?: string) => {
     const pin = (pinOverride !== undefined ? pinOverride : calcPincode).replace(/\D/g, '');
     if (!/^[1-9][0-9]{5}$/.test(pin)) {
@@ -375,7 +398,11 @@ export const StorefrontPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-bg text-ink font-sans selection:bg-accent selection:text-ink flex flex-col relative">
-      <StoreHeader cartCount={cartCalc.itemCount} lastAddedKey={lastAddedKey} />
+      <StoreHeader
+        cartCount={cartCalc.itemCount}
+        lastAddedKey={lastAddedKey}
+        onCartClick={() => setIsCartExpanded((prev) => !prev)}
+      />
 
       <main className="flex-1 w-full max-w-[480px] mx-auto px-4 sm:px-5 pt-6 pb-28">
         {/* ── 1. HERO: GETTING / PURCHASING FOCUS ──────────────────────────── */}
@@ -664,11 +691,8 @@ export const StorefrontPage: React.FC = () => {
               : null;
           const estimatedTotal = shippingFeeRupees !== null ? subtotal + shippingFeeRupees : subtotal;
 
-          // Seamless dynamic height based on cart items & compact delivery calculator state
-          const expandedHeight = Math.min(
-            560,
-            Math.max(320, 140 + cartCalc.items.length * 68 + (isFree ? 30 : 65))
-          );
+          // Fixed expanded window budgeting comfortable content (~324px content + 56px bottom bar = 380px)
+          const expandedHeight = 380;
 
           return (
             <>
@@ -712,26 +736,29 @@ export const StorefrontPage: React.FC = () => {
                 }}
                 style={{
                   '--expanded-height': `${expandedHeight}px`,
+                  ...(viewportBottomOffset > 0
+                    ? { bottom: `${viewportBottomOffset + 12}px`, transition: 'bottom 150ms ease-out' }
+                    : {}),
                 } as React.CSSProperties}
                 className="cart-pill bg-[#161614]/98 backdrop-blur-md border border-white/15 shadow-2xl shadow-black/60 text-[#f5f4ee] z-50 flex flex-col justify-between"
               >
-                {/* ── UPPER EXPANDED CONTENT AREA (Seamlessly structured) ── */}
+                {/* ── UPPER EXPANDED CONTENT AREA (Fixed 240px window) ── */}
                 <div
-                  className={`flex-1 min-h-0 flex flex-col justify-between transition-opacity duration-200 overflow-hidden ${
+                  className={`flex-1 min-h-0 flex flex-col transition-opacity duration-200 overflow-hidden ${
                     isCartExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                   }`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Drawer Header (Clickable to collapse) */}
+                  {/* Drawer Header (Clickable to collapse, ~44px pinned) */}
                   <div
                     onClick={() => setIsCartExpanded(false)}
-                    className="flex items-center justify-between px-5 pt-3.5 pb-2.5 border-b border-white/10 shrink-0 cursor-pointer select-none"
+                    className="h-[44px] px-5 flex items-center justify-between border-b border-white/10 shrink-0 cursor-pointer select-none"
                   >
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display font-semibold text-sm tracking-tight text-white">
-                        Your Cart
+                    <div className="flex items-baseline gap-2.5">
+                      <h3 className="font-display font-medium text-[15px] sm:text-base text-white tracking-tight">
+                        Your cart
                       </h3>
-                      <span className="font-mono text-[11px] text-[#aaa79c] bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                      <span className="font-mono text-[11px] text-[#B5B2A9]">
                         {cartCalc.itemCount} {cartCalc.itemCount === 1 ? 'item' : 'items'}
                       </span>
                     </div>
@@ -742,166 +769,161 @@ export const StorefrontPage: React.FC = () => {
                         e.stopPropagation();
                         setIsCartExpanded(false);
                       }}
-                      className="p-1.5 rounded-full text-[#aaa79c] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      className="p-1 rounded-full text-[#B5B2A9] hover:text-white transition-colors cursor-pointer"
                       aria-label="Collapse cart"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
                   </div>
 
-                  {/* Itemized Cart List with Quantity Steppers (Generous space for all items) */}
-                  <div className="flex-1 min-h-0 overflow-y-auto px-5 divide-y divide-white/5 overscroll-contain no-scrollbar">
-                    {cartCalc.items.map((it) => (
-                      <div key={`${it.id}-${it.tone || 'def'}`} className="py-2.5 flex items-center gap-3">
-                        {it.image && (
-                          <div className="w-11 h-11 rounded-lg overflow-hidden border border-white/10 bg-black/40 shrink-0">
-                            <img src={it.image} alt={it.name} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline justify-between gap-1">
-                            <p className="font-medium text-xs text-white truncate">{it.name}</p>
-                            <span className="font-mono text-xs font-semibold text-white shrink-0">
-                              ₹{it.totalPrice}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-[#8e8b82] truncate">{it.subtitle}</p>
+                  {/* Itemized Cart List (Comfortable scrolling area, only this scrolls) */}
+                  <div className="relative flex-1 min-h-0">
+                    <div className="h-full overflow-y-auto px-5 divide-y divide-white/10 overscroll-contain no-scrollbar">
+                      {cartCalc.items.map((it) => {
+                        const displayName = it.name.replace(/\s*\((Light|Dark)\)/gi, '').trim();
+                        return (
+                          <div key={`${it.id}-${it.tone || 'def'}`} className="py-3 flex items-center gap-3.5">
+                            {it.image && (
+                              <div className="w-14 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/40 shrink-0">
+                                <img src={it.image} alt={displayName} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                              {/* Line 1: Name */}
+                              <p className="font-medium text-sm text-white truncate leading-snug">{displayName}</p>
 
-                          {/* Stepper */}
-                          <div className="mt-1 flex items-center justify-between">
-                            <div className="inline-flex items-center border border-white/10 rounded-md bg-white/5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (it.isSet) setSetQty(it.id, -1);
-                                  else setAddonQty(it.id, -1);
-                                }}
-                                className="w-6 h-6 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                                aria-label={`Decrease ${it.name}`}
-                              >
-                                <Minus className="w-2.5 h-2.5" />
-                              </button>
-                              <span className="px-2 font-mono text-xs font-semibold text-white">
-                                {it.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (it.isSet) setSetQty(it.id, 1);
-                                  else setAddonQty(it.id, 1);
-                                }}
-                                className="w-6 h-6 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                                aria-label={`Increase ${it.name}`}
-                              >
-                                <Plus className="w-2.5 h-2.5" />
-                              </button>
+                              {/* Line 2: Variant */}
+                              <p className="text-xs text-[#B5B2A9] truncate mt-0.5">
+                                {it.subtitle || 'Standard'}
+                              </p>
+
+                              {/* Stepper count button moved to the left */}
+                              <div className="mt-2 flex items-center">
+                                <div className="h-7 px-1 inline-flex items-center border border-white/15 rounded-md bg-white/5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (it.isSet) setSetQty(it.id, -1);
+                                      else setAddonQty(it.id, -1);
+                                    }}
+                                    className="w-5 h-5 flex items-center justify-center text-[#B5B2A9] hover:text-white hover:bg-white/10 transition-colors cursor-pointer rounded"
+                                    aria-label={it.quantity === 1 ? `Remove ${displayName}` : `Decrease ${displayName}`}
+                                    title={it.quantity === 1 ? 'Remove item' : 'Decrease quantity'}
+                                  >
+                                    {it.quantity === 1 ? (
+                                      <Trash2 className="w-3.5 h-3.5 hover:text-red-400 transition-colors" />
+                                    ) : (
+                                      <Minus className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                  <span className="px-2 font-mono text-xs font-semibold text-white">
+                                    {it.quantity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (it.isSet) setSetQty(it.id, 1);
+                                      else setAddonQty(it.id, 1);
+                                    }}
+                                    className="w-5 h-5 flex items-center justify-center text-[#B5B2A9] hover:text-white hover:bg-white/10 transition-colors cursor-pointer rounded"
+                                    aria-label={`Increase ${displayName}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-[10px] font-mono text-[#8e8b82]">
-                              ₹{it.unitPrice} each
-                            </span>
+
+                            {/* Entire right side: Clear price display */}
+                            <div className="shrink-0 text-right flex flex-col items-end justify-center pl-3">
+                              <span className="font-mono text-base font-bold text-white tracking-tight">
+                                ₹{it.totalPrice}
+                              </span>
+                              {it.quantity > 1 && (
+                                <span className="text-[11px] font-mono text-[#B5B2A9] mt-0.5">
+                                  ₹{it.unitPrice} each
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
+
+                    {/* Short fade at the bottom of the list when 2+ items */}
+                    {cartCalc.items.length >= 2 && (
+                      <div className="pointer-events-none absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-[#161614] to-transparent" />
+                    )}
                   </div>
 
-                  {/* Lower Anchored Section: Space-Saving Compact Delivery Strip & Summary */}
-                  <div className="shrink-0">
-                    {/* Compact Delivery & Pincode Strip */}
-                    {isFree ? (
-                      <div className="px-5 py-2 border-t border-white/5 flex items-center gap-2 text-xs text-[#e0decb] bg-white/[0.01]">
-                        <Truck className="w-3.5 h-3.5 text-accent shrink-0" />
-                        <span className="text-[11px] truncate">
-                          <strong className="text-accent font-semibold">Free Express Shipping</strong> unlocked across India
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="px-5 py-2 border-t border-white/5 flex flex-col gap-1 bg-white/[0.01]">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <MapPin className="w-3 h-3 text-[#aaa79c] shrink-0" />
-                            <span className="text-[10px] font-mono text-[#aaa79c] uppercase tracking-wider shrink-0">
-                              PIN:
-                            </span>
-                            <input
-                              type="text"
-                              maxLength={6}
-                              value={calcPincode}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setCalcPincode(val);
-                                savePincodeToDraft(val);
-                                if (val.length === 6) {
-                                  handleCheckStoreShipping(val);
-                                }
-                              }}
-                              placeholder="6 digits"
-                              className="w-20 px-2 py-0.5 text-xs font-mono bg-black/40 border border-white/15 rounded text-white placeholder:text-white/30 focus:outline-none focus:border-accent"
-                            />
-                            <button
-                              type="button"
-                              disabled={isCalculatingStoreRate || calcPincode.replace(/\D/g, '').length !== 6}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCheckStoreShipping();
-                              }}
-                              className="px-2 py-0.5 bg-white/10 hover:bg-white/20 disabled:opacity-30 text-[11px] font-mono rounded text-white transition-colors cursor-pointer shrink-0"
-                            >
-                              {isCalculatingStoreRate ? (
-                                <Loader2 className="w-3 h-3 animate-spin text-accent" />
-                              ) : (
-                                'Check'
-                              )}
-                            </button>
-                          </div>
+                  {/* Pinned PIN Row (~48px) */}
+                  <div className="h-[48px] px-5 flex items-center justify-between gap-3 border-t border-white/10 shrink-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <label htmlFor="drawer-pincode" className="sr-only">
+                        Delivery PIN code
+                      </label>
+                      <MapPin className="w-3.5 h-3.5 text-[#B5B2A9] shrink-0" />
+                      <input
+                        id="drawer-pincode"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        value={calcPincode}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setCalcPincode(val);
+                          savePincodeToDraft(val);
+                          if (val.length === 6) {
+                            handleCheckStoreShipping(val);
+                          }
+                        }}
+                        placeholder="Delivery PIN code"
+                        className="h-8 flex-1 min-w-0 bg-white/5 border border-white/15 focus:border-white/40 rounded-md px-2.5 text-xs font-mono text-white placeholder:text-[#B5B2A9]/60 outline-none transition-colors"
+                      />
+                    </div>
 
-                          <div className="text-right shrink-0 font-mono text-xs">
-                            {calcRateQuote && calcRateQuote.isServiceable ? (
-                              <span className="text-white font-semibold">
-                                {calcRateQuote.isFreeShipping ? 'Free' : `₹${Math.round((calcRateQuote.shippingFee || 0) / 100)}`}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-[#8e8b82]">
-                                {calcPincode.length === 6 ? 'Click Check' : 'Enter PIN'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                    <button
+                      type="button"
+                      disabled={isCalculatingStoreRate || calcPincode.replace(/\D/g, '').length !== 6}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCheckStoreShipping();
+                      }}
+                      className={`h-8 px-3 rounded-md text-xs font-mono font-medium transition-colors shrink-0 flex items-center justify-center ${
+                        calcPincode.replace(/\D/g, '').length === 6 && !isCalculatingStoreRate
+                          ? 'bg-[#F5F4EE] hover:bg-white text-[#161614] cursor-pointer'
+                          : 'border border-white/20 text-[#B5B2A9]/40 bg-transparent cursor-not-allowed'
+                      }`}
+                    >
+                      {isCalculatingStoreRate ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-current" />
+                      ) : (
+                        'Check'
+                      )}
+                    </button>
+                  </div>
 
-                        {/* Inline courier or error feedback */}
-                        {calcRateError && (
-                          <p className="text-[10px] text-red-400 font-mono pl-4">{calcRateError}</p>
+                  {/* Pinned Totals Breakdown (~48px) */}
+                  <div className="h-[48px] px-5 py-2 flex flex-col justify-center gap-1.5 border-t border-white/10 shrink-0">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#B5B2A9]">Subtotal</span>
+                      <span className="font-mono text-white font-medium">₹{subtotal}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#B5B2A9]">Delivery</span>
+                      <span className="font-mono text-white">
+                        {isFree ? (
+                          <span className="text-accent font-medium">Free</span>
+                        ) : calcRateError ? (
+                          <span className="text-xs text-red-400 font-sans">Invalid PIN</span>
+                        ) : shippingFeeRupees !== null ? (
+                          `₹${shippingFeeRupees}`
+                        ) : (
+                          <span className="text-xs text-[#B5B2A9] font-sans">Enter PIN code</span>
                         )}
-                        {calcRateQuote && calcRateQuote.isServiceable && (
-                          <p className="text-[10px] text-[#aaa79c] font-mono pl-4 truncate">
-                            Standard Delivery
-                            {calcRateQuote.courier?.estimatedDeliveryDays ? ` • ${calcRateQuote.courier.estimatedDeliveryDays}` : ' • 3–5 business days'}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Itemized Summary Breakdown */}
-                    <div className="px-5 py-2 border-t border-white/10 space-y-1 text-xs bg-white/[0.02]">
-                      <div className="flex justify-between text-[#aaa79c] text-[11px]">
-                        <span>Subtotal</span>
-                        <span className="font-mono text-white">₹{subtotal}</span>
-                      </div>
-                      <div className="flex justify-between text-[#aaa79c] text-[11px]">
-                        <span>Delivery</span>
-                        <span className="font-mono text-white">
-                          {isFree ? (
-                            <span className="text-accent font-semibold">Free</span>
-                          ) : shippingFeeRupees !== null ? (
-                            `₹${shippingFeeRupees}`
-                          ) : (
-                            <span className="text-[10px] text-[#8e8b82]">
-                              {calcPincode.length === 6 ? 'Check rate above' : 'Calculated with PIN'}
-                            </span>
-                          )}
-                        </span>
-                      </div>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -909,7 +931,7 @@ export const StorefrontPage: React.FC = () => {
                 {/* ── BOTTOM ROW (Symmetrical & Entire Row Expands/Collapses on Click) ── */}
                 <div
                   onClick={() => setIsCartExpanded((prev) => !prev)}
-                  className="relative h-[56px] shrink-0 pl-5 pr-2 flex items-center justify-between gap-2.5 select-none cursor-pointer"
+                  className="relative h-[56px] shrink-0 pl-2.5 pr-5 flex items-center justify-between gap-2.5 select-none cursor-pointer"
                 >
                   {/* Hairline progress loader pinned flush to top without pushing button down */}
                   <div className="absolute top-0 inset-x-0 h-[2px] bg-white/10 overflow-hidden pointer-events-none">
@@ -919,17 +941,19 @@ export const StorefrontPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* Left: Price and Item Count (Increased amount size) */}
-                  <div className="overflow-hidden min-w-0 shrink-0">
-                    <div className="flex items-baseline gap-1.5 truncate">
-                      <span className="font-mono text-[15px] sm:text-base font-bold text-white tracking-tight leading-none">
-                        ₹{isCartExpanded && shippingFeeRupees !== null ? estimatedTotal : subtotal}
-                      </span>
-                      <span className="text-xs text-[#aaa79c] truncate font-sans">
-                        ({cartCalc.itemCount})
-                      </span>
-                    </div>
-                  </div>
+                  {/* Left: Compact Symmetrical Checkout button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCheckout();
+                    }}
+                    style={{ fontWeight: 700 }}
+                    className="h-[36px] px-3.5 bg-accent hover:bg-[#c9f232] text-ink rounded-full text-xs font-satoshi font-bold tracking-tight active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                  >
+                    <span style={{ fontWeight: 700 }}>Checkout</span>
+                    <ArrowRight className="w-3 h-3 stroke-[2.5]" />
+                  </button>
 
                   {/* Middle: Free shipping details (Autoscrolling marquee when text overflows) */}
                   <div className="flex-1 min-w-0 px-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8px,black_calc(100%-8px),transparent)]">
@@ -961,15 +985,16 @@ export const StorefrontPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Right: Open indication + Compact Symmetrical Checkout button */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  {/* Right: Arrow + Item Count on left of price, Total Price aligned with breakdown above */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Expand/collapse arrow on the left */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsCartExpanded((prev) => !prev);
                       }}
-                      className="w-7 h-7 flex items-center justify-center rounded-full text-[#aaa79c] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-[#aaa79c] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                       title={isCartExpanded ? "Collapse cart" : "View cart details"}
                       aria-label={isCartExpanded ? "Collapse cart" : "View cart details"}
                     >
@@ -977,22 +1002,19 @@ export const StorefrontPage: React.FC = () => {
                         className="transition-transform duration-250 ease-out"
                         style={{ transform: isCartExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                       >
-                        <ChevronUp className="w-4 h-4" />
+                        <ChevronUp className="w-3.5 h-3.5" />
                       </div>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCheckout();
-                      }}
-                      style={{ fontWeight: 700 }}
-                      className="h-[36px] px-3.5 bg-accent hover:bg-[#c9f232] text-ink rounded-full text-xs font-satoshi font-bold tracking-tight active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
-                    >
-                      <span style={{ fontWeight: 700 }}>Checkout</span>
-                      <ArrowRight className="w-3 h-3 stroke-[2.5]" />
-                    </button>
+                    {/* Item count on the left of price */}
+                    <span className="text-xs text-[#aaa79c] font-sans">
+                      ({cartCalc.itemCount})
+                    </span>
+
+                    {/* Total Price (persists total with delivery whether expanded or collapsed) */}
+                    <span className="font-mono text-[15px] sm:text-base font-bold text-white tracking-tight leading-none">
+                      ₹{estimatedTotal}
+                    </span>
                   </div>
                 </div>
               </motion.aside>

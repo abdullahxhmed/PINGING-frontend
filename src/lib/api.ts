@@ -36,6 +36,8 @@ import type {
   ActivateSubscriptionResponse,
   PurchaseRecord,
   SubscriptionPurchasesResponse,
+  PauseTagPayload,
+  PauseTagResponse,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -344,41 +346,96 @@ export const resourcesApi = {
         resourceCache.setResourcesList(list);
         return list;
       },
-      { ttlMs: 30 * 1000, force }
+      { ttlMs: 24 * 60 * 60 * 1000, force }
     ),
 
-  getById: (id: string) => api.get<Resource>(`/api/resources/${id}`),
+  getById: (id: string, force = false) =>
+    cachedRequest(
+      `resources:detail:${id}`,
+      async () => {
+        const res = await api.get<Resource>(`/api/resources/${id}`);
+        const resData = (res as any)?.resource || (res as any)?.data || res;
+        if (resData) {
+          resourceCache.setResource(id, resData);
+        }
+        return res;
+      },
+      { ttlMs: 24 * 60 * 60 * 1000, force }
+    ),
 
   create: (payload: CreateResourcePayload | string) => {
     invalidateRequestCache('resources:');
+    resourceCache.invalidate();
     const body = typeof payload === 'string' ? { name: payload } : payload;
     return api.post<Resource>('/api/resources', body);
   },
 
-  update: (id: string, payload: UpdateResourcePayload | string) => {
+  update: async (id: string, payload: UpdateResourcePayload | string) => {
     invalidateRequestCache('resources:');
     const body = typeof payload === 'string' ? { name: payload } : payload;
-    return api.patch<Resource>(`/api/resources/${id}`, body);
+    const res = await api.patch<Resource>(`/api/resources/${id}`, body);
+    const updated = (res as any)?.resource || (res as any)?.data || res;
+    if (updated) {
+      resourceCache.setResource(id, updated);
+    }
+    return res;
   },
 
   delete: (id: string) => {
     invalidateRequestCache('resources:');
+    resourceCache.removeResource(id);
     return api.delete<void>(`/api/resources/${id}`);
   },
 
   createContactLink: (resourceId: string) =>
     api.post<ContactLink>(`/api/resources/${resourceId}/contact-link`),
 
-  getCalls: (id: string, params?: { page?: number; limit?: number }) => {
+  getCalls: (id: string, params?: { page?: number; limit?: number }, force = false) => {
     const query = new URLSearchParams();
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return api.get<ResourceCallsResponse>(`/api/resources/${id}/calls${qs ? `?${qs}` : ''}`);
+    const cacheKey = `resources:calls:${id}:${qs}`;
+
+    return cachedRequest(
+      cacheKey,
+      async () => {
+        const res = await api.get<ResourceCallsResponse>(`/api/resources/${id}/calls${qs ? `?${qs}` : ''}`);
+        const list = (res as any)?.calls || (res as any)?.data || [];
+        if (Array.isArray(list)) {
+          resourceCache.setCalls(id, list);
+        }
+        return res;
+      },
+      { ttlMs: 24 * 60 * 60 * 1000, force }
+    );
   },
 
-  getAnalytics: (id: string) =>
-    api.get<ResourceAnalyticsResponse>(`/api/resources/${id}/analytics`),
+  getAnalytics: (id: string, force = false) =>
+    cachedRequest(
+      `resources:analytics:${id}`,
+      async () => {
+        const res = await api.get<ResourceAnalyticsResponse>(`/api/resources/${id}/analytics`);
+        const data = (res as any)?.data || res;
+        if (data) {
+          resourceCache.setAnalytics(id, data);
+        }
+        return res;
+      },
+      { ttlMs: 15 * 1000, force }
+    ),
+
+  pause: async (resourceId: string): Promise<PauseTagResponse> => {
+    invalidateRequestCache('resources:');
+    resourceCache.updateResourcePauseState(resourceId, true);
+    return api.post<PauseTagResponse>(`/api/resources/${resourceId}/pause`);
+  },
+
+  resume: async (resourceId: string): Promise<PauseTagResponse> => {
+    invalidateRequestCache('resources:');
+    resourceCache.updateResourcePauseState(resourceId, false);
+    return api.post<PauseTagResponse>(`/api/resources/${resourceId}/resume`);
+  },
 };
 
 export const publicContactApi = {
@@ -500,6 +557,42 @@ export const qrApi = {
    */
   generate: (payload: GenerateQrPayload = {}): Promise<GenerateQrResponse> => {
     return api.post<GenerateQrResponse>('/api/qr/generate', payload);
+  },
+
+  /**
+   * Pause a QR tag so incoming calls are safely rejected.
+   * POST /api/qr/pause
+   * Access: Private (Bearer JWT required)
+   */
+  pause: (payload: PauseTagPayload): Promise<PauseTagResponse> => {
+    return api.post<PauseTagResponse>('/api/qr/pause', payload);
+  },
+
+  /**
+   * Pause a QR tag by identifier (tagId, tagNumber, or qrToken).
+   * POST /api/qr/:identifier/pause
+   * Access: Private (Bearer JWT required)
+   */
+  pauseByIdentifier: (identifier: string): Promise<PauseTagResponse> => {
+    return api.post<PauseTagResponse>(`/api/qr/${encodeURIComponent(identifier.trim())}/pause`);
+  },
+
+  /**
+   * Resume a paused QR tag so incoming calls are accepted.
+   * POST /api/qr/resume
+   * Access: Private (Bearer JWT required)
+   */
+  resume: (payload: PauseTagPayload): Promise<PauseTagResponse> => {
+    return api.post<PauseTagResponse>('/api/qr/resume', payload);
+  },
+
+  /**
+   * Resume a paused QR tag by identifier (tagId, tagNumber, or qrToken).
+   * POST /api/qr/:identifier/resume
+   * Access: Private (Bearer JWT required)
+   */
+  resumeByIdentifier: (identifier: string): Promise<PauseTagResponse> => {
+    return api.post<PauseTagResponse>(`/api/qr/${encodeURIComponent(identifier.trim())}/resume`);
   },
 };
 
@@ -676,10 +769,13 @@ export function getPublicBaseUrl(): string {
   }
 
   if (typeof window !== 'undefined' && window.location.origin) {
+    if (import.meta.env.PROD && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return 'https://kauntact.com';
+    }
     return window.location.origin.replace(/\/+$/, '');
   }
 
-  return 'http://localhost:5173';
+  return 'https://kauntact.com';
 }
 
 /**

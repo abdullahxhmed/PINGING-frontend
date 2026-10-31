@@ -87,12 +87,12 @@ export const UnpairQrModal: React.FC<UnpairQrModalProps> = ({
             {tagNumber ? (
               <strong className="text-ink font-mono font-bold">#{tagNumber}</strong>
             ) : (
-              'the active QR tag'
+              'the active sticker'
             )}{' '}
-            from <strong className="text-ink">{resourceName || 'this resource'}</strong>?
+            from <strong className="text-ink">{resourceName || 'this vehicle'}</strong>?
           </p>
           <p className="text-muted leading-relaxed">
-            Anyone who scans this physical sticker in the real world will no longer be able to contact you until it is re-paired.
+            Unpairing deactivates this physical sticker. Anyone who scans it will see an inactive tag page instead of reaching you. You can re-pair it to another vehicle later.
           </p>
         </div>
 

@@ -94,7 +94,8 @@ export const PairQrModal: React.FC<PairQrModalProps> = ({
     if (isOpen) {
       setTagInput(initialTagNumber || initialToken);
       setSelectedResourceId(initialResourceId);
-      setReplaceExisting(false);
+      setAssignmentMode(initialResourceId ? 'existing' : 'create-new');
+      setReplaceExisting(Boolean(initialResourceId));
       setLookupResult(null);
       setLookupError(null);
       setSubmitError(null);
@@ -631,7 +632,7 @@ export const PairQrModal: React.FC<PairQrModalProps> = ({
                   className="mt-0.5 rounded-xs border-border text-ink focus:ring-0 cursor-pointer"
                 />
                 <span className="text-muted leading-relaxed">
-                  <strong className="text-ink font-medium">Replace existing QR tag</strong> if this resource already has a tag assigned.
+                  <strong className="text-ink font-medium">Replace existing sticker</strong>. Replacing deactivates the old sticker — anyone who scans it will see an inactive tag page.
                 </span>
               </label>
             </div>

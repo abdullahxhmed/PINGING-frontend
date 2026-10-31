@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion } from 'motion/react';
-import type { Resource, CallRecord } from '../../types/api';
+import { motion, AnimatePresence } from 'motion/react';
+import type { Resource, CallRecord, ResourceAnalyticsResponse } from '../../types/api';
 import {
   resourcesApi,
   extractResourceTag,
@@ -29,7 +29,7 @@ import {
 } from './ResourceOverviewTab';
 import { ResourceActivityTab } from './ResourceActivityTab';
 import { ResourceSettingsTab } from './ResourceSettingsTab';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 
 
@@ -63,6 +63,7 @@ export const ResourceDetailsPage: React.FC = () => {
   // Initialize immediately from localStorage cache
   const [resource, setResource] = useState<Resource | null>(() => (id ? resourceCache.getResource(id) : null));
   const [calls, setCalls] = useState<CallRecord[]>(() => (id ? resourceCache.getCalls(id) || [] : []));
+  const [analytics, setAnalytics] = useState<ResourceAnalyticsResponse | null>(() => (id ? resourceCache.getAnalytics(id) : null));
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (!id) return false;
     if (isReload) return true;
@@ -82,6 +83,20 @@ export const ResourceDetailsPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const fetchAnalytics = useCallback(async (force = false) => {
+    if (!id) return;
+    try {
+      const analyticsRes = await resourcesApi.getAnalytics(id, force);
+      const analyticsData = (analyticsRes as any)?.data || analyticsRes;
+      setAnalytics(analyticsData);
+      if (analyticsData) {
+        resourceCache.setAnalytics(id, analyticsData);
+      }
+    } catch {
+      // Quietly ignore analytics error
+    }
+  }, [id]);
 
   const fetchResource = useCallback(async (showLoadingSpinner = true) => {
     if (!id) return;
@@ -106,7 +121,11 @@ export const ResourceDetailsPage: React.FC = () => {
       } catch (err) {
         // Quietly fallback to empty calls list if call history endpoint is not yet mounted
         setCalls([]);
+        resourceCache.setCalls(id, []);
       }
+
+      // Fetch analytics for scans and last scan data
+      await fetchAnalytics(true);
     } catch (err: any) {
       if (!resourceCache.getResource(id)) {
         setError(err.message || 'Failed to load resource details');
@@ -114,24 +133,37 @@ export const ResourceDetailsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, fetchAnalytics]);
 
   useEffect(() => {
     if (!id) return;
 
+    const isReload = resourceCache.isPageReload();
     const cached = resourceCache.getResource(id);
+    const cachedCalls = resourceCache.getCalls(id);
+    const cachedAnalytics = resourceCache.getAnalytics(id);
+
     if (cached) {
       setResource(cached);
-      const cachedCalls = resourceCache.getCalls(id);
-      if (cachedCalls) setCalls(cachedCalls);
+      if (cachedCalls !== null) setCalls(cachedCalls);
+      if (cachedAnalytics !== null) setAnalytics(cachedAnalytics);
       setIsLoading(false);
     }
 
-    // Always fetch fresh resource from backend to reflect tag additions, changes, or removals
-    fetchResource(!cached);
+    // Always fetch analytics when opening the resource to display fresh scan counts, last scan, and visits
+    fetchAnalytics(isReload);
+
+    // Only fetch fresh resource if not cached OR if the user reloaded/refreshed the page
+    if (!cached || cachedCalls === null || isReload) {
+      fetchResource(!cached);
+      if (isReload) {
+        resourceCache.consumeReload();
+      }
+    }
 
     const handleUpdate = () => {
       fetchResource(false);
+      fetchAnalytics(true);
     };
 
     window.addEventListener('resource:updated', handleUpdate);
@@ -141,7 +173,7 @@ export const ResourceDetailsPage: React.FC = () => {
       window.removeEventListener('resource:updated', handleUpdate);
       window.removeEventListener('tag:updated', handleUpdate);
     };
-  }, [id, fetchResource]);
+  }, [id, fetchResource, fetchAnalytics]);
 
   const handleConfirmDelete = async () => {
     if (!resource) return;
@@ -160,6 +192,29 @@ export const ResourceDetailsPage: React.FC = () => {
       toast.error(err.message || 'Failed to delete resource');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const [isTogglingPause, setIsTogglingPause] = useState(false);
+
+  const handleTogglePause = async () => {
+    if (!resource) return;
+    setIsTogglingPause(true);
+    try {
+      const isCurrentlyPaused = Boolean(resource.isPaused || resource.qrTag?.isPaused);
+      if (isCurrentlyPaused) {
+        await resourcesApi.resume(resource.id);
+        toast.success('QR tag resumed successfully');
+      } else {
+        await resourcesApi.pause(resource.id);
+        toast.success('QR tag paused successfully');
+      }
+      await fetchResource(false);
+      window.dispatchEvent(new CustomEvent('resource:updated', { detail: { id: resource.id } }));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update tag status');
+    } finally {
+      setIsTogglingPause(false);
     }
   };
 
@@ -186,30 +241,62 @@ export const ResourceDetailsPage: React.FC = () => {
     }
   };
 
-  // Convert real calls to ActivityItems if they exist
+  // Convert real calls and analytics visits to ActivityItems
   const activities: ActivityItem[] = useMemo(() => {
-    if (!calls || calls.length === 0) return [];
-    return calls.map((c) => {
-      const isMsg = c.type === 'MESSAGE';
-      const isConn = c.status === 'CONNECTED' || c.status === 'COMPLETED';
-      return {
-        id: c.id || c.sessionId,
-        type: isMsg ? 'request' : 'call',
-        title: isMsg
-          ? 'Contact request via private relay'
-          : isConn
-          ? 'Call connected'
-          : 'Private relay call attempted',
-        subtitle: c.callerLastTwo
-          ? `Private relay (••• ${c.callerLastTwo}) · ${c.duration || `${c.durationSec || 0}s`}`
-          : isConn
-          ? `Connected · ${c.duration || 'Private relay'}`
-          : `Status: ${c.status}`,
-        time: formatEventTime(c.createdAt || c.incomingAt),
-        status: c.status,
-      };
-    });
-  }, [calls]);
+    const list: (ActivityItem & { rawTimestamp: number })[] = [];
+
+    if (Array.isArray(calls)) {
+      calls.forEach((c) => {
+        const isMsg = c.type === 'MESSAGE';
+        const isConn = c.status === 'CONNECTED' || c.status === 'COMPLETED';
+        const dateStr = c.createdAt || c.incomingAt || '';
+        const ts = dateStr ? new Date(dateStr).getTime() : 0;
+        list.push({
+          id: c.id || c.sessionId,
+          type: isMsg ? 'request' : 'call',
+          title: isMsg
+            ? 'Contact request via private relay'
+            : isConn
+            ? 'Call connected'
+            : 'Private relay call attempted',
+          subtitle: c.callerLastTwo
+            ? `Private relay (••• ${c.callerLastTwo}) · ${c.duration || `${c.durationSec || 0}s`}`
+            : isConn
+            ? `Connected · ${c.duration || 'Private relay'}`
+            : `Status: ${c.status}`,
+          time: formatEventTime(dateStr),
+          status: c.status,
+          rawTimestamp: isNaN(ts) ? 0 : ts,
+        });
+      });
+    }
+
+    if (Array.isArray(analytics?.recentVisits)) {
+      analytics.recentVisits.forEach((v) => {
+        const isScan = v.source === 'qr_scan';
+        const dateStr = v.createdAt || '';
+        const ts = dateStr ? new Date(dateStr).getTime() : 0;
+        const device = v.deviceType
+          ? `${v.deviceType.charAt(0).toUpperCase()}${v.deviceType.slice(1).toLowerCase()}`
+          : '';
+
+        list.push({
+          id: v.id,
+          type: isScan ? 'scan' : 'click',
+          title: isScan ? 'Sticker scanned' : 'Link opened',
+          subtitle: isScan
+            ? (device ? `Via sticker scan · ${device}` : 'Via sticker scan')
+            : (device ? `Via shared link · ${device}` : 'Via shared link'),
+          time: formatEventTime(dateStr),
+          status: 'Recorded',
+          rawTimestamp: isNaN(ts) ? 0 : ts,
+        });
+      });
+    }
+
+    // Sort descending by timestamp
+    return list.sort((a, b) => b.rawTimestamp - a.rawTimestamp);
+  }, [calls, analytics]);
 
   if (isLoading) {
     return (
@@ -258,46 +345,55 @@ export const ResourceDetailsPage: React.FC = () => {
 
         {/* 2. Active Tab Content View */}
         <div className="pt-1">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-          >
-            {activeTab === 'overview' && (
-              <ResourceOverviewTab
-                resource={resource}
-                activeTag={activeTag}
-                publicUrl={publicUrl}
-                recentActivity={activities.slice(0, 5)}
-                onNavigateToActivity={() => setActiveTab('activity')}
-                onOpenShareSheet={() => setIsShareOpen(true)}
-                onOpenPairModal={() => setIsPairModalOpen(true)}
-              />
-            )}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {activeTab === 'overview' && (
+                <ResourceOverviewTab
+                  resource={resource}
+                  activeTag={activeTag}
+                  publicUrl={publicUrl}
+                  recentActivity={activities.slice(0, 5)}
+                  isTogglingPause={isTogglingPause}
+                  onNavigateToActivity={() => setActiveTab('activity')}
+                  onOpenShareSheet={() => setIsShareOpen(true)}
+                  onOpenPairModal={() => setIsPairModalOpen(true)}
+                  onTogglePause={handleTogglePause}
+                  analytics={analytics}
+                  callsCount={calls.length}
+                />
+              )}
 
-            {activeTab === 'activity' && (
-              <ResourceActivityTab
-                events={activities}
-                resourceId={resource.id}
-              />
-            )}
+              {activeTab === 'activity' && (
+                <ResourceActivityTab
+                  events={activities}
+                  resourceId={resource.id}
+                />
+              )}
 
-            {activeTab === 'settings' && (
-              <ResourceSettingsTab
-                resource={resource}
-                activeTag={activeTag}
-                publicUrl={publicUrl}
-                copied={copied}
-                onOpenEditModal={() => setIsEditing(true)}
-                onOpenPairModal={() => setIsPairModalOpen(true)}
-                onOpenUnpairModal={() => setIsUnpairModalOpen(true)}
-                onOpenGenerateModal={() => setIsGenerateModalOpen(true)}
-                onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
-                onCopyUrl={handleCopyUrl}
-              />
-            )}
-          </motion.div>
+              {activeTab === 'settings' && (
+                <ResourceSettingsTab
+                  resource={resource}
+                  activeTag={activeTag}
+                  publicUrl={publicUrl}
+                  copied={copied}
+                  isTogglingPause={isTogglingPause}
+                  onOpenEditModal={() => setIsEditing(true)}
+                  onOpenPairModal={() => setIsPairModalOpen(true)}
+                  onOpenUnpairModal={() => setIsUnpairModalOpen(true)}
+                  onOpenGenerateModal={() => setIsGenerateModalOpen(true)}
+                  onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+                  onCopyUrl={handleCopyUrl}
+                  onTogglePause={handleTogglePause}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Modals & Slide-overs */}
@@ -365,21 +461,22 @@ export const ResourceDetailsPage: React.FC = () => {
         <Modal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
-          title="Delete resource"
+          title={`Delete ${resource.name}`}
         >
-          <div className="space-y-5">
+          <div className="space-y-4 pt-1">
             <p className="text-sm text-ink leading-relaxed">
-              Are you sure you want to delete{' '}
-              <span className="font-semibold text-ink">&ldquo;{resource.name}&rdquo;</span>?
-              This action is permanent and will immediately detach the physical tag and deactivate all public contact gateways.
+              Are you sure you want to delete <strong className="font-semibold text-ink">&ldquo;{resource.name}&rdquo;</strong>?
+            </p>
+            <p className="text-xs text-muted leading-relaxed">
+              This permanently removes the {resource.type?.toLowerCase() || 'vehicle'} and deactivates its physical sticker{activeTag ? ` (#${activeTag})` : ''}. Anyone who scans the sticker will see an inactive tag page instead of reaching you. You can re-link the sticker to another {resource.type?.toLowerCase() || 'vehicle'} later.
             </p>
 
-            <div className="flex items-center justify-end gap-2.5 pt-1">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
               <button
                 type="button"
                 onClick={() => setIsDeleteModalOpen(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-xs font-semibold rounded-xs border border-border bg-surface hover:bg-bg text-muted hover:text-ink transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium rounded-xs border border-border bg-surface hover:bg-bg text-muted hover:text-ink transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -387,10 +484,9 @@ export const ResourceDetailsPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 text-xs font-semibold rounded-xs bg-danger text-white hover:opacity-90 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 text-xs font-medium rounded-xs bg-danger text-white hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>{isDeleting ? 'Deleting...' : 'Delete resource'}</span>
+                {isDeleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>

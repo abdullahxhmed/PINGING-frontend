@@ -179,6 +179,221 @@ export interface ConsolidatedTagCounts {
   totalPhysicalTags: number; // Total physical tags generated
 }
 
+export interface AdminTelephonySummary {
+  period: string;
+  startsAt: string;
+  endsAt: string;
+  totalPlatformMinutesThisMonth: number;
+  totalActualMinutesThisMonth: number;
+  totalCallsThisMonth: number;
+  connectedCallsThisMonth: number;
+  carrierCost: {
+    provider: string;
+    ratePerMinuteRupees: number;
+    gstPercent: number;
+    rateWithGstRupees: number;
+    estimatedCostPaise: number;
+    estimatedCostRupees: number;
+    effectiveCostPaise: number;
+    effectiveCostRupees: number;
+  };
+  subscriptionRevenue: {
+    collectedRevenueRupees: number;
+    refundedRupees: number;
+    grossRevenueRupees: number;
+    netRevenueRupees: number;
+  };
+  margin: {
+    telephonyMarginRupees: number;
+    telephonyMarginPercent: number | null;
+    telecomCostRatioPercent: number | null;
+  };
+  fupOversight: {
+    thresholdMinutes: number;
+    thresholdSeconds: number;
+    usersExceedingFupCount: number;
+    totalActiveUsersWithCalls: number;
+    fupExceedRatioPercent: number;
+  };
+  callDurationOversight: {
+    averageDurationSeconds: number;
+    averageDurationMinutes: number;
+    averageDurationFormatted: string;
+    p50DurationSeconds: number;
+    p90DurationSeconds: number;
+    maxDurationSeconds: number;
+    maxDurationFormatted: string;
+    hardCapMinutes: number;
+    hardCapSeconds: number;
+    callsExceeding10MinCount: number;
+    isWithin10MinCap: boolean;
+    complianceStatus: 'COMPLIANT' | 'CAP_EXCEEDED';
+  };
+}
+
+export interface AdminTelephonyFupUser {
+  userId: string;
+  userName: string;
+  totalCalls: number;
+  connectedCalls: number;
+  actualMinutes: number;
+  billedMinutes: number;
+  effectiveCostRupees: number;
+  excessMinutes: number;
+}
+
+export interface AdminTelephonyUsageSection {
+  totalCalls: number;
+  connectedCalls: number;
+  missedCalls: number;
+  actualTalkTimeSeconds: number;
+  actualTalkTimeMinutes: number;
+  actualTalkTimeFormatted: string;
+  averageCallDurationSeconds: number;
+  averageCallDurationFormatted: string;
+  longestCallSeconds: number;
+  longestCallFormatted: string;
+  totalSessions: number;
+  p50DurationSeconds: number;
+  p90DurationSeconds: number;
+}
+
+export interface AdminTelephonyFinancialsSection {
+  estimatedCarrierCostPaise: number;
+  estimatedCarrierCostRupees: number;
+  actualCarrierCostPaise: number;
+  actualCarrierCostRupees: number;
+  effectiveCarrierCostPaise: number;
+  effectiveCarrierCostRupees: number;
+  hasActualCarrierBillingData: boolean;
+  subscriptionRevenuePaise: number;
+  subscriptionRevenueRupees: number;
+  grossSubscriptionRevenuePaise: number;
+  grossSubscriptionRevenueRupees: number;
+  costPerActiveSubscriberPaise: number;
+  costPerActiveSubscriberRupees: number;
+  grossContributionPaise: number;
+  grossContributionRupees: number;
+  grossContributionMarginPercent: number | null;
+  activeSubscribersCount: number;
+  carrierRatePerMinuteRupees: number;
+  carrierGstPercent: number;
+  effectiveCarrierRateRupees: number;
+}
+
+export interface AdminTelephonyApproachingUser {
+  userId: string;
+  userName: string;
+  totalCalls: number;
+  connectedCalls: number;
+  actualMinutes: number;
+  billedMinutes: number;
+  effectiveCostRupees: number;
+  remainingSeconds: number;
+}
+
+export interface AdminTelephonyLimitsSection {
+  fupThresholdMinutes: number;
+  fupThresholdSeconds: number;
+  usersExceedingFupCount: number;
+  usersApproachingFupCount: number;
+  callsExceeding10MinCount: number;
+  isWithin10MinCap: boolean;
+  totalMinutesConsumed: number;
+  totalActualMinutesConsumed: number;
+  expectedUsageMinutes: number;
+  consumptionRatioPercent: number | null;
+  totalActiveUsersWithCalls: number;
+  usersExceedingFup: AdminTelephonyFupUser[];
+  usersApproachingFup: AdminTelephonyApproachingUser[];
+}
+
+export interface AdminTelephonyOverviewResponse {
+  period: {
+    name: 'this_month' | 'last_month' | 'last_30d' | 'all_time' | string;
+    label: string;
+    startsAt: string;
+    endsAt: string;
+  };
+  usage: AdminTelephonyUsageSection;
+  financials: AdminTelephonyFinancialsSection;
+  usageLimits: AdminTelephonyLimitsSection;
+  summary: AdminTelephonySummary;
+  totalPlatformMinutesThisMonth: number;
+  totalActualMinutesThisMonth: number;
+  estimatedCarrierCostRupees: number;
+  effectiveCarrierCostRupees: number;
+  subscriptionRevenueRupees: number;
+  grossSubscriptionRevenueRupees: number;
+  telephonyMarginRupees: number;
+  usersExceedingFupCount: number;
+  usersApproachingFupCount?: number;
+  averageCallDurationSeconds: number;
+  averageCallDurationFormatted: string;
+  maxCallDurationSeconds: number;
+  callsExceeding10MinCount: number;
+  isWithin10MinCap: boolean;
+  usersExceedingFup: AdminTelephonyFupUser[];
+  usersApproachingFup?: AdminTelephonyApproachingUser[];
+  providerConfig: {
+    provider: string;
+    ratePerMinutePaise: number;
+    billingIncrementSeconds: number;
+    minimumBillableSeconds: number;
+    gstRate: number;
+  };
+  metrics: {
+    totalCalls: number;
+    connectedCalls: number;
+    failedCalls: number;
+    actualCallMinutes: number;
+    actualCallSeconds: number;
+    billedCallMinutes: number;
+    billedCallSeconds: number;
+    averageDurationSeconds: number;
+    p50DurationSeconds: number;
+    p90DurationSeconds: number;
+    maxDurationSeconds: number;
+    callsExceeding10MinCount: number;
+    isWithin10MinCap: boolean;
+  };
+  expenditure: {
+    providerReportedCostPaise: number;
+    providerReportedCostRupees: number;
+    estimatedCostPaise: number;
+    estimatedCostRupees: number;
+    effectiveCostPaise: number;
+    effectiveCostRupees: number;
+    costSource: string;
+  };
+  unitEconomics: {
+    activeSubscribers: number;
+    activeTags: number;
+    costPerActiveSubscriberPaise: number;
+    costPerActiveSubscriberRupees: number;
+    costPerActiveTagPaise: number;
+    costPerActiveTagRupees: number;
+  };
+  revenueComparison: {
+    collectedRevenuePaise: number;
+    collectedRevenueRupees: number;
+    refundedPaise: number;
+    refundedRupees: number;
+    applicableGstPaise: number;
+    applicableGstRupees: number;
+    gatewayFeePaise: number;
+    gatewayFeeRupees: number;
+    netRevenuePaise: number;
+    netRevenueRupees: number;
+    effectiveTelephonyCostPaise: number;
+    effectiveTelephonyCostRupees: number;
+    telecomMarginPaise: number;
+    telecomMarginRupees: number;
+    telecomCostRatioPercent: number | null;
+  };
+  highUsageAccounts: any[];
+}
+
 export interface AdminOverviewResponse {
   meta: OverviewMeta;
   sales: OverviewSalesMetrics;
