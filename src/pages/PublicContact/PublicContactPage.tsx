@@ -889,7 +889,7 @@ export const PublicContactPage: React.FC = () => {
                                 </span>
                               )}
 
-                              {(callStatus === 'COMPLETED' || callStatus === 'MISSED') ? (
+                              {(callStatus === 'COMPLETED' || callStatus === 'MISSED') && (
                                 <div className="flex items-center gap-2.5">
                                   {callStatus === 'MISSED' && (
                                     <button
@@ -911,14 +911,6 @@ export const PublicContactPage: React.FC = () => {
                                     {callStatus === 'COMPLETED' ? t.btn_call_again : t.btn_retry}
                                   </button>
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={handleResetCall}
-                                  className="text-red-400 hover:text-red-300 font-sans text-xs font-semibold tracking-wider uppercase transition-colors cursor-pointer"
-                                >
-                                  {t.btn_end_call}
-                                </button>
                               )}
                             </div>
                           </motion.div>
