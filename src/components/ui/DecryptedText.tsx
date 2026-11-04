@@ -3,65 +3,117 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 interface DecryptedTextProps {
   text: string;
   className?: string;
+  encryptedClassName?: string;
   animateOn?: 'hover' | 'view';
   speed?: number;
   maxIterations?: number;
   characters?: string;
+  reanimateOnHover?: boolean;
 }
 
-const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#';
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
 
 export const DecryptedText: React.FC<DecryptedTextProps> = ({
   text,
   className = '',
+  encryptedClassName = '',
   animateOn = 'view',
-  speed = 60,
-  maxIterations = 10,
+  speed = 35,
+  maxIterations = 14,
   characters = CHARS,
+  reanimateOnHover = true,
 }) => {
-  const [displayText, setDisplayText] = useState(text);
-  const [hasAnimated, setHasAnimated] = useState(false);
+  const [revealedCount, setRevealedCount] = useState<number>(text.length);
+  const [scrambledChars, setScrambledChars] = useState<string[]>(() => text.split(''));
+  const [isAnimating, setIsAnimating] = useState(false);
+  const hasAnimatedOnceRef = useRef(false);
   const ref = useRef<HTMLSpanElement>(null);
-  const frameRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const animate = useCallback(() => {
-    if (hasAnimated) return;
+  const startAnimation = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsAnimating(true);
     let iteration = 0;
-    const interval = setInterval(() => {
-      setDisplayText(
+    const step = Math.max(1, Math.ceil(text.length / maxIterations));
+
+    intervalRef.current = setInterval(() => {
+      iteration += step;
+      setRevealedCount(iteration);
+      setScrambledChars(
         text.split('').map((char, idx) => {
           if (char === ' ') return ' ';
-          if (idx < iteration) return text[idx];
+          if (idx < iteration) return char;
           return characters[Math.floor(Math.random() * characters.length)];
-        }).join('')
+        })
       );
+
       if (iteration >= text.length) {
-        clearInterval(interval);
-        setDisplayText(text);
-        setHasAnimated(true);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        setRevealedCount(text.length);
+        setScrambledChars(text.split(''));
+        setIsAnimating(false);
+        hasAnimatedOnceRef.current = true;
       }
-      iteration += text.length / maxIterations;
     }, speed);
-    frameRef.current = interval;
-  }, [text, hasAnimated, speed, maxIterations, characters]);
+  }, [text, speed, maxIterations, characters]);
 
   useEffect(() => {
     if (animateOn !== 'view') return;
     const el = ref.current;
     if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { animate(); observer.disconnect(); }
-    }, { threshold: 0.3 });
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimatedOnceRef.current) {
+          startAnimation();
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
     observer.observe(el);
+
     return () => {
       observer.disconnect();
-      if (frameRef.current) clearInterval(frameRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [animateOn, animate]);
+  }, [animateOn, startAnimation]);
+
+  const handleMouseEnter = () => {
+    if (animateOn === 'hover' || (reanimateOnHover && !isAnimating)) {
+      startAnimation();
+    }
+  };
 
   return (
-    <span ref={ref} className={className} onMouseEnter={animateOn === 'hover' ? animate : undefined}>
-      {displayText}
+    <span
+      ref={ref}
+      className={className}
+      onMouseEnter={handleMouseEnter}
+      aria-label={text}
+    >
+      {text.split('').map((char, idx) => {
+        const isRevealed = idx < revealedCount;
+        const displayChar = scrambledChars[idx] ?? char;
+
+        if (char === ' ') {
+          return <span key={idx}> </span>;
+        }
+
+        return (
+          <span
+            key={idx}
+            className={
+              !isRevealed && isAnimating && encryptedClassName
+                ? encryptedClassName
+                : undefined
+            }
+          >
+            {displayChar}
+          </span>
+        );
+      })}
     </span>
   );
 };

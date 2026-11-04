@@ -27,7 +27,26 @@ export const HeroRecreation: React.FC = () => {
   const [isCallAnswered, setIsCallAnswered] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
   const [alertSent, setAlertSent] = useState(false);
+  const [doodleReady, setDoodleReady] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Reveal doodle sticker after page has completely loaded and settled
+    if (document.readyState === 'complete') {
+      const timer = window.setTimeout(() => setDoodleReady(true), 600);
+      return () => clearTimeout(timer);
+    } else {
+      const onWindowLoad = () => {
+        window.setTimeout(() => setDoodleReady(true), 350);
+      };
+      window.addEventListener('load', onWindowLoad, { once: true });
+      const fallback = window.setTimeout(() => setDoodleReady(true), 850);
+      return () => {
+        window.removeEventListener('load', onWindowLoad);
+        clearTimeout(fallback);
+      };
+    }
+  }, []);
 
   // Timers tracker to prevent orphaned setTimeouts
   const timers = useRef<number[]>([]);
@@ -118,7 +137,16 @@ export const HeroRecreation: React.FC = () => {
   ];
 
   return (
-    <section className="relative min-h-[92svh] flex flex-col items-center justify-center bg-[#F4F3EE] border-b border-[#D8D5CC] overflow-hidden select-none pt-6 pb-12 sm:pt-8 sm:pb-16 px-4 sm:px-6">
+    <section className="relative min-h-[92svh] flex flex-col items-center justify-start bg-[#F4F3EE] border-b border-[#D8D5CC] overflow-hidden select-none pt-4 sm:pt-8 md:pt-10 pb-12 sm:pb-16 px-4 sm:px-6">
+      {/* ── LAYER 0: Ambient Depth Light Glow (Centered behind 3D demo) ── */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[38%] w-[560px] sm:w-[740px] h-[560px] sm:h-[740px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(215, 255, 63, 0.12) 0%, rgba(237, 236, 230, 0.45) 42%, rgba(244, 243, 238, 0) 72%)',
+          filter: 'blur(55px)',
+        }}
+      />
+
       {/* TargetCursor active only when a fine pointer exists */}
       {canHover && heroState === 'idle' && (
         <TargetCursor
@@ -132,18 +160,90 @@ export const HeroRecreation: React.FC = () => {
         />
       )}
 
-      {/* ── HERO HEADLINE (Above Demo) ── */}
-      <div className="relative z-10 flex flex-col items-center max-w-3xl mx-auto w-full text-center mb-5 sm:mb-7 px-2">
-        <h1 className="font-display font-medium text-[clamp(2.1rem,5.5vw,3.75rem)] text-ink tracking-tight leading-[1.08]">
-          Private contact tags for your car, door and keys.
+      {/* ── HERO HEADLINE & WORDPLAY (Above Demo) ── */}
+      <div className="relative z-10 flex flex-col items-center max-w-3xl mx-auto w-full text-center mb-6 sm:mb-8 px-3">
+
+        {/* Headline with quirky wordplay on Kauntactable */}
+        <h1 className="font-display font-medium text-[clamp(2.4rem,6vw,4.25rem)] text-ink tracking-tight leading-[1.06]">
+          Make it{' '}
+          <span className="relative inline-block group cursor-default" style={{ perspective: 1200 }}>
+            {/* Quirky tilted vinyl sticker backdrop - flies in from towards user and slaps down */}
+            <motion.span
+              initial={{
+                opacity: 0,
+                scale: 3.2,
+                rotate: -14,
+                y: -36,
+                filter: 'blur(10px)',
+              }}
+              animate={
+                doodleReady
+                  ? {
+                      opacity: 1,
+                      scale: 1,
+                      rotate: -1,
+                      y: 0,
+                      filter: 'blur(0px)',
+                    }
+                  : {
+                      opacity: 0,
+                      scale: 3.2,
+                      rotate: -14,
+                      y: -36,
+                      filter: 'blur(10px)',
+                    }
+              }
+              transition={{
+                type: 'spring',
+                stiffness: 320,
+                damping: 18,
+                mass: 0.85,
+              }}
+              whileHover={{ rotate: [-1, 2.5, -1], scale: 1.05 }}
+              className="relative z-10 inline-block px-2.5 sm:px-3.5 py-0.5 rounded-md bg-[#D7FF3F] text-ink border border-[#11110F] shadow-[2px_3px_0px_0px_#11110F] -rotate-1 select-all origin-center"
+            >
+              kauntact'able.
+            </motion.span>
+
+            {/* Subtle squiggly hand-drawn doodle accent underneath, drawing in as the sticker lands */}
+            <svg
+              className="absolute -bottom-2.5 left-0 w-full h-3 text-[#11110F] overflow-visible pointer-events-none"
+              viewBox="0 0 200 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <motion.path
+                d="M2 7C45 2 120 1 198 8C160 5 80 4 3 10"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={
+                  doodleReady
+                    ? { pathLength: 1, opacity: 0.85 }
+                    : { pathLength: 0, opacity: 0 }
+                }
+                transition={{
+                  delay: 0.32,
+                  duration: 0.45,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              />
+            </svg>
+          </span>
         </h1>
+
+        {/* Subheading requested by user */}
+        <p className="font-satoshi text-base sm:text-lg lg:text-xl text-[#5A5850] max-w-xl mx-auto leading-relaxed mt-6 sm:mt-8 font-normal">
+          Tags that help people get in touch with you while staying private.
+        </p>
       </div>
 
       <div className="relative z-10 flex flex-col items-center max-w-4xl mx-auto w-full text-center">
         {/* 3D Stage Container */}
         <div
           ref={stageRef}
-          className="relative flex flex-col items-center justify-center w-full"
+          className="relative flex flex-col items-center justify-center w-full py-4"
           style={{ perspective: 1200 }}
         >
           <AnimatePresence mode="wait">
@@ -152,7 +252,39 @@ export const HeroRecreation: React.FC = () => {
               <motion.div
                 key="qr-plate-container"
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                animate={
+                  heroState === 'idle'
+                    ? {
+                        opacity: 1,
+                        scale: 1,
+                        y: [-5, 5, -5],
+                        rotateX: [7, 11, 7],
+                        rotateY: [-8, -3, -8],
+                        rotateZ: [0.6, -0.6, 0.6],
+                      }
+                    : heroState === 'scanning' || heroState === 'tag_found'
+                    ? {
+                        opacity: 1,
+                        scale: 1.02,
+                        y: 0,
+                        rotateX: 0,
+                        rotateY: 0,
+                        rotateZ: 0,
+                      }
+                    : { opacity: 1, scale: 1, y: 0, rotateX: 0, rotateY: 0, rotateZ: 0 }
+                }
+                transition={
+                  heroState === 'idle'
+                    ? {
+                        y: { duration: 4.8, repeat: Infinity, ease: 'easeInOut' },
+                        rotateX: { duration: 5.6, repeat: Infinity, ease: 'easeInOut' },
+                        rotateY: { duration: 5.2, repeat: Infinity, ease: 'easeInOut' },
+                        rotateZ: { duration: 6.2, repeat: Infinity, ease: 'easeInOut' },
+                        opacity: { duration: 0.4 },
+                        scale: { duration: 0.4 },
+                      }
+                    : { duration: 0.3 }
+                }
                 exit={{
                   opacity: 0,
                   scale: 0.88,
@@ -160,30 +292,79 @@ export const HeroRecreation: React.FC = () => {
                   y: -20,
                   transition: { duration: 0.45, ease: [0.32, 0.72, 0, 1] },
                 }}
+                style={{
+                  transformStyle: 'preserve-3d',
+                }}
                 className="flex flex-col items-center"
               >
-                <button
+                {/* Physical 3D Plate with 6mm Extrusion & Autonomous Specular Sheen */}
+                <motion.button
                   type="button"
                   aria-label="Scan demo tag"
                   onClick={handleQrClick}
-                  className={`cursor-target relative p-6 sm:p-8 bg-[#F4F3EE] rounded-3xl border border-[#11110F]/15 ring-1 ring-[#11110F]/5 shadow-[0_24px_55px_-12px_rgba(17,17,15,0.14),0_10px_22px_-6px_rgba(17,17,15,0.07)] transition-all duration-300 text-left outline-none focus-visible:ring-2 focus-visible:ring-ink ${
+                  whileTap={{
+                    scale: 0.95,
+                    y: 4,
+                    transition: { duration: 0.1 },
+                  }}
+                  style={{
+                    transformStyle: 'preserve-3d',
+                    boxShadow: `
+                      0 1px 0 #D8D6CC,
+                      0 2px 0 #D0CEC2,
+                      0 3px 0 #C8C6B8,
+                      0 4px 0 #BEBCAD,
+                      0 5px 0 #B4B2A3,
+                      0 6px 0 #A8A697,
+                      0 24px 50px -10px rgba(17, 17, 15, 0.22),
+                      0 10px 22px -5px rgba(17, 17, 15, 0.12)
+                    `,
+                  }}
+                  className={`cursor-target relative p-6 sm:p-8 bg-[#F4F3EE] rounded-3xl border border-[#11110F]/18 transition-all duration-200 text-left outline-none focus-visible:ring-2 focus-visible:ring-ink group cursor-pointer overflow-hidden ${
                     heroState === 'scanning' || heroState === 'tag_found'
-                      ? 'border-[#11110F] ring-[#11110F] scale-[1.02] shadow-[0_32px_75px_-12px_rgba(17,17,15,0.22),0_14px_30px_-6px_rgba(17,17,15,0.1)]'
-                      : 'hover:border-[#11110F] hover:-translate-y-1 hover:shadow-[0_30px_65px_-12px_rgba(17,17,15,0.18),0_12px_26px_-6px_rgba(17,17,15,0.09)]'
-                  } group cursor-pointer`}
+                      ? 'border-[#11110F]'
+                      : 'hover:border-[#11110F]'
+                  }`}
                 >
+                  {/* Autonomous Specular Sheen Sweep (Glides across every 3.5s without requiring touch) */}
+                  <motion.div
+                    animate={{
+                      x: ['-140%', '240%'],
+                    }}
+                    transition={{
+                      repeat: Infinity,
+                      repeatDelay: 3.2,
+                      duration: 1.5,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                    className="absolute inset-0 -skew-x-12 pointer-events-none z-30"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 20%, rgba(255,255,255,0.48) 50%, rgba(255,255,255,0.02) 80%, transparent 100%)',
+                      mixBlendMode: 'overlay',
+                    }}
+                  />
+
+                  {/* Physical Chamfered Specular Bevel Highlights */}
+                  <div className="absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 to-transparent pointer-events-none rounded-t-3xl" />
+                  <div className="absolute inset-1 rounded-[22px] border border-white/50 pointer-events-none" />
+
                   {/* Top brand header on physical plate */}
-                  <div className="flex items-center justify-between gap-6 mb-5 px-1">
-                    <PingInSvgLogo height={14} className="text-[#11110F] opacity-30" />
+                  <div className="flex items-center justify-between gap-6 mb-5 px-1 relative z-10">
+                    <PingInSvgLogo height={14} className="text-[#11110F] opacity-40" />
                     <div>
-                      <span className="text-[10px] font-mono font-bold text-[#6E6B62]">
+                      <span className="text-[10px] font-mono font-bold text-[#6E6B62] tracking-wider">
                         TAG #KT-4421
                       </span>
                     </div>
                   </div>
 
-                  {/* QR Core Container with Scan Viewport */}
-                  <div className="relative bg-white p-3.5 sm:p-4.5 rounded-2xl border border-[#11110F]/20 overflow-hidden shadow-2xs w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] aspect-square flex items-center justify-center">
+                  {/* QR Core Container with Inset Debossed Bed */}
+                  <div
+                    className="relative bg-white p-3.5 sm:p-4.5 rounded-2xl border border-[#11110F]/20 overflow-hidden w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] aspect-square flex items-center justify-center relative z-10"
+                    style={{
+                      boxShadow: 'inset 0 2px 4px rgba(17, 17, 15, 0.08), inset 0 1px 2px rgba(17, 17, 15, 0.05), 0 1px 0 rgba(255, 255, 255, 0.85)',
+                    }}
+                  >
                     <div className="w-full h-full flex items-center justify-center">
                       <PingInQrCode
                         value="https://kauntact.com/t/demo"
@@ -256,7 +437,26 @@ export const HeroRecreation: React.FC = () => {
                       />
                     )}
                   </div>
-                </button>
+                </motion.button>
+
+                {/* Synchronized Ambient 3D Floor Contact Shadow */}
+                <motion.div
+                  animate={
+                    heroState === 'idle'
+                      ? {
+                          scaleX: [0.94, 1.06, 0.94],
+                          scaleY: [0.92, 1.08, 0.92],
+                          opacity: [0.65, 0.85, 0.65],
+                        }
+                      : { scaleX: 1, scaleY: 1, opacity: 0.8 }
+                  }
+                  transition={{
+                    duration: 4.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                  className="w-[200px] sm:w-[240px] h-4 rounded-full bg-[#11110F]/[0.16] blur-md mx-auto -mt-1.5 pointer-events-none"
+                />
 
                 <p className="mt-3.5 text-xs sm:text-sm font-sans text-[#3A3A36]/80 tracking-wide">
                   {canHover ? 'Click the tag to scan' : 'Tap the tag to scan'}
@@ -545,6 +745,9 @@ export const HeroRecreation: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Smartphone Physical Contact Ground Shadow */}
+                <div className="w-[260px] sm:w-[300px] h-4 rounded-full bg-[#11110F]/[0.18] blur-lg mx-auto -mt-2 pointer-events-none" />
+
                 {/* Inline Reset Demo link below phone */}
                 <button
                   type="button"
@@ -562,7 +765,7 @@ export const HeroRecreation: React.FC = () => {
         <div className="mt-6 sm:mt-8 flex items-center justify-center w-full">
           <Link
             to="/shop"
-            className="inline-flex items-center justify-center px-6 py-3 bg-accent hover:bg-accent-hover text-ink rounded-sm text-[15px] font-sans font-medium transition-all shadow-xs auto-width"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#11110F] hover:bg-[#252522] text-[#F4F3EE] rounded-sm text-[15px] font-sans font-medium transition-all shadow-xs hover:shadow-sm active:scale-[0.98] auto-width"
           >
             <span>Get your tags</span>
           </Link>

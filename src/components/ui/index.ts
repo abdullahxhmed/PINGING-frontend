@@ -13,3 +13,5 @@ export * from './Card';
 export * from './ConnectionMotif';
 export * from './TargetCursor';
 export * from './DelayedSpinner';
+export * from './DecryptedText';
+export * from './SplitText';
